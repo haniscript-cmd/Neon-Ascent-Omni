@@ -243,6 +243,7 @@ const FINE_TUNE_SLIDERS: Array<{
 ];
 
 export default function App() {
+  const containerRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const audioRef = useRef<OmniAudioEngine>(new OmniAudioEngine());
 
@@ -399,6 +400,7 @@ export default function App() {
     highestPlatformY: number;
     styleMeter: number;
     camY: number;
+    viewH: number;
     gameTime: number;
     hitstop: number;
     shake: number;
@@ -460,6 +462,7 @@ export default function App() {
     highestPlatformY: 782,
     styleMeter: 0,
     camY: 0,
+    viewH: 800,
     gameTime: 0,
     hitstop: 0,
     shake: 0,
@@ -602,13 +605,60 @@ export default function App() {
   useEffect(() => {
     simRef.current.isMuted = isMuted;
     if (audioRef.current.masterGain && audioRef.current.ctx) {
+      const t = audioRef.current.ctx.currentTime;
+      audioRef.current.masterGain.gain.cancelScheduledValues(t);
       audioRef.current.masterGain.gain.setTargetAtTime(
-        isMuted ? 0 : Math.min(1.65, cfg.volMaster * 1.65),
-        audioRef.current.ctx.currentTime,
+        isMuted ? 0 : Math.min(0.92, cfg.volMaster * 0.92),
+        t,
         0.05
       );
     }
   }, [isMuted, cfg.volMaster]);
+
+  // Dynamic 1:1 Square-Pixel Canvas Height Matching (eliminates vertical stretching on tall phones)
+  useEffect(() => {
+    const syncViewportAspect = () => {
+      const el = containerRef.current;
+      const cvs = canvasRef.current;
+      if (!el || !cvs) return;
+      const rect = el.getBoundingClientRect();
+      if (rect.width <= 0 || rect.height <= 0) return;
+
+      const nextViewH = Math.max(
+        640,
+        Math.min(1600, Math.round(600 * (rect.height / rect.width)))
+      );
+      if (cvs.height !== nextViewH) {
+        cvs.height = nextViewH;
+      }
+      const sim = simRef.current;
+      const prevViewH = sim.viewH || 800;
+      if (prevViewH !== nextViewH) {
+        sim.viewH = nextViewH;
+        if (sim.state !== 'playing') {
+          sim.camY = 800 - nextViewH;
+        } else {
+          sim.camY += prevViewH - nextViewH;
+        }
+      }
+    };
+
+    syncViewportAspect();
+    const ro =
+      typeof ResizeObserver !== 'undefined'
+        ? new ResizeObserver(() => syncViewportAspect())
+        : null;
+    if (ro && containerRef.current) {
+      ro.observe(containerRef.current);
+    }
+    window.addEventListener('resize', syncViewportAspect);
+    window.addEventListener('orientationchange', syncViewportAspect);
+    return () => {
+      if (ro) ro.disconnect();
+      window.removeEventListener('resize', syncViewportAspect);
+      window.removeEventListener('orientationchange', syncViewportAspect);
+    };
+  }, []);
 
   const getScaleByIndex = useCallback((idx: number, currentCfg: GameConfig): ScaleBiome => {
     const order = simRef.current.biomeOrder;
@@ -802,7 +852,7 @@ export default function App() {
           ? compileStageForGameplay(sim.activeStage, sim.combo)
           : [];
 
-      while (lastY > minY - 380) {
+      while (lastY > minY - Math.max(420, sim.viewH * 0.55)) {
         const diff = computeFlowDynamicDifficulty(sim.flowEnergy, fine);
         sim.platformsGeneratedCount++;
 
@@ -1082,6 +1132,19 @@ export default function App() {
         audioRef.current.resume();
       }
 
+      if (fromUserGesture && window.innerWidth < 768) {
+        const docEl = document.documentElement as HTMLElement & {
+          webkitRequestFullscreen?: () => Promise<void>;
+        };
+        if (!document.fullscreenElement) {
+          if (docEl.requestFullscreen) {
+            docEl.requestFullscreen({ navigationUI: 'hide' }).catch(() => {});
+          } else if (docEl.webkitRequestFullscreen) {
+            docEl.webkitRequestFullscreen().catch(() => {});
+          }
+        }
+      }
+
       const fine = sim.cfg.fineTune || DEFAULT_FINE_TUNE;
       const charPerks = getCharacterById(sim.cfg.playerShape).perks;
 
@@ -1111,7 +1174,7 @@ export default function App() {
       sim.timeSinceLastClimb = 0;
       sim.highestPlatformY = 782;
       sim.styleMeter = 0;
-      sim.camY = 0;
+      sim.camY = 800 - (sim.viewH || 800);
       sim.gameTime = 0;
       sim.hitstop = 0;
       sim.shake = 0;
@@ -1289,7 +1352,7 @@ export default function App() {
       sim.shockwaves = [];
       sim.texts.forEach((t) => (t.active = false));
 
-      generateWorldUpTo(-400);
+      generateWorldUpTo(sim.camY - 450);
 
       if (document.activeElement instanceof HTMLElement) {
         document.activeElement.blur();
@@ -1379,10 +1442,52 @@ export default function App() {
       sim.inputs.dashJustPressed = false;
     };
 
+    let lastAccelTime = 0;
+    let smoothedRawTilt = 0;
+
+    // Primary Low-Latency Hardware Gravity Sensor (60Hz direct accelerometer on Android)
+    const onDeviceMotion = (e: DeviceMotionEvent) => {
+      const sim = simRef.current;
+      if (sim.cfg.tiltControlEnabled === false) {
+        sim.inputs.tiltX = 0;
+        return;
+      }
+      const ag = e.accelerationIncludingGravity;
+      if (!ag || typeof ag.x !== 'number') return;
+
+      lastAccelTime = performance.now();
+      const angle =
+        typeof window.screen?.orientation?.angle === 'number'
+          ? window.screen.orientation.angle
+          : 0;
+      let rawG = -ag.x;
+      if (angle === 90 && typeof ag.y === 'number') rawG = ag.y;
+      else if ((angle === -90 || angle === 270) && typeof ag.y === 'number') rawG = -ag.y;
+
+      // Fast 1-frame responsiveness with minimal anti-jitter blend
+      smoothedRawTilt = smoothedRawTilt * 0.2 + rawG * 0.8;
+
+      const deadzoneG = 0.14; // ~0.8 deg micro-deadzone
+      const maxG = 2.15; // Full speed at ~12.5 deg comfortable wrist tilt
+      if (Math.abs(smoothedRawTilt) <= deadzoneG) {
+        sim.inputs.tiltX = 0;
+      } else {
+        const sign = smoothedRawTilt > 0 ? 1 : -1;
+        const linear = Math.min(1, (Math.abs(smoothedRawTilt) - deadzoneG) / (maxG - deadzoneG));
+        // Non-linear curve boosts small-to-medium tilt angles for instant response
+        const curved = Math.pow(linear, 0.72);
+        sim.inputs.tiltX = Number((sign * curved).toFixed(3));
+      }
+    };
+
+    // Fallback Orientation Sensor (used only if hardware devicemotion is unavailable)
     const onDeviceOrientation = (e: DeviceOrientationEvent) => {
       const sim = simRef.current;
       if (sim.cfg.tiltControlEnabled === false) {
         sim.inputs.tiltX = 0;
+        return;
+      }
+      if (performance.now() - lastAccelTime < 160) {
         return;
       }
       const angle =
@@ -1393,44 +1498,29 @@ export default function App() {
       if (angle === 90 && e.beta !== null) rawDeg = e.beta;
       else if (angle === -90 || angle === 270) rawDeg = -(e.beta ?? 0);
 
-      const deadzoneDeg = 3.2;
-      const maxTiltDeg = 22.0;
+      const deadzoneDeg = 0.8;
+      const maxTiltDeg = 12.0;
       if (Math.abs(rawDeg) <= deadzoneDeg) {
         sim.inputs.tiltX = 0;
       } else {
         const sign = rawDeg > 0 ? 1 : -1;
-        const norm = Math.min(1, (Math.abs(rawDeg) - deadzoneDeg) / (maxTiltDeg - deadzoneDeg));
-        sim.inputs.tiltX = Number((sign * norm).toFixed(3));
-      }
-    };
-
-    const onDeviceMotion = (e: DeviceMotionEvent) => {
-      const sim = simRef.current;
-      if (sim.cfg.tiltControlEnabled === false) return;
-      const accX = e.accelerationIncludingGravity?.x;
-      if (typeof accX === 'number' && Math.abs(sim.inputs.tiltX) < 0.01) {
-        const rawTilt = -accX;
-        const deadzone = 0.65;
-        const maxAcc = 4.2;
-        if (Math.abs(rawTilt) > deadzone) {
-          const sign = rawTilt > 0 ? 1 : -1;
-          const norm = Math.min(1, (Math.abs(rawTilt) - deadzone) / (maxAcc - deadzone));
-          sim.inputs.tiltX = Number((sign * norm).toFixed(3));
-        }
+        const linear = Math.min(1, (Math.abs(rawDeg) - deadzoneDeg) / (maxTiltDeg - deadzoneDeg));
+        const curved = Math.pow(linear, 0.72);
+        sim.inputs.tiltX = Number((sign * curved).toFixed(3));
       }
     };
 
     window.addEventListener('keydown', onKeyDown);
     window.addEventListener('keyup', onKeyUp);
     window.addEventListener('blur', clearInputs);
-    window.addEventListener('deviceorientation', onDeviceOrientation);
-    window.addEventListener('devicemotion', onDeviceMotion);
+    window.addEventListener('devicemotion', onDeviceMotion, { passive: true });
+    window.addEventListener('deviceorientation', onDeviceOrientation, { passive: true });
     return () => {
       window.removeEventListener('keydown', onKeyDown);
       window.removeEventListener('keyup', onKeyUp);
       window.removeEventListener('blur', clearInputs);
-      window.removeEventListener('deviceorientation', onDeviceOrientation);
       window.removeEventListener('devicemotion', onDeviceMotion);
+      window.removeEventListener('deviceorientation', onDeviceOrientation);
     };
   }, [startNewRun]);
 
@@ -1608,7 +1698,8 @@ export default function App() {
           p.damageGlitchTimer = 0.4;
 
           // Follow player downward keeping them centered vertically on screen!
-          const targetFallCamY = p.y - 388;
+          const centerOffsetY = (sim.viewH || 800) * 0.485;
+          const targetFallCamY = p.y - centerOffsetY;
           sim.camY += (targetFallCamY - sim.camY) * Math.min(1, dt * 16);
 
           p.trail.push({
@@ -1625,7 +1716,7 @@ export default function App() {
 
             // Snap to exact center of screen & burst into 96 sparkling glitters!
             p.x = 288;
-            p.y = sim.camY + 388;
+            p.y = sim.camY + centerOffsetY;
             const centerX = p.x + p.w * 0.5;
             const centerY = p.y + p.h * 0.5;
 
@@ -1907,12 +1998,21 @@ export default function App() {
       } else {
         const keyAxis = (inp.right ? 1 : 0) - (inp.left ? 1 : 0);
         const tiltAxis = c.tiltControlEnabled !== false ? inp.tiltX : 0;
+        const isTiltActive = keyAxis === 0 && Math.abs(tiltAxis) > 0.01;
         const combinedAxis = Math.max(-1, Math.min(1, keyAxis !== 0 ? keyAxis : tiltAxis));
-        const targetVx = combinedAxis * flowDiff.moveSpeedPxPerSec;
-        const steerRate = Math.abs(combinedAxis) > 0.05 ? 14 : 10;
+        const tiltSpeedBoost = isTiltActive ? 1.38 : 1.0;
+        const targetVx = combinedAxis * flowDiff.moveSpeedPxPerSec * tiltSpeedBoost;
+        const isReversing = p.vx * targetVx < 0;
+        const steerRate = isTiltActive
+          ? isReversing
+            ? 52
+            : 38
+          : Math.abs(combinedAxis) > 0.05
+          ? 16
+          : 11;
         p.vx += (targetVx - p.vx) * Math.min(1, dt * steerRate);
-        if (combinedAxis < -0.08) p.facing = -1;
-        if (combinedAxis > 0.08) p.facing = 1;
+        if (combinedAxis < -0.05) p.facing = -1;
+        if (combinedAxis > 0.05) p.facing = 1;
       }
 
       const activeGravity =
@@ -2549,7 +2649,8 @@ export default function App() {
       }
 
       // ONE-WAY UPWARD CAMERA TRACKING DURING NORMAL PLAY
-      const targetCamY = p.y - 450;
+      const viewH = sim.viewH || 800;
+      const targetCamY = p.y - viewH * 0.56;
       if (targetCamY < sim.camY) {
         sim.camY += (targetCamY - sim.camY) * Math.min(1, dt * 8.5);
       }
@@ -2571,14 +2672,15 @@ export default function App() {
       if (currentAlt > sim.score) sim.score = currentAlt;
 
       // Optimized culling
-      if (sim.platforms.length > 0 && sim.platforms[0].y >= sim.camY + 860) {
-        sim.platforms = sim.platforms.filter((pl) => pl.y < sim.camY + 860);
+      const cullBottomY = sim.camY + viewH + 60;
+      if (sim.platforms.length > 0 && sim.platforms[0].y >= cullBottomY) {
+        sim.platforms = sim.platforms.filter((pl) => pl.y < cullBottomY);
       }
       if (sim.aerialHazards.length > 16) {
-        sim.aerialHazards = sim.aerialHazards.filter((ah) => ah.active && ah.y < sim.camY + 860);
+        sim.aerialHazards = sim.aerialHazards.filter((ah) => ah.active && ah.y < cullBottomY);
       }
       if (sim.orbs.length > 24) {
-        sim.orbs = sim.orbs.filter((o) => !o.collected && o.y < sim.camY + 860);
+        sim.orbs = sim.orbs.filter((o) => !o.collected && o.y < cullBottomY);
       }
 
       // Update Particles, Shockwaves & Texts
@@ -2597,7 +2699,7 @@ export default function App() {
       }
 
       // Shield Fall Rescue at bottom of screen
-      if (p.vy > 0 && p.y > sim.camY + 760 && p.hasShield) {
+      if (p.vy > 0 && p.y > sim.camY + viewH - 40 && p.hasShield) {
         p.hasShield = false;
         sim.activePowerUps = sim.activePowerUps.filter((u) => u.id !== 'combo_shield');
         sim.activeJumpGravity = kin.gravityPxPerSec2;
@@ -2608,7 +2710,7 @@ export default function App() {
       }
 
       // Trigger 3-Phase Fall -> Center-Screen Shatter/Glitter -> Pixelated Dissolve Defeat Sequence!
-      if (p.vy > 0 && p.y > sim.camY + 785 && !p.hasShield && !sim.dyingSequence.active) {
+      if (p.vy > 0 && p.y > sim.camY + viewH - 15 && !p.hasShield && !sim.dyingSequence.active) {
         audioRef.current.stopChoir();
         if (!sim.isMuted) audioRef.current.sfxComboLost(biome, c);
         sim.dyingSequence = {
@@ -2682,7 +2784,7 @@ export default function App() {
       renderGameFrame(
         ctx,
         600,
-        800,
+        sim.viewH || 800,
         sim.camY,
         sim.gameTime,
         ambientPulse,
@@ -2955,19 +3057,21 @@ export default function App() {
       : MASTER_SCALES.filter((s) => s.tradition === traditionFilter);
 
   return (
-    <main className="relative w-screen h-screen bg-[#04050a] flex items-center justify-center overflow-hidden select-none font-pixel">
-      {/* Core 600x800 Game Viewport Cabinet */}
+    <main className="fixed inset-0 w-full h-full bg-[#04050a] flex items-center justify-center overflow-hidden select-none font-pixel">
+      {/* Core Game Viewport: Fullscreen Edge-to-Edge on Mobile, 600x800 Cabinet on Desktop */}
       <div
+        ref={containerRef}
         id="game-container"
         onMouseMove={(e) => {
           const rect = e.currentTarget.getBoundingClientRect();
+          const vh = simRef.current.viewH || 800;
           pointerEyeRef.current = {
             x: ((e.clientX - rect.left) / Math.max(1, rect.width)) * 600,
-            y: ((e.clientY - rect.top) / Math.max(1, rect.height)) * 800,
+            y: ((e.clientY - rect.top) / Math.max(1, rect.height)) * vh,
             activeUntil: performance.now() + 2500,
           };
         }}
-        className="relative w-full max-w-[600px] h-full max-h-[800px] border border-slate-800 bg-[#04050a] shadow-[0_0_90px_rgba(0,0,0,0.9)] overflow-hidden"
+        className="relative w-full h-full md:max-w-[600px] md:max-h-[800px] md:border md:border-slate-800 bg-[#04050a] shadow-[0_0_90px_rgba(0,0,0,0.9)] overflow-hidden"
       >
         <canvas
           ref={canvasRef}

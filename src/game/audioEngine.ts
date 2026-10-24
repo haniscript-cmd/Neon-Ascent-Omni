@@ -21,7 +21,7 @@ export class OmniAudioEngine {
   ctx: AudioContext | null = null;
   masterGain: GainNode | null = null;
   compressorNode: DynamicsCompressorNode | null = null;
-  reverbNode: ConvolverNode | null = null;
+  reverbNode: GainNode | null = null;
   delayLeft: DelayNode | null = null;
   delayRight: DelayNode | null = null;
   delayFeedback: GainNode | null = null;
@@ -35,6 +35,9 @@ export class OmniAudioEngine {
   private lastExtendedIdx: number | undefined = undefined;
   private recentFreqHistory: number[] = [];
   private lastNotePlayTime = 0;
+  private lastChoirBusTarget = -1;
+  private lastMasterVolTarget = -1;
+  private activeVoiceCount = 0;
 
   // Adaptive Jump-Rhythm Subdivision Tracking
   private landingTimestamps: number[] = [];
@@ -55,32 +58,40 @@ export class OmniAudioEngine {
       (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
     if (!AudioCtx) return;
 
-    this.ctx = new AudioCtx();
+    // Use 'playback' latencyHint to allocate a larger hardware buffer on Android/iOS
+    // and completely eliminate buffer underrun crackling during 60fps canvas rendering.
+    try {
+      this.ctx = new AudioCtx({ latencyHint: 'playback' });
+    } catch {
+      this.ctx = new AudioCtx();
+    }
 
-    // Master Studio Compressor + Boosted Output Stage
+    // Master Brickwall Limiter / Compressor to prevent mobile DAC digital clipping
     this.compressorNode = this.ctx.createDynamicsCompressor();
-    this.compressorNode.threshold.value = -14;
-    this.compressorNode.knee.value = 16;
-    this.compressorNode.ratio.value = 3.2;
-    this.compressorNode.attack.value = 0.004;
-    this.compressorNode.release.value = 0.18;
+    this.compressorNode.threshold.value = -8;
+    this.compressorNode.knee.value = 10;
+    this.compressorNode.ratio.value = 6.0;
+    this.compressorNode.attack.value = 0.002;
+    this.compressorNode.release.value = 0.14;
     this.compressorNode.connect(this.ctx.destination);
 
     this.masterGain = this.ctx.createGain();
-    this.masterGain.gain.value = Math.min(1.65, cfg.volMaster * 1.65);
+    const initialMaster = Math.min(0.92, cfg.volMaster * 0.92);
+    this.masterGain.gain.value = initialMaster;
+    this.lastMasterVolTarget = initialMaster;
     this.masterGain.connect(this.compressorNode);
 
-    // Stereo Delay for High Flow Atmospheric Depth
+    // Stereo Ping-Pong Delay for High Flow Atmospheric Depth
     this.delayLeft = this.ctx.createDelay(1.0);
     this.delayRight = this.ctx.createDelay(1.0);
     this.delayFeedback = this.ctx.createGain();
     this.delayWet = this.ctx.createGain();
     const merger = this.ctx.createChannelMerger(2);
 
-    this.delayLeft.delayTime.value = 0.27;
-    this.delayRight.delayTime.value = 0.41;
-    this.delayFeedback.gain.value = 0.3;
-    this.delayWet.gain.value = 0.18;
+    this.delayLeft.delayTime.value = 0.25;
+    this.delayRight.delayTime.value = 0.37;
+    this.delayFeedback.gain.value = 0.24;
+    this.delayWet.gain.value = 0.14;
 
     this.delayLeft.connect(this.delayRight);
     this.delayRight.connect(this.delayFeedback);
@@ -91,24 +102,34 @@ export class OmniAudioEngine {
     merger.connect(this.delayWet);
     this.delayWet.connect(this.masterGain);
 
-    // Warm Hall Reverb
-    this.reverbNode = this.ctx.createConvolver();
-    const rate = this.ctx.sampleRate;
-    const length = Math.floor(rate * 2.4);
-    const impulse = this.ctx.createBuffer(2, length, rate);
-    for (let i = 0; i < length; i++) {
-      const decay = Math.pow(1 - i / length, 2.6);
-      impulse.getChannelData(0)[i] = (Math.random() * 2 - 1) * decay;
-      impulse.getChannelData(1)[i] = (Math.random() * 2 - 1) * decay;
-    }
-    this.reverbNode.buffer = impulse;
-    const reverbGain = this.ctx.createGain();
-    reverbGain.gain.value = 0.36;
-    this.reverbNode.connect(reverbGain);
-    reverbGain.connect(this.masterGain);
+    // Ultra-Lightweight Algorithmic Warm Stereo Ambience (replaces heavy 2.4s FFT ConvolverNode
+    // which caused audio thread buffer underruns and crackling on Android phones)
+    this.reverbNode = this.ctx.createGain();
+    this.reverbNode.gain.value = 0.26;
+    const revDelayA = this.ctx.createDelay(0.5);
+    const revDelayB = this.ctx.createDelay(0.5);
+    const revFilter = this.ctx.createBiquadFilter();
+    const revFeedback = this.ctx.createGain();
+    const revOut = this.ctx.createGain();
+
+    revDelayA.delayTime.value = 0.067;
+    revDelayB.delayTime.value = 0.113;
+    revFilter.type = 'lowpass';
+    revFilter.frequency.value = 1850;
+    revFeedback.gain.value = 0.32;
+    revOut.gain.value = 0.28;
+
+    this.reverbNode.connect(revDelayA);
+    revDelayA.connect(revDelayB);
+    revDelayB.connect(revFilter);
+    revFilter.connect(revFeedback);
+    revFeedback.connect(revDelayA);
+    revFilter.connect(revOut);
+    revOut.connect(this.masterGain);
 
     // White Noise Buffer for Dash Wind SFX
-    const noiseLen = rate * 0.5;
+    const rate = this.ctx.sampleRate;
+    const noiseLen = Math.floor(rate * 0.35);
     this.noiseBuffer = this.ctx.createBuffer(1, noiseLen, rate);
     const out = this.noiseBuffer.getChannelData(0);
     for (let i = 0; i < noiseLen; i++) {
@@ -117,7 +138,8 @@ export class OmniAudioEngine {
 
     // Warm Discrete Synth Swell Bus
     this.choirBus = this.ctx.createGain();
-    this.choirBus.gain.value = 1.0;
+    this.choirBus.gain.value = 0.04;
+    this.lastChoirBusTarget = 0.04;
     this.choirBus.connect(this.reverbNode);
     this.choirBus.connect(this.masterGain);
   }
@@ -137,7 +159,9 @@ export class OmniAudioEngine {
   stopChoir(): void {
     if (!this.ctx || !this.choirBus) return;
     const t = this.ctx.currentTime;
-    this.choirBus.gain.setTargetAtTime(0, t, 0.25);
+    this.choirBus.gain.cancelScheduledValues(t);
+    this.choirBus.gain.setTargetAtTime(0.001, t, 0.2);
+    this.lastChoirBusTarget = 0.001;
   }
 
   resetMusicalState(): void {
@@ -158,9 +182,9 @@ export class OmniAudioEngine {
     const bank = bankOverride || SOUND_BANKS[0];
     const moddedBank: SoundBankDef = {
       ...bank,
-      decaySec: Math.max(0.35, Math.min(3.5, bank.decaySec * Math.max(0.5, durationBeats * 0.85))),
+      decaySec: Math.max(0.32, Math.min(2.2, bank.decaySec * Math.max(0.5, durationBeats * 0.8))),
     };
-    this.triggerVoiceAt(freq, t, 0, 1, 4, cfg, 1.0, moddedBank);
+    this.triggerVoiceAt(freq, t, 0, 1, 4, cfg, 0.9, moddedBank);
   }
 
   /**
@@ -170,9 +194,13 @@ export class OmniAudioEngine {
     this.init(cfg);
     if (!this.ctx || !this.choirBus) return;
     const t = this.ctx.currentTime;
-    this.choirBus.gain.setTargetAtTime(1.0, t, 0.1);
-    const safeDur = Math.max(0.4, Math.min(8.0, durationSec));
-    this.triggerWarmPadSwell(freq, 0.14, Math.max(0.6, cfg.volChoir), safeDur, 0.75);
+    if (Math.abs(this.lastChoirBusTarget - 0.85) > 0.02) {
+      this.choirBus.gain.cancelScheduledValues(t);
+      this.choirBus.gain.setTargetAtTime(0.85, t, 0.1);
+      this.lastChoirBusTarget = 0.85;
+    }
+    const safeDur = Math.max(0.4, Math.min(5.0, durationSec));
+    this.triggerWarmPadSwell(freq, 0.12, Math.max(0.5, cfg.volChoir), safeDur, 0.7);
   }
 
   /**
@@ -198,8 +226,8 @@ export class OmniAudioEngine {
         ? {
             ...baseBank,
             decaySec: Math.max(
-              0.38,
-              Math.min(3.8, baseBank.decaySec * Math.max(0.55, noteDurationBeats * 0.9))
+              0.32,
+              Math.min(2.4, baseBank.decaySec * Math.max(0.55, noteDurationBeats * 0.85))
             ),
           }
         : baseBank;
@@ -209,11 +237,17 @@ export class OmniAudioEngine {
     }
 
     const t = this.ctx.currentTime;
-    if (t - this.lastNotePlayTime < 0.06) {
+    if (t - this.lastNotePlayTime < 0.065) {
       return { notes: [biome.scale[0] || 261.63], subdivisionRingDelaysSec: [] };
     }
     this.lastNotePlayTime = t;
-    this.masterGain.gain.setTargetAtTime(Math.min(1.65, cfg.volMaster * 1.65), t, 0.06);
+
+    const desiredMaster = Math.min(0.92, cfg.volMaster * 0.92);
+    if (Math.abs(desiredMaster - this.lastMasterVolTarget) > 0.02) {
+      this.masterGain.gain.cancelScheduledValues(t);
+      this.masterGain.gain.setTargetAtTime(desiredMaster, t, 0.05);
+      this.lastMasterVolTarget = desiredMaster;
+    }
 
     // 1. Track player jump rhythm & compute rolling average jump interval
     if (this.landingTimestamps.length > 0) {
@@ -367,62 +401,61 @@ export class OmniAudioEngine {
     const chordBus = this.ctx.createGain();
     const chordFilter = this.ctx.createBiquadFilter();
     chordFilter.type = 'lowpass';
-    chordFilter.Q.setValueAtTime(2.5, t);
-    chordFilter.frequency.setValueAtTime(480, t);
-    chordFilter.frequency.exponentialRampToValueAtTime(4100, t + 0.22);
-    chordFilter.frequency.exponentialRampToValueAtTime(580, t + 2.3);
+    chordFilter.Q.setValueAtTime(1.8, t);
+    chordFilter.frequency.setValueAtTime(520, t);
+    chordFilter.frequency.exponentialRampToValueAtTime(3400, t + 0.22);
+    chordFilter.frequency.exponentialRampToValueAtTime(580, t + 1.85);
 
-    const chordVol = Math.min(0.42, 0.25 * Math.max(0.5, cfg.volChords));
+    const chordVol = Math.min(0.32, 0.2 * Math.max(0.5, cfg.volChords));
     chordBus.gain.setValueAtTime(0.0001, t);
-    chordBus.gain.linearRampToValueAtTime(chordVol, t + 0.04);
-    chordBus.gain.exponentialRampToValueAtTime(0.0008, t + 2.35);
+    chordBus.gain.linearRampToValueAtTime(chordVol, t + 0.045);
+    chordBus.gain.exponentialRampToValueAtTime(0.0008, t + 1.9);
 
     chordFilter.connect(chordBus);
     chordBus.connect(this.masterGain);
     if (this.reverbNode) chordBus.connect(this.reverbNode);
-    if (this.delayLeft) chordBus.connect(this.delayLeft);
 
-    chordVoicing.slice(1).forEach((freq, idx) => {
+    const chordTones = chordVoicing.slice(1);
+    let endedCount = 0;
+    chordTones.forEach((freq, idx) => {
       if (!this.ctx) return;
-      const oscSaw = this.ctx.createOscillator();
-      const oscTri = this.ctx.createOscillator();
+      const osc = this.ctx.createOscillator();
       const voiceGain = this.ctx.createGain();
 
-      oscSaw.type = 'sawtooth';
-      oscTri.type = 'triangle';
-      oscSaw.frequency.setValueAtTime(freq, t);
-      oscTri.frequency.setValueAtTime(freq, t);
-      oscSaw.detune.setValueAtTime(-9 + idx * 4, t);
-      oscTri.detune.setValueAtTime(9 - idx * 3, t);
+      osc.type = idx % 2 === 0 ? 'sawtooth' : 'triangle';
+      osc.frequency.setValueAtTime(freq, t);
+      osc.detune.setValueAtTime((idx - 1.5) * 7, t);
 
-      voiceGain.gain.value = 0.34;
-      oscSaw.connect(voiceGain);
-      oscTri.connect(voiceGain);
+      voiceGain.gain.value = 0.28;
+      osc.connect(voiceGain);
       voiceGain.connect(chordFilter);
 
-      oscSaw.onended = () => {
-        oscSaw.disconnect();
-        oscTri.disconnect();
+      osc.onended = () => {
+        osc.disconnect();
         voiceGain.disconnect();
+        endedCount++;
+        if (endedCount >= chordTones.length) {
+          chordFilter.disconnect();
+          chordBus.disconnect();
+        }
       };
 
-      oscSaw.start(t);
-      oscTri.start(t);
-      oscSaw.stop(t + 2.4);
-      oscTri.stop(t + 2.4);
+      osc.start(t);
+      osc.stop(t + 1.95);
     });
 
-    // 3. Crystalline upward harp strum across all 5 chord voices for tactile articulation
-    chordVoicing.forEach((freq, idx) => {
-      const strumStart = t + idx * 0.052;
+    // 3. Crystalline upward harp strum across 3 key chord voices for tactile articulation
+    const strumVoices = [chordVoicing[1], chordVoicing[2], chordVoicing[4]];
+    strumVoices.forEach((freq, idx) => {
+      const strumStart = t + idx * 0.065;
       this.triggerVoiceAt(
         freq,
         strumStart,
         0,
-        chordVoicing.length,
+        strumVoices.length,
         FLOW_THRESHOLDS.OVERDRIVE,
         cfg,
-        1.15,
+        0.95,
         activeBank
       );
     });
@@ -461,7 +494,7 @@ export class OmniAudioEngine {
         1,
         FLOW_THRESHOLDS.OVERDRIVE,
         cfg,
-        1.3,
+        1.1,
         activeBank
       );
     });
@@ -478,9 +511,13 @@ export class OmniAudioEngine {
     bank: SoundBankDef = SOUND_BANKS[0]
   ): void {
     if (!this.ctx || !this.masterGain) return;
+    // Hard polyphony guard so Android WebView audio thread never drops buffers
+    if (this.activeVoiceCount >= 14) return;
+    this.activeVoiceCount++;
 
+    const useDualOsc = voiceIdx === 0 && this.activeVoiceCount <= 6;
     const oscA = this.ctx.createOscillator();
-    const oscB = this.ctx.createOscillator();
+    const oscB = useDualOsc ? this.ctx.createOscillator() : null;
     const filter = this.ctx.createBiquadFilter();
     const g = this.ctx.createGain();
 
@@ -489,17 +526,24 @@ export class OmniAudioEngine {
     const tunedFreq = freq * flutterMult;
 
     oscA.type = voiceIdx === 0 ? bank.baseWave : bank.subWave;
-    oscB.type = bank.subWave;
-
     oscA.frequency.setValueAtTime(tunedFreq, startTime);
-    oscB.frequency.setValueAtTime(tunedFreq, startTime);
     oscA.detune.setValueAtTime(-bank.detuneCents * 0.5, startTime);
-    oscB.detune.setValueAtTime(bank.detuneCents, startTime);
 
-    // Optional 2-Operator FM Metallic / Tine Modulator (e.g., Rhodes, Neo-Tokyo FM Bell, Shibuya Harp)
+    let subMixGain: GainNode | null = null;
+    if (oscB) {
+      oscB.type = bank.subWave;
+      oscB.frequency.setValueAtTime(tunedFreq, startTime);
+      oscB.detune.setValueAtTime(bank.detuneCents, startTime);
+      subMixGain = this.ctx.createGain();
+      subMixGain.gain.value = 0.36;
+      oscB.connect(subMixGain);
+      subMixGain.connect(filter);
+    }
+
+    // Optional 2-Operator FM Metallic / Tine Modulator (only when polyphony is light)
     let fmModOsc: OscillatorNode | null = null;
     let fmModGain: GainNode | null = null;
-    if (bank.fmModDepth > 0 && voiceIdx === 0) {
+    if (bank.fmModDepth > 0 && voiceIdx === 0 && this.activeVoiceCount <= 5) {
       fmModOsc = this.ctx.createOscillator();
       fmModGain = this.ctx.createGain();
       fmModOsc.type = 'sine';
@@ -511,51 +555,47 @@ export class OmniAudioEngine {
     }
 
     filter.type = 'lowpass';
-    filter.Q.setValueAtTime(bank.filterQ, startTime);
+    filter.Q.setValueAtTime(Math.min(3.5, bank.filterQ), startTime);
     const baseCutoff =
       flow >= FLOW_THRESHOLDS.OVERDRIVE
-        ? 4200
+        ? 4000
         : flow >= FLOW_THRESHOLDS.CHORD
-        ? 3100
+        ? 3000
         : flow >= FLOW_THRESHOLDS.HARMONIC
-        ? 2300
-        : 1750;
-    const cutoff = Math.min(7500, Math.max(420, baseCutoff * bank.filterCutoffMult));
+        ? 2200
+        : 1700;
+    const cutoff = Math.min(7000, Math.max(420, baseCutoff * bank.filterCutoffMult));
+    const safeDecay = Math.min(1.6, bank.decaySec);
     filter.frequency.setValueAtTime(cutoff, startTime);
     filter.frequency.exponentialRampToValueAtTime(
-      Math.max(260, cutoff * 0.22),
-      startTime + bank.decaySec
+      Math.max(260, cutoff * 0.24),
+      startTime + safeDecay
     );
 
-    let baseVol = 0.21 * gainScale;
-    if (totalVoices > 2) baseVol *= 0.76;
+    let baseVol = 0.19 * gainScale;
+    if (totalVoices > 2) baseVol *= 0.74;
     if (voiceIdx === 0) baseVol *= cfg.volNotes;
-    else if (voiceIdx === 1) baseVol *= cfg.volIntervals * 0.8;
-    else baseVol *= cfg.volChords * 0.72;
-
-    const subMixGain = this.ctx.createGain();
-    subMixGain.gain.value = 0.42;
+    else if (voiceIdx === 1) baseVol *= cfg.volIntervals * 0.78;
+    else baseVol *= cfg.volChords * 0.7;
 
     g.gain.setValueAtTime(0.0001, startTime);
-    g.gain.linearRampToValueAtTime(Math.max(0.001, baseVol), startTime + bank.attackSec);
-    g.gain.exponentialRampToValueAtTime(0.0008, startTime + bank.decaySec);
+    g.gain.linearRampToValueAtTime(Math.max(0.001, baseVol), startTime + Math.max(0.006, bank.attackSec));
+    g.gain.exponentialRampToValueAtTime(0.0008, startTime + safeDecay);
 
     oscA.connect(filter);
-    oscB.connect(subMixGain);
-    subMixGain.connect(filter);
-
     filter.connect(g);
     g.connect(this.masterGain);
-    if (this.reverbNode) g.connect(this.reverbNode);
+    if (this.reverbNode && voiceIdx === 0) g.connect(this.reverbNode);
     if (flow >= FLOW_THRESHOLDS.CHORD && this.delayLeft && voiceIdx === 0) {
       g.connect(this.delayLeft);
     }
 
-    const stopTime = startTime + bank.decaySec + 0.05;
+    const stopTime = startTime + safeDecay + 0.04;
     oscA.onended = () => {
+      this.activeVoiceCount = Math.max(0, this.activeVoiceCount - 1);
       oscA.disconnect();
-      oscB.disconnect();
-      subMixGain.disconnect();
+      if (oscB) oscB.disconnect();
+      if (subMixGain) subMixGain.disconnect();
       filter.disconnect();
       g.disconnect();
       if (fmModOsc) fmModOsc.disconnect();
@@ -567,9 +607,9 @@ export class OmniAudioEngine {
       fmModOsc.stop(stopTime);
     }
     oscA.start(startTime);
-    oscB.start(startTime);
+    if (oscB) oscB.start(startTime);
     oscA.stop(stopTime);
-    oscB.stop(stopTime);
+    if (oscB) oscB.stop(stopTime);
   }
 
   /**
@@ -615,7 +655,7 @@ export class OmniAudioEngine {
         Math.min(extScale.length - 1, anchorIdx + pattern[k % pattern.length])
       );
       const subFreq = extScale[targetIdx];
-      this.triggerVoiceAt(subFreq, stepTime, 0, 1, flow, cfg, 0.74, bank);
+      this.triggerVoiceAt(subFreq, stepTime, 0, 1, flow, cfg, 0.72, bank);
     }
 
     return delaysSec;
@@ -631,11 +671,11 @@ export class OmniAudioEngine {
     osc.type = 'sine';
     osc.frequency.setValueAtTime(subFreq, t);
     filter.type = 'lowpass';
-    filter.frequency.setValueAtTime(230, t);
+    filter.frequency.setValueAtTime(220, t);
 
     g.gain.setValueAtTime(0.0001, t);
-    g.gain.linearRampToValueAtTime(0.24 * cfg.volBass, t + 0.025);
-    g.gain.exponentialRampToValueAtTime(0.0008, t + 0.62);
+    g.gain.linearRampToValueAtTime(0.2 * cfg.volBass, t + 0.025);
+    g.gain.exponentialRampToValueAtTime(0.0008, t + 0.55);
     osc.connect(filter);
     filter.connect(g);
     g.connect(this.masterGain);
@@ -645,7 +685,7 @@ export class OmniAudioEngine {
       g.disconnect();
     };
     osc.start(t);
-    osc.stop(t + 0.65);
+    osc.stop(t + 0.58);
   }
 
   /**
@@ -679,7 +719,11 @@ export class OmniAudioEngine {
     const t = this.ctx.currentTime;
 
     if (cfg.volChoir <= 0 || flow < FLOW_THRESHOLDS.HARMONIC) {
-      this.choirBus.gain.setTargetAtTime(0.04, t, 0.35);
+      if (Math.abs(this.lastChoirBusTarget - 0.04) > 0.02) {
+        this.choirBus.gain.cancelScheduledValues(t);
+        this.choirBus.gain.setTargetAtTime(0.04, t, 0.35);
+        this.lastChoirBusTarget = 0.04;
+      }
       return { beatPulse: ambientPulse, step16: 0 };
     }
 
@@ -688,12 +732,16 @@ export class OmniAudioEngine {
       Math.min(1, (flow - FLOW_THRESHOLDS.HARMONIC) / (FLOW_THRESHOLDS.OVERDRIVE - FLOW_THRESHOLDS.HARMONIC + 2))
     );
 
-    const targetBusGain = 0.72 + flowIntensity * 0.78;
-    this.choirBus.gain.setTargetAtTime(targetBusGain, t, 0.28);
+    const targetBusGain = 0.65 + flowIntensity * 0.65;
+    if (Math.abs(this.lastChoirBusTarget - targetBusGain) > 0.03) {
+      this.choirBus.gain.cancelScheduledValues(t);
+      this.choirBus.gain.setTargetAtTime(targetBusGain, t, 0.28);
+      this.lastChoirBusTarget = targetBusGain;
+    }
 
     if (t >= this.nextPadSwellTime) {
-      const noteDuration = 2.4 + flowIntensity * 3.1;
-      this.nextPadSwellTime = t + Math.max(2.3, noteDuration * 0.76);
+      const noteDuration = 2.4 + flowIntensity * 2.8;
+      this.nextPadSwellTime = t + Math.max(2.3, noteDuration * 0.78);
 
       const sc = biome.scale.length ? biome.scale : MASTER_SCALES[0].scale;
       const effectiveContext: SynthHarmonicContext = harmonicContext || {
@@ -713,8 +761,8 @@ export class OmniAudioEngine {
       notesToSwell.forEach((freq, idx) => {
         const baseVoiceGain =
           idx === 0
-            ? 0.08 + flowIntensity * 0.085
-            : 0.06 + flowIntensity * 0.065;
+            ? 0.075 + flowIntensity * 0.075
+            : 0.055 + flowIntensity * 0.055;
         this.triggerWarmPadSwell(freq, baseVoiceGain, cfg.volChoir, noteDuration, flowIntensity);
       });
     }
