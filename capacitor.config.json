@@ -2,7 +2,6 @@
   "appId": "com.neonascent.omni",
   "appName": "Neon Ascent: Omni",
   "webDir": "dist",
-  "bundledWebRuntime": false,
   "server": {
     "androidScheme": "https"
   },
