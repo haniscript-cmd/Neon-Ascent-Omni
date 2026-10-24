@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" shape-rendering="crispEdges">
+  <rect width="512" height="512" fill="#04050a"/>
+  <!-- Outer Pixel Border -->
+  <rect x="32" y="32" width="448" height="448" fill="none" stroke="#00ff88" stroke-width="16"/>
+  <rect x="64" y="64" width="384" height="384" fill="#070b16"/>
+  <!-- Pixel Neon Platform -->
+  <rect x="96" y="368" width="320" height="32" fill="#00d4ff"/>
+  <rect x="112" y="376" width="288" height="16" fill="#04050a"/>
+  <!-- Stepped Pixel Character Cube with Two Solid Rectangular Eyes -->
+  <rect x="176" y="160" width="160" height="160" fill="#00ff88"/>
+  <rect x="192" y="176" width="128" height="128" fill="#ffffff"/>
+  <!-- Left & Right Solid Rectangular Eyes (No Dots) -->
+  <rect x="216" y="212" width="24" height="44" fill="#04050a"/>
+  <rect x="272" y="212" width="24" height="44" fill="#04050a"/>
+</svg>

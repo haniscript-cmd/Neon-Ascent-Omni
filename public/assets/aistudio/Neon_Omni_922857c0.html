@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>NEON ASCENT: OMNI [ULTIMATE]</title>
+<!-- MIDI Parser -->
+<script src="https://unpkg.com/@tonejs/midi"></script>
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Press+Start+2P&display=swap');
+
+    body {
+        margin: 0; padding: 0; background-color: #050505; overflow: hidden;
+        display: flex; justify-content: center; align-items: center;
+        height: 100vh; font-family: 'Share Tech Mono', monospace; color: white;
+        user-select: none; -webkit-tap-highlight-color: transparent;
+    }
+    #game-container {
+        position: relative; box-shadow: 0 0 100px rgba(0, 0, 0, 0.8);
+        border: 2px solid #333; width: 100%; max-width: 600px; height: 100vh; max-height: 800px;
+    }
+    canvas { display: block; image-rendering: pixelated; width: 100%; height: 100%; }
+
+    /* LAYERS */
+    .screen-modal {
+        position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(8,8,8,0.96); z-index: 50;
+        display: none; flex-direction: column; align-items: center; justify-content: center;
+        text-align: center; overflow-y: auto; 
+    }
+    #start-screen { display: flex; }
+
+    /* HUD */
+    #ui-hud { position: absolute; top: 20px; left: 20px; pointer-events: none; z-index:10; }
+    .hud-text { text-shadow: 2px 2px 0px #000; font-family: 'Press Start 2P', cursive; font-size: 16px; color: #fff; margin-bottom:5px;}
+    #combo-meter { font-size: 12px; opacity: 0; transition: 0.3s; margin-top:5px; text-shadow: 0 0 5px #fff; }
+    #combo-bar-fill { height: 6px; background: #fff; width: 0%; box-shadow: 0 0 15px #fff; margin-top:5px; }
+    #biome-tag { position: absolute; bottom: 20px; right: 20px; color: #fff; opacity: 0.3; font-size: 10px; z-index:10; letter-spacing:2px; }
+
+    /* UI ELEMENTS */
+    h1 {
+        font-family: 'Press Start 2P'; background: linear-gradient(90deg, #f00, #ff0, #0f0, #0ff, #00f, #f0f);
+        -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-size: 28px;
+        animation: rain 5s linear infinite; margin-bottom: 20px; filter: drop-shadow(0 0 5px rgba(255,255,255,0.3));
+    }
+    h2 { font-size: 18px; color: #aaa; margin-bottom: 20px; border-bottom: 1px solid #444; padding-bottom:5px; width: 80%;}
+    @keyframes rain { 0% { background-position: 0% 50% } 100% { background-position: 100% 50% } }
+
+    .btn {
+        background: transparent; border: 2px solid #666; color: #fff;
+        padding: 14px 20px; font-family: 'Press Start 2P'; font-size: 10px;
+        cursor: pointer; margin: 6px; width: 260px; text-transform: uppercase;
+        transition: 0.2s; pointer-events: auto; position: relative; overflow: hidden;
+    }
+    .btn:hover { border-color: #fff; background: rgba(255,255,255,0.1); box-shadow: 0 0 15px rgba(255,255,255,0.2); }
+    .btn-small { width: auto; padding: 10px; margin: 5px; min-width: 100px;}
+
+    /* SETTINGS GRID */
+    .settings-group { width: 85%; margin-bottom: 20px; text-align: left; background: rgba(255,255,255,0.05); padding: 10px; box-sizing: border-box;}
+    .settings-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 12px; }
+    input[type=range] { width: 100px; cursor: pointer; accent-color: #fff; }
+    select, input[type=color] { background: #222; color: white; border: 1px solid #666; padding:2px;}
+    .scales-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; font-size:10px; }
+
+    /* SEQUENCER KEYS */
+    .p-key { 
+        width: 38px; height: 55px; border: 1px solid #666; cursor: pointer; text-align: center; 
+        font-size: 9px; padding-top: 38px; box-sizing: border-box; margin:2px;
+        transition: background 0.1s;
+    }
+    .p-key:active { background: #fff !important; color:#000 !important; transform:translateY(2px);}
+
+    #file-input { display: none; }
+    #midi-status { font-size: 10px; color: #fb0; margin: 10px; min-height:15px;}
+    .rec-flash { animation: flash 1s infinite; color: #ff0 !important; text-shadow: 0 0 10px #ff0;}
+    @keyframes flash { 50%{opacity:0.2}}
+</style>
+</head>
+<body>
+
+<div id="game-container">
+    <canvas id="canvas" width="600" height="800"></canvas>
+    
+    <div id="ui-hud">
+        <div id="score" class="hud-text">000000</div>
+        <div id="combo-meter">FLOW x0</div>
+        <div style="width:150px"><div id="combo-bar-fill"></div></div>
+    </div>
+    <div id="biome-tag">System Ready</div>
+
+    <!-- MAIN MENU -->
+    <div id="start-screen" class="screen-modal">
+        <h1>NEON OMNI</h1>
+        <div id="high-score-display" style="color:#fb0; font-size:12px; margin-bottom:20px;">TOP: 0</div>
+        
+        <button class="btn" onclick="Game.setMode('STANDARD')">START RUN</button>
+        <button class="btn" onclick="Menu.showSeq()">SEQUENCER</button>
+        <button class="btn" onclick="Menu.triggerMidi()">IMPORT MIDI</button>
+        
+        <div style="margin-top: 20px;">
+            <button class="btn btn-small" onclick="Menu.showSettings()">SETTINGS</button>
+        </div>
+        <input type="file" id="midi-upload" accept=".mid,.midi" style="display:none;">
+        <div id="midi-status"></div>
+    </div>
+
+    <!-- SETTINGS -->
+    <div id="settings-screen" class="screen-modal">
+        <h2>SYSTEM CONFIG</h2>
+        
+        <div class="settings-group">
+            <div style="color:#0ff; margin-bottom:5px; border-bottom:1px solid #333;">> PHYSICS ENGINE</div>
+            <div class="settings-row"><span>Jump Power</span> <input type="range" id="phy-jump" min="0.8" max="1.4" step="0.1" value="1.0"></div>
+            <div class="settings-row"><span>Run Speed</span> <input type="range" id="phy-move" min="0.8" max="1.4" step="0.1" value="1.0"></div>
+            <div class="settings-row"><span>Global Time</span> <input type="range" id="spd-slider" min="0.5" max="1.5" step="0.1" value="1.0"></div>
+            <div class="settings-row"><span>Difficulty</span>
+                <select id="diff-select" style="width:100px;">
+                    <option value="1">Elevator</option>
+                    <option value="2" selected>Escalator</option>
+                    <option value="3">Climber</option>
+                    <option value="4">Ascentor</option>
+                </select>
+            </div>
+            <div class="settings-row"><span>Player</span>
+                <select id="shape-select" style="width:100px;">
+                    <option value="square">Square</option>
+                    <option value="circle">Circle</option>
+                    <option value="star">Star</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="settings-group">
+            <div style="color:#f0f; margin-bottom:5px; border-bottom:1px solid #333;">> AUDIO MIXER</div>
+            <div class="settings-row"><span>Master Vol</span> <input type="range" id="vol-master" min="0" max="1" step="0.1" value="0.4"></div>
+            <div class="settings-row"><span>Notes</span> <input type="range" id="vol-notes" min="0" max="2" step="0.1" value="1"></div>
+            <div class="settings-row"><span>Harmonies</span> <input type="range" id="vol-inter" min="0" max="2" step="0.1" value="1"></div>
+            <div class="settings-row"><span>Choir</span> <input type="range" id="vol-choir" min="0" max="3" step="0.1" value="1.5"></div>
+        </div>
+
+        <div class="settings-group">
+            <div style="color:#ff0; margin-bottom:5px; border-bottom:1px solid #333;">> VISUALS</div>
+            <div class="settings-row"><span>Biome Colors</span> <input type="checkbox" id="biome-toggle" checked></div>
+            <div class="settings-row" id="manual-color-row" style="display:none; opacity:0.5;">
+                <span>Fixed Color</span> <input type="color" id="fixed-color" value="#00ff00">
+            </div>
+            <div style="margin-top:10px; font-size:10px; color:#888;">ENABLED KEYS:</div>
+            <div class="scales-grid" id="scales-list"></div>
+        </div>
+        <button class="btn btn-small" onclick="Menu.closeSettings()">SAVE & BACK</button>
+    </div>
+
+    <!-- SEQUENCER -->
+    <div id="piano-screen" class="screen-modal">
+        <h2>SEQUENCE INPUT</h2>
+        <div id="seq-disp" style="color:#0ff; font-size:10px; margin-bottom:20px; min-height:20px; width:90%; word-break: break-all; border:1px solid #333; padding:5px;">Empty</div>
+        <div id="piano-keys" style="display:flex; flex-wrap:wrap; justify-content:center; gap:2px; max-width:90%;"></div>
+        <div style="margin-top:20px;">
+            <button class="btn btn-small" style="color:#f55; border-color:#f55;" onclick="Sequencer.clear()">CLEAR</button>
+            <button class="btn btn-small" style="color:#0f0; border-color:#0f0;" onclick="Sequencer.start()">START</button>
+            <button class="btn btn-small" onclick="Menu.backToMain()">BACK</button>
+        </div>
+    </div>
+
+    <!-- PAUSE & GAME OVER -->
+    <div id="pause-screen" class="screen-modal">
+        <h2>PAUSED</h2>
+        <button class="btn" onclick="Game.togglePause()">RESUME</button>
+        <button class="btn" style="border-color:#f55; color:#f55;" onclick="Game.quit()">QUIT</button>
+    </div>
+    <div id="game-over-screen" class="screen-modal">
+        <h1 id="go-msg" style="color:#f55">SIGNAL LOST</h1>
+        <p id="go-score" style="margin-bottom:20px;">FINAL: 0</p>
+        <button class="btn" onclick="Game.retry()">RETRY</button>
+        <button class="btn" onclick="Game.quit()">MAIN MENU</button>
+    </div>
+</div>
+
+<script>
+/** 
+ * CONFIGURATION & SCALES
+ */
+const CFG = {
+    volMaster: 0.4, volNotes: 1.0, volIntervals: 1.0, volChoir: 1.5,
+    phyJump: 1.0, phyMove: 1.0,
+    useBiomes: true, fixedColor: '#00ff00', difficulty: 2,
+    gameSpeed: 1.0, playerShape: 'square',
+    enabledScales: [] 
+};
+
+// NOTES: Extended range
+const NOTES_MAP = {
+    'C3':130.8,'D3':146.8,'E3':164.8,'F3':174.6,'G3':196.0,'A3':220.0,'B3':246.9,
+    'C4':261.6,'D4':293.6,'E4':329.6,'F4':349.2,'G4':392.0,'A4':440.0,'B4':493.8,
+    'C5':523.2
+};
+
+const MASTER_SCALES = [
+    {id:0,name:"NEON",fg:"#0f0",scale:[261,293,311,349,392]},
+    {id:1,name:"VAPOR",fg:"#f0f",scale:[261,329,349,392,440,493]},
+    {id:2,name:"OCEAN",fg:"#00f",scale:[196,220,233,293,311]},
+    {id:3,name:"DAWN",fg:"#fb0",scale:[220,246,277,329,369,440]},
+    {id:4,name:"CRIMSON",fg:"#f33",scale:[130,138,164,196,207]},
+    {id:5,name:"VOID",fg:"#fff",scale:[329,392,440,493,523,659]},
+    {id:6,name:"ZEN",fg:"#0ff",scale:[196,246,261,293,392]}
+];
+
+// Flow Thresholds for Music Intensity
+const FLOW = { HARMONIC: 10, CHORD: 25, MAX: 40 };
+
+/** 
+ * AUDIO ENGINE
+ */
+let audioCtx, masterGain, reverbNode;
+
+function initAudio() {
+    if(audioCtx) return;
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    masterGain = audioCtx.createGain();
+    masterGain.connect(audioCtx.destination);
+    
+    // Large Hall Reverb
+    reverbNode = audioCtx.createConvolver();
+    const rate = audioCtx.sampleRate;
+    const length = rate * 3.0;
+    const buffer = audioCtx.createBuffer(2, length, rate);
+    for(let i=0; i<length; i++){
+        // Smooth exponential decay
+        let decay = Math.pow(1 - i/length, 3);
+        buffer.getChannelData(0)[i] = (Math.random()*2-1)*decay;
+        buffer.getChannelData(1)[i] = (Math.random()*2-1)*decay;
+    }
+    reverbNode.buffer = buffer;
+    reverbNode.connect(masterGain);
+}
+
+const SFX = {
+    preview: (freq) => {
+        initAudio(); if(audioCtx.state === 'suspended') audioCtx.resume();
+        const t = audioCtx.currentTime;
+        const o=audioCtx.createOscillator(), g=audioCtx.createGain();
+        o.type='triangle'; o.frequency.value=freq;
+        g.gain.setValueAtTime(0, t); 
+        g.gain.linearRampToValueAtTime(0.2*CFG.volNotes, t+0.02);
+        g.gain.exponentialRampToValueAtTime(0.001, t+0.5);
+        o.connect(g); g.connect(masterGain); o.start(t); o.stop(t+0.6);
+    },
+    
+    play: (biome, flow, noteCluster) => {
+        initAudio();
+        if(audioCtx.state === 'suspended') audioCtx.resume();
+        masterGain.gain.setTargetAtTime(CFG.volMaster, audioCtx.currentTime, 0.1);
+        
+        const t = audioCtx.currentTime;
+        let notes = [];
+
+        if (noteCluster) {
+            notes = noteCluster;
+        } else {
+            // -- PROCEDURAL GENERATOR --
+            const sData = (biome && biome.scale) ? biome.scale : MASTER_SCALES[0].scale;
+            // 1. Root Note
+            const root = sData[Math.floor(Math.random() * sData.length)];
+            notes.push(root);
+            
+            // 2. High Octaves / Harmonics (Medium Flow)
+            if(flow > FLOW.HARMONIC && CFG.volIntervals > 0) {
+                let r = Math.random();
+                if(r > 0.6) notes.push(root * 2); // Octave Up
+                else if(r > 0.8) notes.push(root * 0.5); // Octave Down
+            }
+            
+            // 3. Chords / 3rds (High Flow)
+            if(flow > FLOW.CHORD && CFG.volChords > 0) {
+                let thirdIdx = (sData.indexOf(root) + 2) % sData.length;
+                notes.push(sData[thirdIdx]);
+            }
+        }
+
+        // Synthesis
+        notes.forEach((freq, i) => {
+            const osc = audioCtx.createOscillator();
+            const g = audioCtx.createGain();
+            
+            // Varied waveforms for richness
+            osc.type = (i % 2 === 0) ? 'sine' : 'triangle';
+            // Slight detune for chorus effect
+            osc.frequency.value = freq + (Math.random()-0.5)*2; 
+            
+            let baseVol = 0.15;
+            if(notes.length > 2) baseVol *= 0.7; // Lower vol if playing many notes
+            
+            // Scale based on Settings sliders
+            if (notes.length > 1 && i > 0) baseVol *= CFG.volIntervals;
+            else baseVol *= CFG.volNotes;
+
+            g.gain.setValueAtTime(0, t);
+            g.gain.linearRampToValueAtTime(baseVol, t + 0.05); // Attack
+            g.gain.exponentialRampToValueAtTime(0.001, t + 3.0); // Release (Long reverb tail)
+            
+            osc.connect(g);
+            g.connect(reverbNode);
+            g.connect(masterGain); 
+            
+            osc.start(t);
+            osc.stop(t + 3.1);
+        });
+    }
+};
+
+const Choir = {
+    nodes: [], next: 0, volTgt: 0, bus: null,
+    init: () => {
+        initAudio();
+        if(!Choir.bus) {
+            Choir.bus = audioCtx.createGain();
+            Choir.bus.connect(reverbNode);
+            Choir.bus.connect(masterGain);
+        }
+        Choir.tick();
+    },
+    stop: () => {
+        if(Choir.bus) Choir.bus.gain.setTargetAtTime(0, audioCtx.currentTime, 0.5);
+        setTimeout(() => {
+            Choir.nodes.forEach(n => { try{ n.o.stop(); }catch(e){} });
+            Choir.nodes = [];
+        }, 1000);
+    },
+    tick: () => {
+        requestAnimationFrame(Choir.tick);
+        if(!Choir.bus) return;
+        
+        let t = audioCtx.currentTime;
+        let finalVol = Choir.volTgt * CFG.volChoir;
+        
+        // Soft volume envelope
+        Choir.bus.gain.setTargetAtTime(finalVol, t, 0.5);
+
+        if(t > Choir.next && finalVol > 0.01) {
+            Choir.shift();
+            // Varying lengths for organic feel
+            Choir.next = t + 3 + Math.random() * 2;
+        }
+    },
+    shift: () => {
+        let t = audioCtx.currentTime;
+        // Fade out old notes
+        Choir.nodes.forEach(n => {
+            n.g.gain.linearRampToValueAtTime(0, t + 3); // Longer fade for smooth blend
+            n.osc.stop(t + 3.1);
+        });
+        Choir.nodes = [];
+        
+        if(Game.mode === 'SEQUENCER' || Game.mode === 'MIDI') return; 
+
+        // 1. Get correct biome based on Camera height
+        let bIdx = Math.floor(Math.abs(Game.camY) / 3000) % CFG.enabledScales.length;
+        if(isNaN(bIdx)) bIdx = 0;
+        let sID = CFG.enabledScales[bIdx];
+        let scaleObj = MASTER_SCALES.find(s => s.id === sID) || MASTER_SCALES[0];
+        let sc = scaleObj.scale;
+
+        // 2. Generate a Harmonically Correct "Open Chord"
+        // Pick a root index from the scale
+        let i = Math.floor(Math.random() * sc.length);
+        
+        // Construct distinct voices:
+        // A. Pedal Tone: The base frequency of the scale (Scale Degree 1) dropped 2 octaves
+        // B. Bass: Selected Note dropped 1 octave
+        // C. Mid: Selected Note
+        // D. Harmony: Scale Degree +2 (The "Third") or +4 (The "Fifth")
+        
+        let freqs = [
+            sc[0] * 0.25,                        // Deep Pedal Tone (Sub-bass)
+            sc[i] * 0.5,                         // Bass Voice
+            sc[(i + 2) % sc.length],             // Harmony (Third)
+            sc[(i + 4) % sc.length] * 2          // Sparkle (Fifth, octave up)
+        ];
+
+        // 3. Synthesis
+        freqs.forEach((f, idx) => {
+            const o = audioCtx.createOscillator();
+            const g = audioCtx.createGain();
+            const filter = audioCtx.createBiquadFilter();
+            
+            // Mix waveforms: Triangle for Bass/Mid, Sawtooth for Sparkle
+            o.type = (idx > 2) ? 'sawtooth' : 'triangle'; 
+            o.frequency.value = f + (Math.random()-0.5); // Slight detune for richness
+            
+            // Dynamic Lowpass Filter to mimic "breathing"
+            filter.type = 'lowpass';
+            filter.frequency.setValueAtTime(200, t);
+            // Swell filter open and close over time
+            filter.frequency.exponentialRampToValueAtTime(800 + (Math.random()*500), t + 3);
+            
+            o.connect(filter); filter.connect(g); g.connect(Choir.bus);
+            
+            // Volume Envelope
+            g.gain.setValueAtTime(0, t);
+            // Gentle Attack, then sustain level depends on how many notes in chord
+            g.gain.linearRampToValueAtTime(0.06 / freqs.length, t + 2); 
+            
+            o.start(t);
+            Choir.nodes.push({osc:o, g:g});
+        });
+    }
+};
+
+/** 
+ * MENUS
+ */
+const Settings = {
+    load: () => { CFG.enabledScales = MASTER_SCALES.map(s => s.id); Settings.shuffle(); Menu.buildScales(); },
+    save: () => {
+        CFG.volMaster=parseFloat(document.getElementById('vol-master').value);
+        CFG.volNotes=parseFloat(document.getElementById('vol-notes').value);
+        CFG.volIntervals=parseFloat(document.getElementById('vol-inter').value);
+        CFG.volChoir=parseFloat(document.getElementById('vol-choir').value);
+        CFG.phyJump=parseFloat(document.getElementById('phy-jump').value);
+        CFG.phyMove=parseFloat(document.getElementById('phy-move').value);
+        CFG.difficulty=parseInt(document.getElementById('diff-select').value);
+        CFG.gameSpeed=parseFloat(document.getElementById('spd-slider').value);
+        CFG.playerShape=document.getElementById('shape-select').value;
+        CFG.useBiomes=document.getElementById('biome-toggle').checked;
+        CFG.fixedColor=document.getElementById('fixed-color').value;
+        let c = document.querySelectorAll('.scale-chk');
+        CFG.enabledScales=[]; c.forEach(cb=>{if(cb.checked)CFG.enabledScales.push(parseInt(cb.value))});
+        if(CFG.enabledScales.length===0)CFG.enabledScales=[0];
+    },
+    shuffle: () => { CFG.enabledScales.sort(()=>Math.random()-0.5); }
+};
+
+const Menu = {
+    hide: () => document.querySelectorAll('.screen-modal').forEach(e => e.style.display='none'),
+    showMain: () => { Menu.hide(); document.getElementById('start-screen').style.display='flex'; },
+    showSettings: () => { 
+        Menu.hide(); 
+        document.getElementById('settings-screen').style.display='flex';
+        document.getElementById('biome-toggle').onchange=e=>document.getElementById('manual-color-row').style.display=e.target.checked?'none':'flex';
+    },
+    closeSettings: () => { Settings.save(); Menu.showMain(); },
+    showSeq: () => { Menu.hide(); document.getElementById('piano-screen').style.display='flex'; Sequencer.render(); },
+    backToMain: () => Menu.showMain(),
+    buildScales: () => { 
+        let d = document.getElementById('scales-list'); d.innerHTML="";
+        MASTER_SCALES.forEach(s=>{d.innerHTML+=`<div><input type="checkbox" class="scale-chk" value="${s.id}" checked><span style="color:${s.fg};margin-left:5px">${s.name}</span></div>`});
+    },
+    triggerMidi: () => document.getElementById('midi-upload').click()
+};
+
+const Sequencer = {
+    data: [],
+    render: () => {
+        let d=document.getElementById('piano-keys'); d.innerHTML="";
+        for(const [k,f] of Object.entries(NOTES_MAP)){
+            let b=document.createElement('div'); b.className='p-key'; b.innerText=k; 
+            if(k.includes('#')){b.style.background='#444';b.style.color='#fff'}
+            b.onclick=()=>{ Sequencer.data.push([f]); SFX.preview(f); Sequencer.upd(); };
+            d.appendChild(b);
+        }
+        Sequencer.upd();
+    },
+    upd: () => { document.getElementById('seq-disp').innerText = Sequencer.data.length ? `${Sequencer.data.length} Notes` : "Empty"; },
+    clear: () => { Sequencer.data=[]; Sequencer.upd(); },
+    start: () => { if(!Sequencer.data.length)Sequencer.data=[[261]]; Game.seqData=Sequencer.data; Game.setMode('SEQUENCER'); }
+};
+
+document.getElementById('midi-upload').addEventListener('change', async e=>{
+    const f=e.target.files[0]; if(!f)return; const r=new FileReader();
+    r.onload=async ev=>{ try{ 
+        const m=new Midi(ev.target.result); let tm=new Map();
+        m.tracks.forEach(t=>{ t.notes.forEach(n=>{ let q=Math.floor(n.time*15); if(!tm.has(q))tm.set(q,[]); tm.get(q).push(440*Math.pow(2,(n.midi-69)/12)); })});
+        let k=Array.from(tm.keys()).sort((a,b)=>a-b), out=[]; k.forEach(x=>out.push(tm.get(x)));
+        if(out.length){ Game.seqData=out; document.getElementById('midi-status').innerText="MIDI Loaded"; setTimeout(()=>Game.setMode('MIDI'),800);}
+    }catch(x){ document.getElementById('midi-status').innerText="Error";} };
+    r.readAsArrayBuffer(f);
+});
+
+/** 
+ * GAME LOOP
+ */
+const cvs=document.getElementById('canvas'), ctx=cvs.getContext('2d');
+const Game={
+    mode:'START', state:'MENU', score:0, combo:0, comboTimer:0, camY:0, highScore:0,
+    player:{x:300,y:700,w:20,h:20,vx:0,vy:0,grounded:false,jumpLock:false,trail:[],dashCool:0,dashAct:0},
+    // GRAVITY IS TWEAKED: -12.5 Jump, 0.45 Gravity = Heavier, tighter feel
+    phy:{acc:0.9, fric:0.8, grav:0.45, jump:-13.0, spd:6},
+    inputs:{l:0,r:0,u:0,dash:0},
+    platforms:[], particles:[], texts:[], seqData:[], seqIdx:0, shake:0,
+
+    init:()=>{
+        window.onkeydown=e=>{
+            if(e.code==='Escape'||e.code==='KeyP') Game.togglePause();
+            if(Game.state!=='PLAYING') return;
+            if(e.key==='ArrowLeft'||e.key==='a') Game.inputs.l=1;
+            if(e.key==='ArrowRight'||e.key==='d') Game.inputs.r=1;
+            if(e.key==='ArrowUp'||e.key==='w'||e.code==='Space') Game.inputs.u=1;
+            if(e.key==='Shift') Game.inputs.dash=1;
+        };
+        window.onkeyup=e=>{ if(e.key==='ArrowLeft'||e.key==='a') Game.inputs.l=0; if(e.key==='ArrowRight'||e.key==='d') Game.inputs.r=0; if(e.key==='ArrowUp'||e.key==='w'||e.code==='Space') Game.inputs.u=0; };
+        cvs.addEventListener('touchstart',e=>{ e.preventDefault(); Game.inputs.u=1; if(e.touches[0].clientX<window.innerWidth/3) Game.inputs.l=1; else if(e.touches[0].clientX>window.innerWidth*0.66) Game.inputs.r=1; }, {passive:false});
+        cvs.addEventListener('touchend',e=>{ Game.inputs.l=0; Game.inputs.r=0; Game.inputs.u=0; });
+
+        Game.highScore=parseInt(localStorage.getItem('omni_score')||0);
+        document.getElementById('high-score-display').innerText="TOP: "+Game.highScore;
+        Settings.load();
+        requestAnimationFrame(loop);
+    },
+    setMode:(m)=>{ Game.mode=m; Game.start(); },
+    start:()=>{
+        initAudio(); Choir.stop(); Menu.hide(); setTimeout(Choir.init, 100);
+        Game.state='PLAYING'; Game.score=0; Game.combo=0; Game.camY=0; Game.seqIdx=0;
+        Game.player.x=300; Game.player.y=600; Game.player.vx=0; Game.player.vy=0; 
+        Game.player.trail=[]; Game.player.dashCool=0; Game.player.dashAct=0;
+        Settings.shuffle();
+        // Fixed biome for starting platform
+        let startBiome = getScale(0); 
+        // We ensure platform has explicit color for moving logic
+        Game.platforms=[{x:0,y:790,w:600,h:20,type:'normal',hit:false,themeIdx:0}];
+        Game.particles=[]; Game.texts=[];
+        Game.genWorld(0);
+    },
+    genWorld:(minY)=>{
+        let y=Game.platforms[Game.platforms.length-1].y;
+        while(y>minY-200) {
+            y -= (95 + Math.random()*35); 
+            let wBase=150, shrink=0, mv=0.1;
+            if(CFG.difficulty>=2){wBase=130;mv=0.3;}
+            if(CFG.difficulty>=3){wBase=120;shrink=Game.score/500;mv=0.5;}
+            if(CFG.difficulty>=4){wBase=100;shrink=Game.score/200;mv=0.8;}
+            if(CFG.difficulty===1){wBase=220;shrink=0;mv=0;}
+            
+            let w = Math.max(30, wBase - shrink) + Math.random()*30;
+            let x=Math.random()*(600-w);
+            let tIdx = Math.floor(Math.abs(y)/3000)%CFG.enabledScales.length;
+            
+            Game.platforms.push({ x, y, w, h:14, hit:false, type:Math.random()<mv?'moving':'static', vx:Math.random()>.5?1.5:-1.5, themeIdx:isNaN(tIdx)?0:tIdx });
+        }
+    },
+    togglePause:()=>{
+        if(Game.state==='PLAYING'){ Game.state='PAUSE'; document.getElementById('pause-screen').style.display='flex'; audioCtx.suspend(); }
+        else if(Game.state==='PAUSE'){ Game.state='PLAYING'; document.getElementById('pause-screen').style.display='none'; audioCtx.resume(); }
+    },
+    quit:()=>{ Game.state='MENU'; Menu.showMain(); Choir.stop(); },
+    retry:()=>{ Game.start(); },
+    
+    update:()=>{
+        if(Game.state!=='PLAYING') return;
+        Game.genWorld(Game.camY);
+        let l=Game.inputs.l, r=Game.inputs.r, j=Game.inputs.u;
+
+        if(Game.inputs.dash && Game.player.dashCool<=0) {
+            Game.player.dashAct=15; Game.player.dashCool=60;
+            let d=(l?-1:(r?1:(Game.player.vx<0?-1:1)));
+            Game.player.vx=d*16*CFG.phyMove; Game.player.vy=0;
+        }
+        Game.inputs.dash=0; if(Game.player.dashCool>0) Game.player.dashCool--;
+
+        if(Game.player.dashAct>0) {
+            Game.player.dashAct--; Game.player.vy=0; 
+            Game.addP(Game.player.x+10,Game.player.y+10,'#fff',1);
+        } else {
+            if(l) Game.player.vx -= Game.phy.acc*CFG.phyMove;
+            if(r) Game.player.vx += Game.phy.acc*CFG.phyMove;
+            Game.player.vx *= Game.player.grounded?Game.phy.fric:0.96;
+            Game.player.vy += Game.phy.grav;
+        }
+        let cap=Game.phy.spd*2.5; Game.player.vx=Math.max(-cap,Math.min(cap,Game.player.vx));
+        Game.player.x+=Game.player.vx; Game.player.y+=Game.player.vy;
+        if(Game.player.x>600) Game.player.x=-20; if(Game.player.x<-20) Game.player.x=600;
+
+        Game.player.trail.unshift({x:Game.player.x,y:Game.player.y});
+        if(Game.player.trail.length>25) Game.player.trail.pop();
+
+        Game.player.grounded=false;
+        if(Game.player.vy>0 && Game.player.dashAct<=0) {
+            Game.platforms.forEach(p=>{
+                if(Game.player.x+Game.player.w>p.x && Game.player.x<p.x+p.w && Game.player.y+Game.player.h>=p.y && Game.player.y+Game.player.h<=p.y+22) {
+                    Game.player.grounded=true; Game.player.vy=0; Game.player.y=p.y-Game.player.h;
+                    if(!p.hit) {
+                        p.hit=true; Game.combo++; Game.comboTimer=360; Game.score+=50*Game.combo;
+                        Game.shake = 5; // Land shake
+                        
+                        let sc = getScale(p.themeIdx), c=CFG.useBiomes?sc.fg:CFG.fixedColor;
+                        Game.addP(Game.player.x+10, p.y, c, 12);
+                        
+                        // TEXT POPUPS
+                        if(Game.combo === FLOW.HARMONIC) Game.addText("HARMONY UNLOCKED", Game.player.x, p.y-20, "#0ff");
+                        if(Game.combo === FLOW.CHORD) Game.addText("CHORDS UNLOCKED", Game.player.x, p.y-20, "#f0f");
+                        if(Game.combo % 10 === 0) Game.addText("FLOW UP", Game.player.x, p.y-30, "#fff");
+
+                        if(Game.mode==='SEQUENCER'||Game.mode==='MIDI') {
+                            if(Game.seqData.length){ let cl=Game.seqData[Game.seqIdx]; if(!Array.isArray(cl))cl=[cl]; SFX.play(null,0,cl); Game.seqIdx=(Game.seqIdx+1)%Game.seqData.length; }
+                        } else SFX.play({scale:sc.scale}, Game.combo);
+                    }
+                }
+            });
+        }
+        if(j && Game.player.grounded) { Game.player.vy=Game.phy.jump*CFG.phyJump; Game.player.grounded=false; }
+        
+        Game.camY+=(Game.player.y-450-Game.camY)*0.1;
+        // SHAKE
+        if(Game.shake>0) { Game.camY+=(Math.random()-.5)*Game.shake; Game.shake*=0.9; }
+
+        let h=Math.floor(Math.abs(Math.min(0,Game.player.y-600))); if(h>Game.score) Game.score=h;
+        Game.platforms=Game.platforms.filter(p=>p.y<Game.camY+1000);
+        Game.platforms.forEach(p=>{if(p.type==='moving'){p.x+=p.vx;if(p.x<0||p.x+p.w>600)p.vx*=-1;}});
+        
+        if(Game.player.y > Game.camY+850) Game.die();
+
+        // Music Logic
+        if(Game.mode === 'STANDARD') {
+            if(Game.combo > FLOW.CHORD) Choir.volTgt = 0.5;
+            else if(Game.combo > FLOW.HARMONIC) Choir.volTgt = 0.2;
+            else Choir.volTgt = 0; // Quiet at start
+        }
+
+        if(Game.combo>0) { Game.comboTimer-=CFG.gameSpeed; if(Game.comboTimer<=0) { Game.combo=Math.max(0,Game.combo-5); Game.comboTimer=100; } }
+        updateHUD();
+    },
+    die:()=>{
+        Game.state='OVER'; Choir.stop();
+        document.getElementById('game-over-screen').style.display='flex';
+        let t=document.getElementById('go-msg');
+        if(Game.score>Game.highScore) { Game.highScore=Game.score; localStorage.setItem('omni_score',Game.highScore); t.innerText="NEW RECORD!"; t.className="rec-flash"; t.style.color="#ff0";}
+        else { t.innerText="SIGNAL LOST"; t.className=""; t.style.color="#f55"; }
+        document.getElementById('go-score').innerText=`FINAL: ${Game.score}`;
+    },
+    addP:(x,y,c,n)=>{for(let i=0;i<n;i++)Game.particles.push({x,y,vx:(Math.random()-.5)*6,vy:(Math.random()-.5)*6,l:1,c});},
+    addText:(t,x,y,c)=>{ Game.texts.push({t,x,y,c,l:1.0}); },
+    draw:()=>{
+        ctx.fillStyle='#000'; ctx.fillRect(0,0,600,800);
+        ctx.save(); ctx.translate(0,-Game.camY);
+        
+        let scIdx = Math.floor(Math.abs(Game.camY)/3000)%CFG.enabledScales.length;
+        let cSc = getScale(scIdx); let pc = CFG.useBiomes?cSc.fg:CFG.fixedColor;
+
+        // BG Grid (subtle)
+        ctx.strokeStyle='#111';
+        for(let i=Math.floor(Game.camY/200)*200; i<Game.camY+800; i+=200) { ctx.beginPath();ctx.moveTo(0,i);ctx.lineTo(600,i);ctx.stroke(); }
+
+        // Glow
+        if(Game.combo > FLOW.CHORD) { ctx.shadowBlur = 10; ctx.shadowColor = pc; ctx.globalCompositeOperation='lighter'; }
+
+        // Trail
+        if(Game.player.trail.length > 1) {
+            ctx.beginPath();
+            ctx.moveTo(Game.player.trail[0].x+10, Game.player.trail[0].y+10);
+            for(let i=1; i<Game.player.trail.length; i++) ctx.lineTo(Game.player.trail[i].x+10, Game.player.trail[i].y+10);
+            ctx.lineCap='round'; ctx.lineWidth = Game.player.w * 0.8;
+            ctx.strokeStyle = pc; ctx.globalAlpha = 0.4;
+            ctx.stroke();
+            ctx.globalAlpha=1;
+        }
+
+        // Platforms
+        Game.platforms.forEach(p=>{
+            let s = getScale(p.themeIdx);
+            let col = CFG.useBiomes ? s.fg : CFG.fixedColor;
+            
+            // moving logic color fix
+            ctx.fillStyle = p.type==='moving' ? lighten(col) : col;
+            
+            if(p.hit) { ctx.shadowBlur=15; ctx.shadowColor=col; ctx.fillStyle="#fff"; }
+            ctx.fillRect(p.x,p.y,p.w,p.h);
+            ctx.shadowBlur=0; ctx.fillStyle='rgba(0,0,0,0.5)'; ctx.fillRect(p.x+2,p.y+2,p.w-4,p.h-4);
+        });
+
+        // Player
+        ctx.fillStyle='#fff';
+        Game.drawShape(Game.player.x, Game.player.y, Game.player.w);
+
+        // Particles
+        Game.particles.forEach((p,i)=>{
+            p.l-=0.03; p.x+=p.vx; p.y+=p.vy;
+            ctx.globalAlpha=p.l; ctx.fillStyle=p.c; ctx.fillRect(p.x,p.y,4,4);
+            if(p.l<=0) Game.particles.splice(i,1);
+        }); ctx.globalAlpha=1;
+
+        // Texts
+        Game.texts.forEach((t,i)=>{
+            t.y-=1; t.l-=0.01; ctx.globalAlpha=t.l; ctx.fillStyle=t.c; ctx.font="12px 'Share Tech Mono'"; ctx.fillText(t.t,t.x,t.y);
+            if(t.l<=0)Game.texts.splice(i,1);
+        }); ctx.globalAlpha=1;
+
+        ctx.globalCompositeOperation='source-over';
+        ctx.restore();
+    },
+    drawShape:(x,y,s)=>{
+        if(CFG.playerShape==='square') ctx.fillRect(x,y,s,s);
+        else if(CFG.playerShape==='circle') { ctx.beginPath();ctx.arc(x+s/2,y+s/2,s/2,0,7);ctx.fill(); }
+        else if(CFG.playerShape==='star') drawStar(x+s/2, y+s/2, 5, s/2, s/4);
+    }
+};
+
+function getScale(i){ if(isNaN(i))i=0; let id=CFG.enabledScales[i%CFG.enabledScales.length]; return MASTER_SCALES.find(s=>s.id===id)||MASTER_SCALES[0]; }
+function drawStar(cx,cy,sp,ro,ri){ let rot=Math.PI/2*3,x,y,st=Math.PI/sp; ctx.beginPath();ctx.moveTo(cx,cy-ro);for(i=0;i<sp;i++){x=cx+Math.cos(rot)*ro;y=cy+Math.sin(rot)*ro;ctx.lineTo(x,y);rot+=st;x=cx+Math.cos(rot)*ri;y=cy+Math.sin(rot)*ri;ctx.lineTo(x,y);rot+=st;}ctx.lineTo(cx,cy-ro);ctx.closePath();ctx.fill();}
+function updateHUD() {
+    document.getElementById('score').innerText=Game.score;
+    let s = getScale(Math.floor(Math.abs(Game.camY)/3000)%CFG.enabledScales.length);
+    document.getElementById('biome-tag').innerText=CFG.useBiomes?s.name:"SYSTEM";
+    document.getElementById('biome-tag').style.color=CFG.useBiomes?s.fg:CFG.fixedColor;
+    let cm = document.getElementById('combo-meter');
+    if(Game.combo>0){ cm.style.opacity=1; cm.innerText=`FLOW x${Game.combo}`; document.getElementById('combo-bar-fill').style.width=(Game.comboTimer/360*100)+'%';}
+    else cm.style.opacity=0;
+}
+function lighten(color) { return color; } // Placeholder if simple colors
+
+let lt=0, acc=0, st=1/60;
+function loop(t) {
+    if(!lt)lt=t; let ft=(t-lt)/1000; lt=t; ft*=CFG.gameSpeed; if(ft>0.1)ft=0.1; acc+=ft;
+    while(acc>=st){Game.update(); acc-=st;} Game.draw(); requestAnimationFrame(loop);
+}
+Game.init();
+</script>
+</body>
+</html>

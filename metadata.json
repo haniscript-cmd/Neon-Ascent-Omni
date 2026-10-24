@@ -1,0 +1,6 @@
+{
+  "name": "Neon Ascent: Omni",
+  "description": "Commercial-grade interactive pixel-art musical platformer with procedural Web Audio synthesis, 16-step sequencer, MIDI import, and cyber-biomes.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,16 @@
+{
+  "appId": "com.neonascent.omni",
+  "appName": "Neon Ascent: Omni",
+  "webDir": "dist",
+  "bundledWebRuntime": false,
+  "server": {
+    "androidScheme": "https"
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 1200,
+      "backgroundColor": "#04050a",
+      "showSpinner": false
+    }
+  }
+}

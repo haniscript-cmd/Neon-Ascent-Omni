@@ -1,0 +1,33 @@
+{
+  "id": "/",
+  "name": "Neon Ascent: Omni",
+  "short_name": "NeonAscent",
+  "description": "Commercial-grade interactive pixel-art musical platformer with procedural Web Audio synthesis, Stage DAW, and cyber-biomes.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#04050a",
+  "theme_color": "#04050a",
+  "categories": ["games", "music", "entertainment"],
+  "icons": [
+    {
+      "src": "/pwa-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

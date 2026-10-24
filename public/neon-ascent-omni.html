@@ -1,0 +1,1040 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>NEON ASCENT: OMNI [ULTIMATE SYMPHONIC EDITION]</title>
+<script src="https://unpkg.com/@tonejs/midi" async></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Orbitron:wght@600;700;900&family=Press+Start+2P&family=Share+Tech+Mono&display=swap');
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 0; background-color: #04050a; overflow: hidden;
+    display: flex; justify-content: center; align-items: center;
+    height: 100vh; font-family: 'JetBrains Mono', 'Share Tech Mono', monospace; color: #f8fafc;
+    user-select: none; -webkit-tap-highlight-color: transparent;
+  }
+  #game-container {
+    position: relative; box-shadow: 0 0 90px rgba(0, 0, 0, 0.92);
+    border: 1px solid #1e293b; width: 100%; max-width: 600px; height: 100vh; max-height: 800px;
+    background: #04050a; overflow: hidden;
+  }
+  canvas { display: block; image-rendering: pixelated; width: 100%; height: 100%; }
+
+  #crt-overlay {
+    position: absolute; inset: 0; pointer-events: none; z-index: 15;
+    background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.28) 50%);
+    background-size: 100% 4px;
+    box-shadow: inset 0 0 70px rgba(0, 0, 0, 0.78);
+  }
+
+  #ui-hud {
+    position: absolute; inset: 0; pointer-events: none; z-index: 20;
+    transition: opacity 0.2s ease;
+  }
+  .hud-top-left { position: absolute; top: 14px; left: 16px; }
+  .hud-row-main { display: flex; align-items: baseline; gap: 12px; }
+  .hud-score {
+    font-family: 'Orbitron', 'Press Start 2P', sans-serif;
+    font-size: 24px; font-weight: 900; color: #fff;
+    text-shadow: 0 2px 0 #000; letter-spacing: 2px;
+    font-variant-numeric: tabular-nums;
+  }
+  .hud-sub { font-size: 11px; color: #94a3b8; font-variant-numeric: tabular-nums; }
+  .hud-sub strong { color: #00ff88; }
+  #combo-row { display: flex; align-items: center; gap: 8px; margin-top: 4px; }
+  #combo-meter {
+    font-family: 'Press Start 2P', monospace; font-size: 10px;
+    color: #00ff88;
+  }
+  .combo-bar-track {
+    position: relative; width: 190px; height: 6px;
+    background: rgba(15, 23, 42, 0.9); border: 1px solid #334155; margin-top: 4px; overflow: hidden;
+  }
+  #combo-bar-fill {
+    position: relative; height: 100%; width: 10%;
+    background: #00ff88;
+  }
+
+  .hud-top-right {
+    position: absolute; top: 14px; right: 16px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  #rank-badge {
+    font-family: 'Orbitron', sans-serif; font-size: 18px; font-weight: 900;
+    padding: 2px 9px; border: 2px solid #64748b; background: rgba(4,5,10,0.9); color: #94a3b8;
+  }
+  .icon-btn {
+    pointer-events: auto; width: 28px; height: 28px;
+    background: rgba(15,23,42,0.9); border: 1px solid #475569; color: #e2e8f0;
+    display: flex; align-items: center; justify-content: center; cursor: pointer;
+  }
+  .icon-btn:hover { border-color: #fff; color: #fff; }
+
+  #biome-tag {
+    position: absolute; bottom: 14px; right: 16px;
+    font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: #00ff88; opacity: 0.85;
+  }
+
+  .screen-modal {
+    position: absolute; inset: 0; background: rgba(6, 8, 16, 0.92);
+    z-index: 40; display: none; flex-direction: column;
+    align-items: center; justify-content: center; padding: 24px; text-align: center;
+    overflow-y: auto;
+  }
+  #start-screen { display: flex; justify-content: space-between; }
+
+  .btn {
+    background: #0f172a; border: 1px solid #475569; color: #fff;
+    padding: 13px 20px; font-family: 'Press Start 2P', monospace; font-size: 10px;
+    cursor: pointer; margin: 5px; width: 270px; text-transform: uppercase;
+    transition: transform 0.12s ease, border-color 0.15s ease, background 0.15s ease;
+    pointer-events: auto;
+  }
+  .btn:hover { border-color: #00ff88; background: #1e293b; }
+  .btn:active { transform: scale(0.97); }
+  .btn-primary {
+    background: #00ff88; color: #04050a; border-color: #00ff88;
+    box-shadow: 0 0 25px rgba(0, 255, 136, 0.35); font-weight: 700;
+  }
+  .btn-primary:hover { background: #34d399; color: #04050a; }
+  .btn-small { width: auto; min-width: 120px; padding: 10px 14px; }
+
+  .settings-group {
+    width: 100%; max-width: 500px; margin-bottom: 12px; text-align: left;
+    background: rgba(15, 23, 42, 0.75); border: 1px solid #1e293b; padding: 12px;
+  }
+  .settings-title {
+    font-size: 11px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 1px; margin-bottom: 8px; padding-bottom: 4px; border-bottom: 1px solid #1e293b;
+  }
+  .settings-row {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 6px; font-size: 12px; color: #cbd5e1;
+  }
+  input[type=range] { width: 130px; cursor: pointer; accent-color: #00ff88; }
+  select, input[type=color] {
+    background: #04050a; color: #00ff88; border: 1px solid #334155;
+    padding: 4px 8px; font-family: inherit; font-size: 11px;
+  }
+  .scales-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; font-size: 11px; margin-top: 6px; }
+
+  #seq-matrix {
+    width: 100%; max-width: 540px; overflow-x: auto;
+    background: #04050a; border: 1px solid #1e293b; padding: 8px; margin: 10px 0;
+  }
+  .seq-row { display: grid; grid-template-columns: 42px repeat(16, 1fr); gap: 3px; margin-bottom: 3px; align-items: center; }
+  .seq-note-lbl {
+    font-size: 10px; color: #cbd5e1; background: #0f172a;
+    border: 1px solid #1e293b; padding: 2px 4px; cursor: pointer; text-align: left;
+  }
+  .seq-cell {
+    height: 18px; background: #090d16; border: 1px solid #1e293b; cursor: pointer;
+  }
+  .seq-cell.beat-col { background: #0f172a; }
+  .seq-cell.active { background: #00ff88; border-color: #fff; box-shadow: 0 0 8px #00ff88; }
+</style>
+</head>
+<body data-state="title">
+
+<div id="game-container">
+  <canvas id="canvas" width="600" height="800"></canvas>
+  <div id="crt-overlay"></div>
+
+  <div id="ui-hud" style="opacity:0;">
+    <div class="hud-top-left">
+      <div class="hud-row-main">
+        <div id="score" class="hud-score">000000</div>
+        <div class="hud-sub"><strong id="hud-alt">0m</strong> · ORBS <strong id="hud-orbs" style="color:#ffb800">0/6</strong></div>
+      </div>
+      <div id="combo-row">
+        <span id="combo-meter">FLOW x1</span>
+        <span id="hud-milestone" style="font-size:10px;color:#94a3b8;">NEXT: x10 DEEP BASS + PAD</span>
+      </div>
+      <div class="combo-bar-track">
+        <div id="combo-bar-fill"></div>
+      </div>
+    </div>
+
+    <div class="hud-top-right">
+      <div id="rank-badge">D</div>
+      <button class="icon-btn" onclick="Game.togglePause()" title="Pause [P]">❚❚</button>
+    </div>
+
+    <div id="biome-tag">NEON GRID · C Minor Pentatonic</div>
+  </div>
+
+  <!-- TITLE SCREEN -->
+  <div id="start-screen" class="screen-modal">
+    <div style="width:100%;display:flex;justify-content:space-between;font-size:12px;border-bottom:1px solid #1e293b;padding-bottom:10px;color:#cbd5e1;">
+      <span>TOP SCORE: <strong id="high-score-display" style="color:#ffb800">0</strong></span>
+      <span>MAX FLOW: <strong id="max-flow-display" style="color:#00ff88">x0</strong></span>
+      <span>ORBS: <strong id="total-orbs-display" style="color:#00d4ff">0</strong></span>
+    </div>
+
+    <div style="margin:auto 0;display:flex;flex-direction:column;align-items:center;">
+      <svg viewBox="0 0 460 110" style="width:100%;max-width:410px;height:auto;margin-bottom:12px;">
+        <defs>
+          <linearGradient id="g1" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stop-color="#00ff88"/>
+            <stop offset="50%" stop-color="#00d4ff"/>
+            <stop offset="100%" stop-color="#ff2a85"/>
+          </linearGradient>
+        </defs>
+        <polygon points="230,6 258,34 230,62 202,34" fill="none" stroke="url(#g1)" stroke-width="2.5"/>
+        <circle cx="230" cy="34" r="5" fill="#00ff88"/>
+        <text x="230" y="82" text-anchor="middle" fill="#ffffff" font-family="Orbitron, sans-serif" font-weight="900" font-size="32" letter-spacing="5">NEON ASCENT</text>
+        <text x="230" y="104" text-anchor="middle" fill="url(#g1)" font-family="JetBrains Mono, monospace" font-weight="700" font-size="12" letter-spacing="7">OMNI · SYMPHONIC EDITION</text>
+      </svg>
+
+      <button class="btn btn-primary" data-start="true" onclick="Game.setMode('STANDARD')">START RUN</button>
+      <button class="btn" onclick="Menu.showSeq()">16-STEP SEQUENCER</button>
+      <button class="btn" onclick="Menu.triggerMidi()">IMPORT MIDI</button>
+      <button class="btn btn-small" style="margin-top:10px;" onclick="Menu.showSettings()">SYSTEM CONFIG</button>
+      <input type="file" id="midi-upload" accept=".mid,.midi" style="display:none;">
+      <div id="midi-status" style="font-size:11px;color:#ffb800;margin-top:8px;min-height:16px;"></div>
+    </div>
+
+    <div style="font-size:11px;color:#64748b;">
+      A / D or Arrows Smooth Glide · Auto-Bounce · Shift Phase Dash · P Pause
+    </div>
+  </div>
+
+  <!-- SETTINGS SCREEN -->
+  <div id="settings-screen" class="screen-modal">
+    <div style="width:100%;max-width:500px;display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+      <span style="font-family:Orbitron,sans-serif;font-size:16px;font-weight:700;">SYSTEM CONFIGURATION</span>
+      <button class="btn btn-primary btn-small" style="margin:0;" onclick="Menu.closeSettings()">SAVE &amp; BACK</button>
+    </div>
+
+    <div class="settings-group">
+      <div class="settings-title" style="color:#00d4ff;">01. Physics &amp; Avatar Chassis</div>
+      <div class="settings-row"><span>Jump Step Height</span> <input type="range" id="phy-jump" min="0.8" max="1.3" step="0.1" value="1.0"></div>
+      <div class="settings-row"><span>Lateral Steering</span> <input type="range" id="phy-move" min="0.7" max="1.4" step="0.1" value="1.0"></div>
+      <div class="settings-row"><span>Simulation Pace</span> <input type="range" id="spd-slider" min="0.6" max="1.3" step="0.1" value="0.9"></div>
+      <div class="settings-row"><span>Difficulty</span>
+        <select id="diff-select">
+          <option value="1">Elevator (Relaxed)</option>
+          <option value="2" selected>Escalator (Standard)</option>
+          <option value="3">Climber (Precision)</option>
+          <option value="4">Ascentor (Extreme)</option>
+        </select>
+      </div>
+      <div class="settings-row"><span>Player Sprite</span>
+        <select id="shape-select">
+          <option value="cyber_knight" selected>Cyber Runner (Pixel Sprite)</option>
+          <option value="valkyrie">Valkyrie Wing (Pixel Sprite)</option>
+          <option value="square">Neon Cube (Reactive Eyes)</option>
+          <option value="circle">Pulse Orb (Reactive Eyes)</option>
+          <option value="star">Nova Star (Reactive Eyes)</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="settings-group">
+      <div class="settings-title" style="color:#ff2a85;">02. Harmonic Audio Mixer</div>
+      <div class="settings-row"><span>Master Gain</span> <input type="range" id="vol-master" min="0" max="1" step="0.05" value="0.46"></div>
+      <div class="settings-row"><span>Fundamental Pluck Notes</span> <input type="range" id="vol-notes" min="0" max="2" step="0.1" value="1.0"></div>
+      <div class="settings-row"><span>Deep Sub-Bass &amp; 5ths (x10+)</span> <input type="range" id="vol-inter" min="0" max="2" step="0.1" value="1.0"></div>
+      <div class="settings-row"><span>High Octave Harmonics (x25+)</span> <input type="range" id="vol-chords" min="0" max="2" step="0.1" value="1.0"></div>
+      <div class="settings-row"><span>Warm Synth Swells (Standard Mode)</span> <input type="range" id="vol-choir" min="0" max="2.5" step="0.1" value="1.15"></div>
+    </div>
+
+    <div class="settings-group">
+      <div class="settings-title" style="color:#ffb800;">03. Visuals &amp; Musical Scales</div>
+      <div class="settings-row"><span>Dynamic Biome Colors (Subtle Dissolve)</span> <input type="checkbox" id="biome-toggle" checked></div>
+      <div class="settings-row" id="manual-color-row" style="display:none;">
+        <span>Fixed Color</span> <input type="color" id="fixed-color" value="#00ff88">
+      </div>
+      <div class="scales-grid" id="scales-list"></div>
+    </div>
+  </div>
+
+  <!-- 16-STEP SEQUENCER MODAL -->
+  <div id="piano-screen" class="screen-modal">
+    <div style="width:100%;max-width:540px;display:flex;justify-content:space-between;align-items:center;">
+      <span style="font-family:Orbitron,sans-serif;font-size:15px;font-weight:700;">16-STEP HARMONIC SEQUENCER</span>
+      <button class="btn btn-small" style="margin:0;" onclick="Menu.backToMain()">BACK</button>
+    </div>
+    <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;justify-content:center;">
+      <button class="btn btn-small" onclick="Sequencer.loadPreset('cyber')">Cyber Pluck</button>
+      <button class="btn btn-small" onclick="Sequencer.loadPreset('outrun')">Outrun Horizon</button>
+      <button class="btn btn-small" onclick="Sequencer.loadPreset('funk')">Harmonic Velvet</button>
+    </div>
+    <div id="seq-matrix"></div>
+    <div style="display:flex;gap:10px;">
+      <button class="btn btn-small" style="border-color:#ff2a55;color:#ff2a55;" onclick="Sequencer.clear()">CLEAR GRID</button>
+      <button class="btn btn-primary btn-small" onclick="Sequencer.start()">LAUNCH SEQUENCE</button>
+    </div>
+  </div>
+
+  <!-- PAUSE & GAME OVER -->
+  <div id="pause-screen" class="screen-modal">
+    <h2 style="font-family:Orbitron,sans-serif;font-size:24px;margin-bottom:20px;">SYSTEM PAUSED</h2>
+    <button class="btn btn-primary" onclick="Game.togglePause()">RESUME</button>
+    <button class="btn" onclick="Game.retry()">RESTART</button>
+    <button class="btn" style="border-color:#ff2a55;color:#ff2a55;" onclick="Game.quit()">MAIN MENU</button>
+  </div>
+
+  <div id="game-over-screen" class="screen-modal">
+    <h2 id="go-msg" style="font-family:Orbitron,sans-serif;font-size:26px;color:#ff2a55;margin-bottom:12px;">SIGNAL LOST</h2>
+    <p id="go-score" style="font-size:15px;color:#e2e8f0;margin-bottom:20px;">FINAL SCORE: 0</p>
+    <button class="btn btn-primary" onclick="Game.retry()">RETRY ASCENT</button>
+    <button class="btn" onclick="Game.quit()">MAIN MENU</button>
+  </div>
+</div>
+
+<script>
+const CFG = {
+  volMaster: 0.48, volNotes: 1.0, volIntervals: 1.0, volChords: 1.0, volChoir: 1.15, volSfx: 0.85,
+  phyJump: 1.0, phyMove: 1.0,
+  useBiomes: true, fixedColor: '#00ff88', difficulty: 2,
+  gameSpeed: 0.86, playerShape: 'cyber_knight',
+  enabledScales: [0, 1, 2, 3, 4, 5, 6]
+};
+
+const BIOME_SPAN = 5200;
+const FLOW_PLATFORMS_PER_STEP = 5;
+
+const NOTES_MAP = {
+  'C3':130.81,'D3':146.83,'E3':164.81,'F3':174.61,'G3':196.00,'A3':220.00,'B3':246.94,
+  'C4':261.63,'D4':293.66,'E4':329.63,'F4':349.23,'G4':392.00,'A4':440.00,'B4':493.88,
+  'C5':523.25
+};
+
+const MASTER_SCALES = [
+  {id:0,name:"NEON GRID",sub:"C Minor Nine",fg:"#00ff88",bg:"#00381e",hor:"#6ee7b7",scale:[261.63,293.66,311.13,349.23,392.00,415.30,466.16,523.25]},
+  {id:1,name:"VAPOR HORIZON",sub:"F Lydian Dream",fg:"#ff2a85",bg:"#42002c",hor:"#f472b6",scale:[261.63,293.66,329.63,349.23,392.00,440.00,493.88,523.25]},
+  {id:2,name:"ABYSSAL OCEAN",sub:"G Dorian Trench",fg:"#00d4ff",bg:"#002642",hor:"#7dd3fc",scale:[196.00,220.00,233.08,261.63,293.66,329.63,349.23,392.00]},
+  {id:3,name:"SOLAR DAWN",sub:"A Major Add9",fg:"#ffb800",bg:"#422100",hor:"#fde047",scale:[220.00,246.94,277.18,293.66,329.63,369.99,415.30,440.00]},
+  {id:4,name:"CRIMSON PROTOCOL",sub:"C Phrygian",fg:"#ff3344",bg:"#420009",hor:"#fda4af",scale:[196.00,207.65,246.94,261.63,277.18,329.63,349.23,392.00]},
+  {id:5,name:"ASTRAL VOID",sub:"E Aeolian Ethereal",fg:"#e2e8f0",bg:"#1e293b",hor:"#cbd5e1",scale:[246.94,293.66,329.63,369.99,392.00,440.00,493.88,587.33]},
+  {id:6,name:"CYBER ZEN",sub:"Hirajoshi Extended",fg:"#a855f7",bg:"#2e1065",hor:"#d8b4fe",scale:[220.00,246.94,261.63,329.63,349.23,440.00,493.88,523.25]}
+];
+
+const FLOW = { HARMONIC: 3, SUBDIVISION: 6, CHORD: 8, OVERDRIVE: 12 };
+
+function hexToRgb(hex) {
+  let c = (hex || '#00ff88').replace(/^#/, '').trim();
+  if (c.length === 3) c = c[0]+c[0]+c[1]+c[1]+c[2]+c[2];
+  const n = parseInt(c, 16) || 0x00ff88;
+  return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
+}
+function rgbToHex(r, g, b) {
+  const cl = (v) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0');
+  return '#' + cl(r) + cl(g) + cl(b);
+}
+function lighten(hex, amt = 0.35) {
+  const { r, g, b } = hexToRgb(hex);
+  return rgbToHex(r + (255 - r) * amt, g + (255 - g) * amt, b + (255 - b) * amt);
+}
+function darken(hex, amt = 0.28) {
+  const { r, g, b } = hexToRgb(hex);
+  return rgbToHex(r * (1 - amt), g * (1 - amt), b * (1 - amt));
+}
+function blendHex(aHex, bHex, t) {
+  const a = hexToRgb(aHex), b = hexToRgb(bHex), cl = Math.max(0, Math.min(1, t));
+  return rgbToHex(a.r + (b.r - a.r) * cl, a.g + (b.g - a.g) * cl, a.b + (b.b - a.b) * cl);
+}
+function withAlpha(hex, a) {
+  const { r, g, b } = hexToRgb(hex);
+  return `rgba(${r},${g},${b},${a})`;
+}
+function cellNoise(c, r) {
+  const n = Math.sin(c * 127.1 + r * 311.7) * 43758.5453;
+  return n - Math.floor(n);
+}
+function getPlatformThemeColor(sc, type) {
+  const base = CFG.useBiomes ? sc.fg : CFG.fixedColor;
+  const hor = CFG.useBiomes ? sc.hor : lighten(CFG.fixedColor, 0.45);
+  if (type === 'moving') return lighten(base, 0.32);
+  if (type === 'bounce') return lighten(hor, 0.42);
+  if (type === 'crumble') return darken(base, 0.28);
+  if (type === 'phase') return hor;
+  return base;
+}
+
+function buildExtScale(base) {
+  const core = base.slice(0, 7);
+  return [
+    ...core.map(f => f * 0.5),
+    ...core,
+    ...core.map(f => f * 2.0),
+    ...core.slice(0, 4).map(f => f * 4.0)
+  ];
+}
+
+function computeJumpKinematics(phyJump) {
+  const flightSec = 0.6;
+  const stepY = Math.round(134 * phyJump);
+  const apex = Math.round(182 * phyJump);
+  const k = Math.sqrt(2 * apex) + Math.sqrt(2 * (apex - stepY));
+  const grav = (k * k) / (flightSec * flightSec);
+  const jumpVy = -Math.sqrt(2 * grav * apex);
+  const bounceVy = -Math.sqrt(2 * grav * (stepY * 2 + 52 * phyJump));
+  return { stepY, grav, jumpVy, bounceVy };
+}
+
+let audioCtx, masterGain, reverbNode, delayLeft, delayRight, choirBus, noiseBuffer;
+let melodicStep = 0, nextPadSwell = 0, padDeg = 0, lastNoteTime = 0, lastExtIdx = 10;
+let landingTimes = [], avgJumpSec = 0.58, jumpsSinceSub = 0, nextSubTarget = 5;
+
+function initAudio() {
+  if (audioCtx) {
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    return;
+  }
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  masterGain = audioCtx.createGain();
+  masterGain.gain.value = CFG.volMaster;
+  masterGain.connect(audioCtx.destination);
+
+  delayLeft = audioCtx.createDelay(1.0);
+  delayRight = audioCtx.createDelay(1.0);
+  const fb = audioCtx.createGain(), wet = audioCtx.createGain(), merger = audioCtx.createChannelMerger(2);
+  delayLeft.delayTime.value = 0.27; delayRight.delayTime.value = 0.41;
+  fb.gain.value = 0.3; wet.gain.value = 0.18;
+  delayLeft.connect(delayRight); delayRight.connect(fb); fb.connect(delayLeft);
+  delayLeft.connect(merger, 0, 0); delayRight.connect(merger, 0, 1);
+  merger.connect(wet); wet.connect(masterGain);
+
+  reverbNode = audioCtx.createConvolver();
+  const rate = audioCtx.sampleRate, length = rate * 2.4;
+  const buffer = audioCtx.createBuffer(2, length, rate);
+  for (let i = 0; i < length; i++) {
+    const d = Math.pow(1 - i / length, 2.6);
+    buffer.getChannelData(0)[i] = (Math.random() * 2 - 1) * d;
+    buffer.getChannelData(1)[i] = (Math.random() * 2 - 1) * d;
+  }
+  reverbNode.buffer = buffer;
+  const revGain = audioCtx.createGain(); revGain.gain.value = 0.36;
+  reverbNode.connect(revGain); revGain.connect(masterGain);
+
+  choirBus = audioCtx.createGain();
+  choirBus.gain.value = 1.0;
+  choirBus.connect(reverbNode);
+  choirBus.connect(masterGain);
+
+  noiseBuffer = audioCtx.createBuffer(1, rate * 0.5, rate);
+  const nd = noiseBuffer.getChannelData(0);
+  for (let i = 0; i < nd.length; i++) nd[i] = Math.random() * 2 - 1;
+}
+
+const SFX = {
+  preview: (freq) => {
+    initAudio();
+    const t = audioCtx.currentTime, o = audioCtx.createOscillator(), g = audioCtx.createGain();
+    o.type = 'triangle'; o.frequency.value = freq;
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.linearRampToValueAtTime(0.18 * CFG.volNotes, t + 0.015);
+    g.gain.exponentialRampToValueAtTime(0.0008, t + 0.42);
+    o.connect(g); g.connect(masterGain); o.start(t); o.stop(t + 0.45);
+  },
+  triggerVoice: (freq, st, idx, total, flow, scaleGain = 1.0) => {
+    const osc = audioCtx.createOscillator(), g = audioCtx.createGain();
+    osc.type = (idx === 0) ? 'triangle' : 'sine';
+    osc.frequency.setValueAtTime(freq, st);
+    let baseVol = 0.135 * scaleGain * (total > 2 ? 0.7 : 1);
+    if (idx === 0) baseVol *= CFG.volNotes;
+    else if (idx === 1) baseVol *= CFG.volIntervals * 0.75;
+    else baseVol *= CFG.volChords * 0.65;
+    g.gain.setValueAtTime(0.0001, st);
+    g.gain.linearRampToValueAtTime(Math.max(0.001, baseVol), st + 0.016);
+    g.gain.exponentialRampToValueAtTime(0.0008, st + 1.18);
+    osc.connect(g); g.connect(reverbNode); g.connect(masterGain);
+    if (flow >= FLOW.CHORD && delayLeft && idx === 0) g.connect(delayLeft);
+    osc.start(st); osc.stop(st + 1.22);
+  },
+  play: (biome, flow, noteCluster) => {
+    initAudio();
+    const t = audioCtx.currentTime;
+    if (t - lastNoteTime < 0.065) return;
+    lastNoteTime = t;
+    if (landingTimes.length > 0) {
+      const dtJump = t - landingTimes[landingTimes.length - 1];
+      if (dtJump >= 0.22 && dtJump <= 1.65) avgJumpSec = avgJumpSec * 0.65 + dtJump * 0.35;
+    }
+    landingTimes.push(t);
+    if (landingTimes.length > 6) landingTimes.shift();
+
+    masterGain.gain.setTargetAtTime(CFG.volMaster, t, 0.06);
+    melodicStep++;
+    const sData = (biome && biome.scale) ? biome.scale : MASTER_SCALES[0].scale;
+    const ext = buildExtScale(sData);
+    let notes = [];
+    if (noteCluster && noteCluster.length) {
+      notes = noteCluster;
+    } else {
+      const phi = ((melodicStep * 0.6180339 + Math.sin(melodicStep * 1.732) * 0.35) % 1 + 1) % 1;
+      const leaps = flow >= FLOW.CHORD ? [-8, -7, -5, 3, 5, 7, 8, 9] : (flow >= FLOW.HARMONIC ? [-4, -2, 2, 3, 4] : [-2, -1, 1, 2]);
+      const delta = leaps[Math.floor(phi * leaps.length)];
+      let nextIdx = lastExtIdx + delta;
+      const minI = flow >= FLOW.OVERDRIVE ? 1 : (flow >= FLOW.CHORD ? 3 : 7);
+      const maxI = flow >= FLOW.OVERDRIVE ? ext.length - 1 : (flow >= FLOW.CHORD ? 20 : 14);
+      if (nextIdx < minI || nextIdx > maxI) nextIdx = lastExtIdx - delta;
+      lastExtIdx = Math.max(minI, Math.min(maxI, nextIdx));
+      const root = ext[lastExtIdx];
+      notes.push(root);
+      if (flow >= FLOW.HARMONIC && CFG.volIntervals > 0) {
+        notes.push(melodicStep % 2 === 0 ? Math.max(65, root * 0.5) : ext[Math.min(ext.length - 1, lastExtIdx + 4)]);
+      }
+      if (flow >= FLOW.CHORD && CFG.volChords > 0) {
+        notes.push(ext[Math.min(ext.length - 1, lastExtIdx + 7)]);
+      }
+    }
+    notes.forEach((freq, i) => SFX.triggerVoice(freq, t, i, notes.length, flow, 1.0));
+
+    if (flow >= FLOW.SUBDIVISION && (!noteCluster || !noteCluster.length)) {
+      jumpsSinceSub++;
+      if (jumpsSinceSub >= nextSubTarget) {
+        jumpsSinceSub = 0;
+        nextSubTarget = 5 + (Math.random() < 0.5 ? 0 : 1);
+        const subCount = flow >= FLOW.OVERDRIVE && Math.random() < 0.6 ? 3 : 2;
+        const halfInt = Math.max(0.14, Math.min(0.35, (avgJumpSec * 0.5) / (subCount === 3 ? 1.35 : 1.0)));
+        const offsets = [2, 5, 7];
+        for (let k = 0; k < subCount; k++) {
+          const idx = Math.max(1, Math.min(ext.length - 1, lastExtIdx + offsets[k]));
+          SFX.triggerVoice(ext[idx], t + (k + 1) * halfInt, 0, 1, flow, 0.72);
+        }
+      }
+    }
+  },
+  tickPad: (flow, biome, mode) => {
+    if (!audioCtx || audioCtx.state !== 'running' || !choirBus || mode !== 'STANDARD') return;
+    const t = audioCtx.currentTime;
+    if (CFG.volChoir <= 0 || flow < FLOW.HARMONIC) {
+      choirBus.gain.setTargetAtTime(0.05, t, 0.35);
+      return;
+    }
+    const intensity = Math.max(0, Math.min(1, (flow - FLOW.HARMONIC) / (FLOW.OVERDRIVE - FLOW.HARMONIC + 2)));
+    choirBus.gain.setTargetAtTime(0.55 + intensity * 0.65, t, 0.28);
+    if (t >= nextPadSwell) {
+      const dur = 2.5 + intensity * 3.3;
+      nextPadSwell = t + Math.max(2.6, dur * 0.78);
+      const sc = biome.scale;
+      const prog = [0, 3, 5, 2, 4, 1];
+      padDeg = (padDeg + 1) % prog.length;
+      const deg = prog[padDeg] % sc.length;
+      const notes = [sc[deg] * 0.5];
+      if (flow >= FLOW.CHORD) notes.push(sc[(deg + 4) % sc.length] * (flow >= FLOW.OVERDRIVE ? 1.0 : 0.5));
+      notes.forEach((freq, idx) => {
+        const o1 = audioCtx.createOscillator(), o2 = audioCtx.createOscillator();
+        const f = audioCtx.createBiquadFilter(), g = audioCtx.createGain();
+        o1.type = 'sine'; o2.type = intensity > 0.65 ? 'sawtooth' : 'triangle';
+        o1.frequency.setValueAtTime(freq * 0.997, t);
+        o2.frequency.setValueAtTime(freq * 1.003, t);
+        f.type = 'lowpass'; f.frequency.setValueAtTime(280 + intensity * 180, t);
+        f.frequency.linearRampToValueAtTime(560 + intensity * 780, t + dur * 0.35);
+        f.frequency.exponentialRampToValueAtTime(240, t + dur);
+        const pk = Math.min(0.2, ((idx === 0 ? 0.05 : 0.038) + intensity * 0.06) * CFG.volChoir);
+        g.gain.setValueAtTime(0.0001, t);
+        g.gain.linearRampToValueAtTime(pk, t + Math.min(1.1, dur * 0.25));
+        g.gain.exponentialRampToValueAtTime(0.0006, t + dur);
+        o1.connect(f); o2.connect(f); f.connect(g); g.connect(choirBus);
+        o1.start(t); o2.start(t); o1.stop(t + dur + 0.05); o2.stop(t + dur + 0.05);
+      });
+    }
+  },
+  dash: (sc) => {
+    if (!audioCtx || !noiseBuffer) return;
+    const t = audioCtx.currentTime, n = audioCtx.createBufferSource(), f = audioCtx.createBiquadFilter(), g = audioCtx.createGain();
+    n.buffer = noiseBuffer; f.type = 'bandpass'; f.frequency.setValueAtTime(sc[3] * 3, t); f.frequency.exponentialRampToValueAtTime(sc[0], t + 0.18);
+    g.gain.setValueAtTime(0.14 * CFG.volSfx, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
+    n.connect(f); f.connect(g); g.connect(masterGain); n.start(t); n.stop(t + 0.21);
+  },
+  bounce: (sc) => {
+    if (!audioCtx) return;
+    const t = audioCtx.currentTime;
+    [sc[0], sc[3]].forEach((freq, i) => {
+      const o = audioCtx.createOscillator(), g = audioCtx.createGain(), st = t + i * 0.045;
+      o.type = 'sine'; o.frequency.setValueAtTime(freq, st);
+      g.gain.setValueAtTime(0.11 * CFG.volSfx, st); g.gain.exponentialRampToValueAtTime(0.001, st + 0.32);
+      o.connect(g); g.connect(masterGain); o.start(st); o.stop(st + 0.34);
+    });
+  },
+  levelUp: (sc) => {
+    if (!audioCtx) return;
+    const t = audioCtx.currentTime;
+    [sc[0], sc[2], sc[0] * 2].forEach((f, idx) => {
+      const o = audioCtx.createOscillator(), g = audioCtx.createGain(), st = t + idx * 0.06;
+      o.type = 'sine'; o.frequency.setValueAtTime(f, st);
+      g.gain.setValueAtTime(0.11 * CFG.volSfx, st); g.gain.exponentialRampToValueAtTime(0.001, st + 0.55);
+      o.connect(g); g.connect(reverbNode); g.connect(masterGain); o.start(st); o.stop(st + 0.58);
+    });
+  }
+};
+
+const ParticleSystem = {
+  pool: Array.from({ length: 280 }, () => ({ active: false, x: 0, y: 0, vx: 0, vy: 0, l: 0, c: '#fff', s: 3.5 })),
+  cursor: 0,
+  spawn(x, y, vx, vy, c, s = 3.5) {
+    const p = this.pool[this.cursor];
+    this.cursor = (this.cursor + 1) % this.pool.length;
+    p.active = true; p.x = x; p.y = y; p.vx = vx; p.vy = vy; p.l = 1.0; p.c = c; p.s = s;
+  },
+  burst(x, y, c, n) {
+    for (let i = 0; i < n; i++) {
+      const a = (Math.PI * 2 * i) / n + (Math.random() - 0.5) * 0.4, spd = 1.5 + Math.random() * 4;
+      this.spawn(x, y, Math.cos(a) * spd, Math.sin(a) * spd, c, 2.5 + Math.random() * 2.5);
+    }
+  },
+  updateAndDraw(ctx) {
+    for (let i = 0; i < this.pool.length; i++) {
+      const p = this.pool[i];
+      if (!p.active) continue;
+      p.x += p.vx; p.y += p.vy; p.vy += 0.1; p.l -= 0.032;
+      if (p.l <= 0) { p.active = false; continue; }
+      ctx.globalAlpha = p.l; ctx.fillStyle = p.c; ctx.fillRect(p.x, p.y, p.s, p.s);
+    }
+    ctx.globalAlpha = 1;
+  }
+};
+
+const Sequencer = {
+  grid: Array.from({ length: 16 }, () => []),
+  init() { this.loadPreset('cyber'); },
+  loadPreset(name) {
+    this.grid = Array.from({ length: 16 }, () => []);
+    const p = name === 'outrun'
+      ? ['A3','C4','E4','A4','F3','C4','F4','A4','C3','G3','C4','E4','G3','B3','D4','G4']
+      : name === 'funk'
+      ? ['D3','D4','F3','F4','G3','G4','A3','A4','C4','C5','G4','F4','D4','C4','G3','D4']
+      : ['C4','D4','G4','C5','G4','D4','F4','A4','C4','D4','G4','C5','A4','G4','F4','D4'];
+    p.forEach((k, idx) => { this.grid[idx] = [k]; });
+    this.render();
+  },
+  render() {
+    const m = document.getElementById('seq-matrix'); if (!m) return;
+    m.innerHTML = '';
+    const keys = Object.keys(NOTES_MAP).reverse();
+    keys.forEach((k) => {
+      const row = document.createElement('div'); row.className = 'seq-row';
+      const lbl = document.createElement('div'); lbl.className = 'seq-note-lbl'; lbl.innerText = k;
+      lbl.onclick = () => SFX.preview(NOTES_MAP[k]);
+      row.appendChild(lbl);
+      for (let s = 0; s < 16; s++) {
+        const cell = document.createElement('div');
+        cell.className = 'seq-cell' + (s % 4 === 0 ? ' beat-col' : '') + (this.grid[s].includes(k) ? ' active' : '');
+        cell.onclick = () => {
+          const arr = this.grid[s];
+          if (arr.includes(k)) this.grid[s] = arr.filter(x => x !== k);
+          else { arr.push(k); SFX.preview(NOTES_MAP[k]); }
+          this.render();
+        };
+        row.appendChild(cell);
+      }
+      m.appendChild(row);
+    });
+  },
+  clear() { this.grid = Array.from({ length: 16 }, () => []); this.render(); },
+  start() {
+    const out = [];
+    this.grid.forEach(col => { if (col.length) out.push(col.map(k => NOTES_MAP[k])); });
+    Game.seqData = out.length ? out : [[261.63],[329.63],[392.00],[523.25]];
+    Game.setMode('SEQUENCER');
+  }
+};
+
+const Menu = {
+  hideAll() { document.querySelectorAll('.screen-modal').forEach(e => e.style.display = 'none'); },
+  showMain() {
+    this.hideAll();
+    document.getElementById('start-screen').style.display = 'flex';
+    document.getElementById('ui-hud').style.opacity = 0;
+    document.body.dataset.state = 'title';
+  },
+  showSettings() {
+    this.hideAll();
+    document.getElementById('settings-screen').style.display = 'flex';
+  },
+  closeSettings() {
+    CFG.volMaster = parseFloat(document.getElementById('vol-master').value);
+    CFG.volNotes = parseFloat(document.getElementById('vol-notes').value);
+    CFG.volIntervals = parseFloat(document.getElementById('vol-inter').value);
+    CFG.volChords = parseFloat(document.getElementById('vol-chords').value);
+    CFG.volChoir = parseFloat(document.getElementById('vol-choir').value);
+    CFG.phyJump = parseFloat(document.getElementById('phy-jump').value);
+    CFG.phyMove = parseFloat(document.getElementById('phy-move').value);
+    CFG.difficulty = parseInt(document.getElementById('diff-select').value);
+    CFG.gameSpeed = parseFloat(document.getElementById('spd-slider').value);
+    CFG.playerShape = document.getElementById('shape-select').value;
+    CFG.useBiomes = document.getElementById('biome-toggle').checked;
+    CFG.fixedColor = document.getElementById('fixed-color').value;
+    this.showMain();
+  },
+  showSeq() { this.hideAll(); document.getElementById('piano-screen').style.display = 'flex'; Sequencer.render(); },
+  backToMain() { this.showMain(); },
+  triggerMidi() { document.getElementById('midi-upload').click(); }
+};
+
+const cvs = document.getElementById('canvas'), ctx = cvs.getContext('2d');
+const SPRITE_KNIGHT = [
+  [0,0,3,3,3,3,0,0],[0,1,1,1,1,1,1,0],[1,1,2,2,2,2,1,1],[1,1,2,2,2,2,1,1],
+  [1,1,1,1,1,1,1,1],[0,1,3,1,1,3,1,0],[0,1,1,0,0,1,1,0],[0,3,3,0,0,3,3,0]
+];
+
+const UPGRADES = [
+  { id: 'orb_magnet', name: 'HARMONIC MAGNET', icon: '◎' },
+  { id: 'combo_shield', name: 'AEGIS SHIELD', icon: '❖' },
+  { id: 'rhythm_aura', name: 'RESONANCE x1.5', icon: '♫' }
+];
+
+const Game = {
+  mode: 'STANDARD', state: 'MENU', score: 0, combo: 0, flowSub: 0, highestY: 782, camY: 0, gameTime: 0,
+  highScore: parseInt(localStorage.getItem('omni_score_v3') || '0'),
+  maxComboRec: parseInt(localStorage.getItem('omni_max_combo_v3') || '0'),
+  totalOrbsRec: parseInt(localStorage.getItem('omni_orbs_v3') || '0'),
+  orbsRun: 0, activeBiomeIdx: 0,
+  dissolve: { active: false, progress: 1, from: MASTER_SCALES[0], to: MASTER_SCALES[0] },
+  player: { x: 290, y: 740, w: 22, h: 22, vx: 0, vy: 0, scaleX: 1, scaleY: 1, trail: [], dashCool: 0, dashAct: 0 },
+  activePowerUps: [],
+  inputs: { l: 0, r: 0, dash: 0 },
+  platforms: [], orbs: [], seqData: [], seqIdx: 0,
+
+  init() {
+    document.getElementById('high-score-display').innerText = this.highScore;
+    document.getElementById('max-flow-display').innerText = 'x' + this.maxComboRec;
+    document.getElementById('total-orbs-display').innerText = this.totalOrbsRec;
+    let sl = document.getElementById('scales-list');
+    MASTER_SCALES.forEach(s => { sl.innerHTML += `<label><input type="checkbox" checked value="${s.id}"> <span style="color:${s.fg}">${s.name}</span></label>`; });
+    Sequencer.init();
+
+    window.onkeydown = e => {
+      if (e.code === 'Escape' || e.code === 'KeyP') Game.togglePause();
+      if (Game.state !== 'PLAYING') return;
+      if (e.key === 'ArrowLeft' || e.key === 'a') Game.inputs.l = 1;
+      if (e.key === 'ArrowRight' || e.key === 'd') Game.inputs.r = 1;
+      if (e.key === 'Shift') Game.inputs.dash = 1;
+    };
+    window.onkeyup = e => {
+      if (e.key === 'ArrowLeft' || e.key === 'a') Game.inputs.l = 0;
+      if (e.key === 'ArrowRight' || e.key === 'd') Game.inputs.r = 0;
+    };
+    this.resetWorld();
+    requestAnimationFrame(loop);
+  },
+  resetWorld() {
+    const kin = computeJumpKinematics(CFG.phyJump);
+    this.platforms = [
+      { x: 0, y: 782, w: 600, h: 20, type: 'normal', hit: true, repeats: 0, themeIdx: 0 },
+      { x: 120, y: 782 - Math.round(kin.stepY * 0.92), w: 155, h: 14, type: 'normal', hit: false, repeats: 0, themeIdx: 0 }
+    ];
+    this.orbs = [];
+    this.genWorld(-400);
+  },
+  setMode(m) { this.mode = m; this.start(); },
+  start() {
+    initAudio(); Menu.hideAll();
+    const kin = computeJumpKinematics(CFG.phyJump);
+    document.getElementById('ui-hud').style.opacity = 1;
+    document.body.dataset.state = 'playing';
+    this.state = 'PLAYING'; this.score = 0; this.combo = 0; this.flowSub = 0; this.highestY = 782; this.camY = 0; this.orbsRun = 0; this.activeBiomeIdx = 0;
+    this.dissolve = { active: false, progress: 1, from: MASTER_SCALES[0], to: MASTER_SCALES[0] };
+    this.activePowerUps = [];
+    Object.assign(this.player, { x: 290, y: 760, vx: 0, vy: kin.jumpVy, scaleX: 0.78, scaleY: 1.26, trail: [], dashCool: 0, dashAct: 0 });
+    this.resetWorld();
+  },
+  genWorld(minY) {
+    const kin = computeJumpKinematics(CFG.phyJump);
+    let lastP = this.platforms[this.platforms.length - 1];
+    let y = lastP.y, prevCx = lastP.x + lastP.w * 0.5;
+    while (y > minY - 320) {
+      y -= Math.round(kin.stepY * (0.85 + Math.random() * 0.2));
+      let w = Math.max(66, Math.round((134 * (0.85 + Math.random() * 0.3)) * (this.combo >= FLOW.HARMONIC ? 1.08 : 1)));
+      let dir = prevCx < 180 ? 1 : (prevCx > 420 ? -1 : (Math.random() > 0.5 ? 1 : -1));
+      let jumpDist = 90 + Math.random() * 135;
+      let cx = prevCx + dir * jumpDist;
+      if (cx < w * 0.5 + 20 || cx > 580 - w * 0.5) cx = prevCx - dir * jumpDist;
+      cx = Math.max(w * 0.5 + 20, Math.min(580 - w * 0.5, cx));
+      let x = Math.round(cx - w * 0.5); prevCx = cx;
+      let tIdx = Math.floor(Math.abs(y - 782) / BIOME_SPAN) % MASTER_SCALES.length;
+      let r = Math.random(), type = 'normal';
+      if (r < 0.16) type = 'moving';
+      else if (r < 0.27) type = 'bounce';
+      else if (r < 0.34) type = 'crumble';
+      else if (r < 0.40) type = 'phase';
+      this.platforms.push({ x, y, w, h: 14, type, vx: Math.random() > 0.5 ? 1.15 : -1.15, hit: false, repeats: 0, themeIdx: tIdx, crumbleT: 0, broken: false, respawnT: 0, solid: true });
+      if (Math.random() < 0.28) {
+        const sc = MASTER_SCALES[tIdx];
+        this.orbs.push({ x: cx, y: y - 40, r: 6, hit: false, c: sc.hor, freq: sc.scale[0] });
+      }
+    }
+  },
+  togglePause() {
+    if (this.state === 'PLAYING') { this.state = 'PAUSE'; document.getElementById('pause-screen').style.display = 'flex'; }
+    else if (this.state === 'PAUSE') { this.state = 'PLAYING'; document.getElementById('pause-screen').style.display = 'none'; }
+  },
+  quit() { this.state = 'MENU'; Menu.showMain(); },
+  retry() { this.start(); },
+
+  grantRandomPowerUp(sc) {
+    if (this.activePowerUps.length >= 3) return;
+    const avail = UPGRADES.filter(u => !this.activePowerUps.some(a => a.id === u.id));
+    if (!avail.length) return;
+    const pick = avail[Math.floor(Math.random() * avail.length)];
+    this.activePowerUps.push({ ...pick, rem: 15.0, dur: 15.0 });
+    SFX.levelUp(sc.scale);
+  },
+
+  update(dt) {
+    this.gameTime += dt;
+    if (this.state !== 'PLAYING') return;
+    this.genWorld(this.camY);
+
+    const kin = computeJumpKinematics(CFG.phyJump);
+    const tIdx = Math.floor(Math.abs(this.camY) / BIOME_SPAN) % MASTER_SCALES.length;
+    const biome = MASTER_SCALES[tIdx];
+
+    if (tIdx !== this.activeBiomeIdx) {
+      this.dissolve = { active: true, progress: 0, from: MASTER_SCALES[this.activeBiomeIdx], to: biome };
+      this.activeBiomeIdx = tIdx;
+      this.grantRandomPowerUp(biome);
+    }
+    if (this.dissolve.active) {
+      this.dissolve.progress += dt * 0.56;
+      if (this.dissolve.progress >= 1) { this.dissolve.progress = 1; this.dissolve.active = false; }
+    }
+
+    SFX.tickPad(this.combo, biome, this.mode);
+    this.activePowerUps = this.activePowerUps.map(u => ({ ...u, rem: u.rem - dt })).filter(u => u.rem > 0);
+
+    const p = this.player, inp = this.inputs;
+    if (inp.dash && p.dashCool <= 0) {
+      p.dashAct = 0.18; p.dashCool = 1.8;
+      p.vx = (inp.l ? -1 : 1) * 550 * CFG.phyMove;
+      p.scaleX = 1.38; p.scaleY = 0.66; SFX.dash(biome.scale);
+      ParticleSystem.burst(p.x + 11, p.y + 11, biome.hor, 8);
+    }
+    inp.dash = 0; if (p.dashCool > 0) p.dashCool = Math.max(0, p.dashCool - dt);
+
+    if (p.dashAct > 0) { p.dashAct -= dt; }
+    else {
+      const targetVx = (inp.r ? 1 : 0) * 335 * CFG.phyMove - (inp.l ? 1 : 0) * 335 * CFG.phyMove;
+      p.vx += (targetVx - p.vx) * Math.min(1, dt * 13);
+    }
+    p.vy = Math.min(Math.abs(kin.jumpVy) * 1.12, p.vy + kin.grav * dt);
+    p.x += p.vx * dt; p.y += p.vy * dt;
+
+    if (p.x <= 6) { p.x = 6; p.vx = Math.abs(p.vx) * 0.75 + 140; }
+    if (p.x >= 572) { p.x = 572; p.vx = -Math.abs(p.vx) * 0.75 - 140; }
+
+    p.scaleX += (1 - p.scaleX) * 0.2;
+    p.scaleY += (1 - p.scaleY) * 0.2;
+    p.trail.unshift({ x: p.x, y: p.y });
+    if (p.trail.length > 18) p.trail.pop();
+
+    this.platforms.forEach(pl => {
+      if (pl.type === 'moving') { pl.x += pl.vx; if (pl.x < 16 || pl.x + pl.w > 580) pl.vx *= -1; }
+      if (pl.type === 'phase') pl.solid = (Math.floor(this.gameTime * 1.1) % 4 !== 3);
+      if (pl.type === 'crumble') {
+        if (pl.broken) { pl.respawnT -= dt; if (pl.respawnT <= 0) { pl.broken = false; pl.hit = false; pl.repeats = 0; } return; }
+        if (pl.crumbleT > 0) { pl.crumbleT -= dt; if (pl.crumbleT <= 0) { pl.broken = true; pl.respawnT = 3.0; return; } }
+      }
+      if (!pl.broken && (pl.type !== 'phase' || pl.solid) && p.vy >= 0) {
+        if (p.x + p.w > pl.x - 3 && p.x < pl.x + pl.w + 3 && p.y + p.h >= pl.y && (p.y + p.h - p.vy * dt) <= pl.y + 24) {
+          p.y = pl.y - p.h;
+          if (pl.type === 'crumble' && pl.crumbleT <= 0) pl.crumbleT = 0.15;
+          if (pl.type === 'bounce') {
+            p.vy = kin.bounceVy; p.scaleX = 0.68; p.scaleY = 1.36;
+            SFX.bounce(biome.scale);
+          } else {
+            p.vy = kin.jumpVy; p.scaleX = 0.76; p.scaleY = 1.28;
+          }
+          if (!pl.hit) {
+            pl.hit = true; pl.repeats = 0;
+            if (pl.y < this.highestY) this.highestY = pl.y;
+            this.flowSub += (pl.type === 'bounce' ? 2 : 1);
+            if (this.flowSub >= FLOW_PLATFORMS_PER_STEP) {
+              this.combo += Math.floor(this.flowSub / FLOW_PLATFORMS_PER_STEP);
+              this.flowSub %= FLOW_PLATFORMS_PER_STEP;
+            }
+            this.score += 1 + (this.combo >= FLOW.CHORD ? 1 : 0);
+            if (this.combo > this.maxComboRec) { this.maxComboRec = this.combo; localStorage.setItem('omni_max_combo_v3', this.maxComboRec); }
+            ParticleSystem.burst(p.x + 11, pl.y, biome.fg, 7);
+          } else {
+            pl.repeats = (pl.repeats || 0) + 1;
+            if (pl.y > this.highestY + 45 || pl.repeats >= 1) {
+              if (this.flowSub > 0) this.flowSub = Math.max(0, this.flowSub - 2);
+              else if (this.combo > 0) this.combo = Math.max(0, this.combo - 1);
+            }
+          }
+          if (this.mode === 'SEQUENCER' || this.mode === 'MIDI') {
+            const cl = this.seqData[this.seqIdx % this.seqData.length];
+            SFX.play(null, this.combo, cl); this.seqIdx++;
+          } else {
+            SFX.play(biome, this.combo);
+          }
+        }
+      }
+    });
+
+    const hasMag = this.activePowerUps.some(u => u.id === 'orb_magnet');
+    this.orbs.forEach(o => {
+      if (o.hit) return;
+      const d = Math.hypot((p.x + 11) - o.x, (p.y + 11) - o.y);
+      if (hasMag && d < 175 && d > 1) {
+        o.x += ((p.x + 11 - o.x) / d) * 390 * dt;
+        o.y += ((p.y + 11 - o.y) / d) * 390 * dt;
+      }
+      if (d < 26) {
+        o.hit = true; this.orbsRun++; this.totalOrbsRec++;
+        localStorage.setItem('omni_orbs_v3', this.totalOrbsRec);
+        this.flowSub += 2;
+        if (this.flowSub >= FLOW_PLATFORMS_PER_STEP) {
+          this.combo += Math.floor(this.flowSub / FLOW_PLATFORMS_PER_STEP);
+          this.flowSub %= FLOW_PLATFORMS_PER_STEP;
+        }
+        this.score += 2;
+        SFX.preview(o.freq * 2);
+        ParticleSystem.burst(o.x, o.y, o.c, 9);
+        if (this.orbsRun % 6 === 0) this.grantRandomPowerUp(biome);
+      }
+    });
+
+    const targetCamY = p.y - 450;
+    if (targetCamY < this.camY) {
+      this.camY += (targetCamY - this.camY) * Math.min(1, dt * 7.5);
+    }
+
+    const alt = Math.floor(Math.abs(Math.min(0, p.y - 782)) / 100);
+    if (alt > this.score) this.score = alt;
+
+    if (p.y > this.camY + 820) {
+      this.state = 'OVER';
+      document.getElementById('game-over-screen').style.display = 'flex';
+      if (this.score > this.highScore) {
+        this.highScore = this.score; localStorage.setItem('omni_score_v3', this.highScore);
+      }
+      document.getElementById('go-score').innerText = `FINAL SCORE: ${this.score} · BEST: ${this.highScore}`;
+    }
+
+    document.getElementById('score').innerText = String(this.score).padStart(4, '0');
+    document.getElementById('hud-alt').innerText = alt + 'm';
+    document.getElementById('hud-orbs').innerText = (this.orbsRun % 6) + '/6';
+    document.getElementById('combo-meter').innerText = `FLOW x${this.combo}`;
+    const nextGoal = this.combo < FLOW.HARMONIC ? FLOW.HARMONIC : (this.combo < FLOW.CHORD ? FLOW.CHORD : FLOW.OVERDRIVE);
+    document.getElementById('combo-bar-fill').style.width = Math.min(100, ((this.combo + this.flowSub / 5) / nextGoal) * 100) + '%';
+  },
+
+  draw() {
+    const biome = MASTER_SCALES[this.activeBiomeIdx];
+    const isDis = CFG.useBiomes && this.dissolve.active && this.dissolve.progress < 1;
+    const pr = isDis ? this.dissolve.progress : 1;
+    const waveCenter = pr * 1.24 - 0.12;
+    const pc = CFG.useBiomes ? (isDis ? blendHex(this.dissolve.from.fg, this.dissolve.to.fg, pr) : biome.fg) : CFG.fixedColor;
+    const bgCol = isDis ? blendHex(this.dissolve.from.bg, this.dissolve.to.bg, pr) : biome.bg;
+
+    const grad = ctx.createLinearGradient(0, 0, 0, 800);
+    grad.addColorStop(0, '#04050a'); grad.addColorStop(1, bgCol);
+    ctx.fillStyle = grad; ctx.fillRect(0, 0, 600, 800);
+
+    // 16x16px Dual-Biome Scattered Pixelated Dissolve Wave (Bottom-to-Top)
+    if (isDis) {
+      const cs = 16, cols = Math.ceil(600 / cs), rows = Math.ceil(800 / cs);
+      const fromPal = [this.dissolve.from.fg, this.dissolve.from.hor];
+      const toPal = [this.dissolve.to.fg, this.dissolve.to.hor];
+      for (let r = 0; r < rows; r++) {
+        const bNorm = 1 - (r + 0.5) / rows;
+        const dist = bNorm - waveCenter;
+        if (Math.abs(dist) > 0.26) continue;
+        const env = 1 - Math.abs(dist) / 0.26;
+        for (let c = 0; c < cols; c++) {
+          const rnd = cellNoise(c, r), rnd2 = cellNoise(c + 37, r + 19);
+          if (rnd > env * 0.78) continue;
+          const useTo = rnd2 < Math.max(0.15, Math.min(0.85, 0.5 - dist * 1.9));
+          const col = (useTo ? toPal : fromPal)[Math.floor((rnd * 7) % 2)];
+          ctx.fillStyle = withAlpha(col, Math.min(0.45, 0.14 + env * 0.32));
+          ctx.fillRect(c * cs + 1, r * cs + 1, cs - 2, cs - 2);
+        }
+      }
+    }
+
+    ctx.save(); ctx.translate(0, -this.camY);
+
+    if (this.player.trail.length > 1) {
+      ctx.beginPath();
+      ctx.moveTo(this.player.trail[0].x + 11, this.player.trail[0].y + 11);
+      for (let i = 1; i < this.player.trail.length; i++) ctx.lineTo(this.player.trail[i].x + 11, this.player.trail[i].y + 11);
+      ctx.strokeStyle = withAlpha(pc, 0.42); ctx.lineWidth = 13; ctx.lineCap = 'round'; ctx.stroke();
+    }
+
+    this.platforms.forEach(p => {
+      if (p.broken) return;
+      let col;
+      if (isDis) {
+        const bNorm = Math.max(0, Math.min(1, 1 - (p.y - this.camY) / 800));
+        const lb = Math.max(0, Math.min(1, (waveCenter - bNorm + 0.14) / 0.28));
+        col = blendHex(getPlatformThemeColor(this.dissolve.from, p.type), getPlatformThemeColor(this.dissolve.to, p.type), lb);
+      } else {
+        col = getPlatformThemeColor(biome, p.type);
+      }
+      ctx.globalAlpha = (p.type === 'phase' && !p.solid) ? 0.25 : 1.0;
+      ctx.fillStyle = p.hit ? '#ffffff' : col;
+      ctx.fillRect(p.x, p.y, p.w, p.h);
+      ctx.fillStyle = 'rgba(4,5,10,0.65)';
+      ctx.fillRect(p.x + 2, p.y + 2, p.w - 4, p.h - 4);
+      ctx.globalAlpha = 1.0;
+    });
+
+    this.orbs.forEach(o => {
+      if (o.hit) return;
+      ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(o.x, o.y, o.r, 0, Math.PI * 2); ctx.fill();
+    });
+
+    ctx.save();
+    ctx.translate(this.player.x + 11, this.player.y + 22);
+    ctx.scale(this.player.scaleX, this.player.scaleY);
+    ctx.translate(-11, -22);
+    const cw = 22 / 8, ch = 22 / 8;
+    for (let r = 0; r < 8; r++) {
+      for (let c = 0; c < 8; c++) {
+        const v = SPRITE_KNIGHT[r][c]; if (!v) continue;
+        ctx.fillStyle = v === 1 ? '#ffffff' : (v === 2 ? pc : biome.hor);
+        ctx.fillRect(c * cw, r * ch, Math.ceil(cw), Math.ceil(ch));
+      }
+    }
+    ctx.restore();
+
+    ParticleSystem.updateAndDraw(ctx);
+    ctx.restore();
+
+    // Side-Mounted Circular Power-Ups with Draining Pixel Interior
+    this.activePowerUps.forEach((pu, idx) => {
+      const cx = 568, cy = 124 + idx * 52, rad = 20, px = 3;
+      const ratio = Math.max(0, Math.min(1, pu.rem / pu.dur));
+      ctx.save();
+      ctx.fillStyle = 'rgba(4,6,14,0.88)';
+      ctx.strokeStyle = withAlpha(pc, 0.72);
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(cx, cy, rad, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.arc(cx, cy, rad - 3, 0, Math.PI * 2); ctx.clip();
+      let row = 0, totalRows = Math.ceil((rad * 2) / px);
+      for (let py = cy - rad; py < cy + rad; py += px) {
+        const norm = 1 - row / totalRows;
+        let col = 0;
+        for (let x = cx - rad; x < cx + rad; x += px) {
+          if (norm + (cellNoise(col, row) - 0.5) * 0.14 <= ratio) {
+            ctx.fillStyle = withAlpha(pc, 0.45);
+            ctx.fillRect(x, py, px - 1, px - 1);
+          }
+          col++;
+        }
+        row++;
+      }
+      ctx.fillStyle = '#fff'; ctx.font = 'bold 14px monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(pu.icon, cx, cy + 1);
+      ctx.restore();
+    });
+  }
+};
+
+let lt = performance.now();
+function loop(t) {
+  const dt = Math.min(0.04, (t - lt) / 1000) * CFG.gameSpeed; lt = t;
+  Game.update(dt); Game.draw(); requestAnimationFrame(loop);
+}
+Game.init();
+</script>
+</body>
+</html>

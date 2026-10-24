@@ -1,0 +1,71 @@
+@import "tailwindcss";
+
+@layer base {
+  body {
+    margin: 0;
+    padding: 0;
+    background-color: #04050a;
+    color: #f8fafc;
+    font-family: 'Press Start 2P', monospace;
+    overflow: hidden;
+    user-select: none;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    image-rendering: pixelated;
+  }
+
+  button,
+  input,
+  select {
+    font-family: 'Press Start 2P', monospace;
+  }
+}
+
+.font-display {
+  font-family: 'Press Start 2P', monospace;
+}
+
+.font-pixel {
+  font-family: 'Press Start 2P', monospace;
+}
+
+.font-mono-tech {
+  font-family: 'Press Start 2P', monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Fast Pixelated Dissolve Entrance for Game Over Modal */
+@keyframes pixelDissolveReveal {
+  0% {
+    opacity: 0;
+    transform: scale(0.94);
+    filter: contrast(2.2) brightness(1.6);
+  }
+  50% {
+    opacity: 0.85;
+    transform: scale(1.01);
+    filter: contrast(1.4) brightness(1.2);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+    filter: none;
+  }
+}
+
+.pixel-dissolve-enter {
+  animation: pixelDissolveReveal 0.26s steps(5, end) forwards;
+}
+
+/* CRT Scanlines & Subtle Vignette Overlay */
+.crt-scanlines {
+  background: linear-gradient(
+    rgba(18, 16, 16, 0) 50%,
+    rgba(0, 0, 0, 0.28) 50%
+  );
+  background-size: 100% 4px;
+}
+
+.crt-vignette {
+  box-shadow: inset 0 0 70px rgba(0, 0, 0, 0.78);
+}
