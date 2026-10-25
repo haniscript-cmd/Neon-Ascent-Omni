@@ -1,0 +1,8275 @@
+[
+  {
+    "id": "stage_midi_1792954167922",
+    "name": "85263",
+    "author": "Developer MIDI",
+    "biomeId": 0,
+    "soundBankId": "arcade_crt_pulse",
+    "bpm": 104,
+    "totalSteps": 64,
+    "notes": [
+      {
+        "id": "midi_0_0",
+        "step": 0,
+        "freq": 293.66,
+        "noteName": "D4",
+        "durationBeats": 1
+      },
+      {
+        "id": "midi_1_2",
+        "step": 2,
+        "freq": 293.66,
+        "noteName": "D4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_2_3",
+        "step": 3,
+        "freq": 293.66,
+        "noteName": "D4",
+        "durationBeats": 1
+      },
+      {
+        "id": "midi_3_5",
+        "step": 5,
+        "freq": 293.66,
+        "noteName": "D4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_4_6",
+        "step": 6,
+        "freq": 293.66,
+        "noteName": "D4",
+        "durationBeats": 1
+      },
+      {
+        "id": "midi_5_8",
+        "step": 8,
+        "freq": 293.66,
+        "noteName": "D4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_6_9",
+        "step": 9,
+        "freq": 293.66,
+        "noteName": "D4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_7_10",
+        "step": 10,
+        "freq": 293.66,
+        "noteName": "D4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_8_11",
+        "step": 11,
+        "freq": 293.66,
+        "noteName": "D4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_9_12",
+        "step": 12,
+        "freq": 293.66,
+        "noteName": "D4",
+        "durationBeats": 1
+      },
+      {
+        "id": "midi_10_14",
+        "step": 14,
+        "freq": 293.66,
+        "noteName": "D4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_11_15",
+        "step": 15,
+        "freq": 293.66,
+        "noteName": "D4",
+        "durationBeats": 1
+      },
+      {
+        "id": "midi_12_17",
+        "step": 17,
+        "freq": 293.66,
+        "noteName": "D4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_13_18",
+        "step": 18,
+        "freq": 293.66,
+        "noteName": "D4",
+        "durationBeats": 1
+      },
+      {
+        "id": "midi_14_20",
+        "step": 20,
+        "freq": 293.66,
+        "noteName": "D4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_15_21",
+        "step": 21,
+        "freq": 293.66,
+        "noteName": "D4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_16_22",
+        "step": 22,
+        "freq": 293.66,
+        "noteName": "D4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_17_23",
+        "step": 23,
+        "freq": 293.66,
+        "noteName": "D4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_18_24",
+        "step": 24,
+        "freq": 293.66,
+        "noteName": "D4",
+        "durationBeats": 0.75
+      },
+      {
+        "id": "midi_19_24",
+        "step": 24,
+        "freq": 73.42,
+        "noteName": "D2",
+        "durationBeats": 3
+      },
+      {
+        "id": "midi_20_24",
+        "step": 24,
+        "freq": 36.71,
+        "noteName": "D1",
+        "durationBeats": 3
+      },
+      {
+        "id": "midi_21_26",
+        "step": 26,
+        "freq": 293.66,
+        "noteName": "D4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_22_27",
+        "step": 27,
+        "freq": 293.66,
+        "noteName": "D4",
+        "durationBeats": 1
+      },
+      {
+        "id": "midi_23_29",
+        "step": 29,
+        "freq": 293.66,
+        "noteName": "D4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_24_30",
+        "step": 30,
+        "freq": 293.66,
+        "noteName": "D4",
+        "durationBeats": 0.75
+      },
+      {
+        "id": "midi_25_30",
+        "step": 30,
+        "freq": 73.42,
+        "noteName": "D2",
+        "durationBeats": 1.5
+      },
+      {
+        "id": "midi_26_30",
+        "step": 30,
+        "freq": 36.71,
+        "noteName": "D1",
+        "durationBeats": 1.5
+      },
+      {
+        "id": "midi_27_32",
+        "step": 32,
+        "freq": 293.66,
+        "noteName": "D4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_28_33",
+        "step": 33,
+        "freq": 293.66,
+        "noteName": "D4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_29_33",
+        "step": 33,
+        "freq": 73.42,
+        "noteName": "D2",
+        "durationBeats": 1.5
+      },
+      {
+        "id": "midi_30_33",
+        "step": 33,
+        "freq": 36.71,
+        "noteName": "D1",
+        "durationBeats": 1.5
+      },
+      {
+        "id": "midi_31_34",
+        "step": 34,
+        "freq": 220,
+        "noteName": "A3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_32_35",
+        "step": 35,
+        "freq": 261.63,
+        "noteName": "C4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_33_36",
+        "step": 36,
+        "freq": 293.66,
+        "noteName": "D4",
+        "durationBeats": 0.75
+      },
+      {
+        "id": "midi_34_36",
+        "step": 36,
+        "freq": 220,
+        "noteName": "A3",
+        "durationBeats": 0.75
+      },
+      {
+        "id": "midi_35_36",
+        "step": 36,
+        "freq": 174.61,
+        "noteName": "F3",
+        "durationBeats": 0.75
+      },
+      {
+        "id": "midi_36_36",
+        "step": 36,
+        "freq": 146.83,
+        "noteName": "D3",
+        "durationBeats": 0.75
+      },
+      {
+        "id": "midi_37_36",
+        "step": 36,
+        "freq": 73.42,
+        "noteName": "D2",
+        "durationBeats": 1
+      },
+      {
+        "id": "midi_38_38",
+        "step": 38,
+        "freq": 293.66,
+        "noteName": "D4",
+        "durationBeats": 0.75
+      },
+      {
+        "id": "midi_39_38",
+        "step": 38,
+        "freq": 220,
+        "noteName": "A3",
+        "durationBeats": 0.75
+      },
+      {
+        "id": "midi_40_38",
+        "step": 38,
+        "freq": 174.61,
+        "noteName": "F3",
+        "durationBeats": 0.75
+      },
+      {
+        "id": "midi_41_38",
+        "step": 38,
+        "freq": 146.83,
+        "noteName": "D3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_42_38",
+        "step": 38,
+        "freq": 73.42,
+        "noteName": "D2",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_43_39",
+        "step": 39,
+        "freq": 146.83,
+        "noteName": "D3",
+        "durationBeats": 0.75
+      },
+      {
+        "id": "midi_44_39",
+        "step": 39,
+        "freq": 73.42,
+        "noteName": "D2",
+        "durationBeats": 0.75
+      },
+      {
+        "id": "midi_45_40",
+        "step": 40,
+        "freq": 293.66,
+        "noteName": "D4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_46_40",
+        "step": 40,
+        "freq": 220,
+        "noteName": "A3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_47_40",
+        "step": 40,
+        "freq": 174.61,
+        "noteName": "F3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_48_41",
+        "step": 41,
+        "freq": 329.63,
+        "noteName": "E4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_49_41",
+        "step": 41,
+        "freq": 261.63,
+        "noteName": "C4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_50_41",
+        "step": 41,
+        "freq": 220,
+        "noteName": "A3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_51_41",
+        "step": 41,
+        "freq": 130.81,
+        "noteName": "C3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_52_41",
+        "step": 41,
+        "freq": 65.41,
+        "noteName": "C2",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_53_42",
+        "step": 42,
+        "freq": 349.23,
+        "noteName": "F4",
+        "durationBeats": 0.75
+      },
+      {
+        "id": "midi_54_42",
+        "step": 42,
+        "freq": 293.66,
+        "noteName": "D4",
+        "durationBeats": 0.75
+      },
+      {
+        "id": "midi_55_42",
+        "step": 42,
+        "freq": 233.08,
+        "noteName": "Bb3",
+        "durationBeats": 0.75
+      },
+      {
+        "id": "midi_56_42",
+        "step": 42,
+        "freq": 116.54,
+        "noteName": "Bb2",
+        "durationBeats": 0.75
+      },
+      {
+        "id": "midi_57_42",
+        "step": 42,
+        "freq": 58.27,
+        "noteName": "Bb1",
+        "durationBeats": 1
+      },
+      {
+        "id": "midi_58_44",
+        "step": 44,
+        "freq": 349.23,
+        "noteName": "F4",
+        "durationBeats": 0.75
+      },
+      {
+        "id": "midi_59_44",
+        "step": 44,
+        "freq": 293.66,
+        "noteName": "D4",
+        "durationBeats": 0.75
+      },
+      {
+        "id": "midi_60_44",
+        "step": 44,
+        "freq": 233.08,
+        "noteName": "Bb3",
+        "durationBeats": 0.75
+      },
+      {
+        "id": "midi_61_44",
+        "step": 44,
+        "freq": 116.54,
+        "noteName": "Bb2",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_62_44",
+        "step": 44,
+        "freq": 58.27,
+        "noteName": "Bb1",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_63_45",
+        "step": 45,
+        "freq": 116.54,
+        "noteName": "Bb2",
+        "durationBeats": 0.75
+      },
+      {
+        "id": "midi_64_45",
+        "step": 45,
+        "freq": 58.27,
+        "noteName": "Bb1",
+        "durationBeats": 0.75
+      },
+      {
+        "id": "midi_65_46",
+        "step": 46,
+        "freq": 349.23,
+        "noteName": "F4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_66_46",
+        "step": 46,
+        "freq": 293.66,
+        "noteName": "D4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_67_46",
+        "step": 46,
+        "freq": 233.08,
+        "noteName": "Bb3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_68_47",
+        "step": 47,
+        "freq": 392,
+        "noteName": "G4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_69_47",
+        "step": 47,
+        "freq": 293.66,
+        "noteName": "D4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_70_47",
+        "step": 47,
+        "freq": 116.54,
+        "noteName": "Bb2",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_71_47",
+        "step": 47,
+        "freq": 58.27,
+        "noteName": "Bb1",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_72_48",
+        "step": 48,
+        "freq": 329.63,
+        "noteName": "E4",
+        "durationBeats": 0.75
+      },
+      {
+        "id": "midi_73_48",
+        "step": 48,
+        "freq": 261.63,
+        "noteName": "C4",
+        "durationBeats": 0.75
+      },
+      {
+        "id": "midi_74_48",
+        "step": 48,
+        "freq": 220,
+        "noteName": "A3",
+        "durationBeats": 0.75
+      },
+      {
+        "id": "midi_75_48",
+        "step": 48,
+        "freq": 110,
+        "noteName": "A2",
+        "durationBeats": 0.75
+      },
+      {
+        "id": "midi_76_48",
+        "step": 48,
+        "freq": 55,
+        "noteName": "A1",
+        "durationBeats": 1
+      },
+      {
+        "id": "midi_77_50",
+        "step": 50,
+        "freq": 329.63,
+        "noteName": "E4",
+        "durationBeats": 0.75
+      },
+      {
+        "id": "midi_78_50",
+        "step": 50,
+        "freq": 261.63,
+        "noteName": "C4",
+        "durationBeats": 0.75
+      },
+      {
+        "id": "midi_79_50",
+        "step": 50,
+        "freq": 220,
+        "noteName": "A3",
+        "durationBeats": 0.75
+      },
+      {
+        "id": "midi_80_50",
+        "step": 50,
+        "freq": 110,
+        "noteName": "A2",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_81_50",
+        "step": 50,
+        "freq": 55,
+        "noteName": "A1",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_82_51",
+        "step": 51,
+        "freq": 110,
+        "noteName": "A2",
+        "durationBeats": 0.75
+      },
+      {
+        "id": "midi_83_51",
+        "step": 51,
+        "freq": 55,
+        "noteName": "A1",
+        "durationBeats": 0.75
+      },
+      {
+        "id": "midi_84_52",
+        "step": 52,
+        "freq": 293.66,
+        "noteName": "D4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_85_52",
+        "step": 52,
+        "freq": 220,
+        "noteName": "A3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_86_53",
+        "step": 53,
+        "freq": 261.63,
+        "noteName": "C4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_87_53",
+        "step": 53,
+        "freq": 196,
+        "noteName": "G3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_88_53",
+        "step": 53,
+        "freq": 110,
+        "noteName": "A2",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_89_53",
+        "step": 53,
+        "freq": 55,
+        "noteName": "A1",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_90_54",
+        "step": 54,
+        "freq": 261.63,
+        "noteName": "C4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_91_54",
+        "step": 54,
+        "freq": 220,
+        "noteName": "A3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_92_54",
+        "step": 54,
+        "freq": 146.83,
+        "noteName": "D3",
+        "durationBeats": 0.75
+      },
+      {
+        "id": "midi_93_54",
+        "step": 54,
+        "freq": 73.42,
+        "noteName": "D2",
+        "durationBeats": 0.75
+      },
+      {
+        "id": "midi_94_55",
+        "step": 55,
+        "freq": 293.66,
+        "noteName": "D4",
+        "durationBeats": 0.75
+      },
+      {
+        "id": "midi_95_55",
+        "step": 55,
+        "freq": 220,
+        "noteName": "A3",
+        "durationBeats": 0.75
+      }
+    ],
+    "synthNotes": [],
+    "barFlowRules": [
+      {
+        "barIndex": 0,
+        "minFlow": 0,
+        "maxFlow": 45
+      },
+      {
+        "barIndex": 1,
+        "minFlow": 0,
+        "maxFlow": 45
+      },
+      {
+        "barIndex": 2,
+        "minFlow": 0,
+        "maxFlow": 45
+      },
+      {
+        "barIndex": 3,
+        "minFlow": 0,
+        "maxFlow": 45
+      },
+      {
+        "barIndex": 4,
+        "minFlow": 0,
+        "maxFlow": 45
+      },
+      {
+        "barIndex": 5,
+        "minFlow": 0,
+        "maxFlow": 45
+      },
+      {
+        "barIndex": 6,
+        "minFlow": 0,
+        "maxFlow": 45
+      },
+      {
+        "barIndex": 7,
+        "minFlow": 0,
+        "maxFlow": 45
+      }
+    ],
+    "createdAt": 1792954167922
+  },
+  {
+    "id": "stage_midi_1792954140378",
+    "name": "Toby Fox - Megalovania (Unde",
+    "author": "Developer MIDI",
+    "biomeId": 0,
+    "soundBankId": "arcade_crt_pulse",
+    "bpm": 104,
+    "totalSteps": 64,
+    "notes": [
+      {
+        "id": "midi_0_0",
+        "step": 0,
+        "freq": 293.66,
+        "noteName": "D4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_1_1",
+        "step": 1,
+        "freq": 293.66,
+        "noteName": "D4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_2_1",
+        "step": 1,
+        "freq": 587.33,
+        "noteName": "D5",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_3_2",
+        "step": 2,
+        "freq": 440,
+        "noteName": "A4",
+        "durationBeats": 0.75
+      },
+      {
+        "id": "midi_4_4",
+        "step": 4,
+        "freq": 415.3,
+        "noteName": "Ab4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_5_5",
+        "step": 5,
+        "freq": 392,
+        "noteName": "G4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_6_6",
+        "step": 6,
+        "freq": 349.23,
+        "noteName": "F4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_7_7",
+        "step": 7,
+        "freq": 293.66,
+        "noteName": "D4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_8_7",
+        "step": 7,
+        "freq": 349.23,
+        "noteName": "F4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_9_8",
+        "step": 8,
+        "freq": 392,
+        "noteName": "G4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_10_8",
+        "step": 8,
+        "freq": 261.63,
+        "noteName": "C4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_11_9",
+        "step": 9,
+        "freq": 261.63,
+        "noteName": "C4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_12_9",
+        "step": 9,
+        "freq": 587.33,
+        "noteName": "D5",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_13_10",
+        "step": 10,
+        "freq": 440,
+        "noteName": "A4",
+        "durationBeats": 0.75
+      },
+      {
+        "id": "midi_14_12",
+        "step": 12,
+        "freq": 415.3,
+        "noteName": "Ab4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_15_13",
+        "step": 13,
+        "freq": 392,
+        "noteName": "G4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_16_14",
+        "step": 14,
+        "freq": 349.23,
+        "noteName": "F4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_17_15",
+        "step": 15,
+        "freq": 293.66,
+        "noteName": "D4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_18_15",
+        "step": 15,
+        "freq": 349.23,
+        "noteName": "F4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_19_16",
+        "step": 16,
+        "freq": 392,
+        "noteName": "G4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_20_16",
+        "step": 16,
+        "freq": 246.94,
+        "noteName": "B3",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_21_17",
+        "step": 17,
+        "freq": 246.94,
+        "noteName": "B3",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_22_17",
+        "step": 17,
+        "freq": 587.33,
+        "noteName": "D5",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_23_18",
+        "step": 18,
+        "freq": 440,
+        "noteName": "A4",
+        "durationBeats": 0.75
+      },
+      {
+        "id": "midi_24_20",
+        "step": 20,
+        "freq": 415.3,
+        "noteName": "Ab4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_25_21",
+        "step": 21,
+        "freq": 392,
+        "noteName": "G4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_26_22",
+        "step": 22,
+        "freq": 349.23,
+        "noteName": "F4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_27_23",
+        "step": 23,
+        "freq": 293.66,
+        "noteName": "D4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_28_23",
+        "step": 23,
+        "freq": 349.23,
+        "noteName": "F4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_29_24",
+        "step": 24,
+        "freq": 392,
+        "noteName": "G4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_30_24",
+        "step": 24,
+        "freq": 233.08,
+        "noteName": "Bb3",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_31_25",
+        "step": 25,
+        "freq": 233.08,
+        "noteName": "Bb3",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_32_25",
+        "step": 25,
+        "freq": 587.33,
+        "noteName": "D5",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_33_26",
+        "step": 26,
+        "freq": 440,
+        "noteName": "A4",
+        "durationBeats": 0.75
+      },
+      {
+        "id": "midi_34_28",
+        "step": 28,
+        "freq": 415.3,
+        "noteName": "Ab4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_35_29",
+        "step": 29,
+        "freq": 392,
+        "noteName": "G4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_36_30",
+        "step": 30,
+        "freq": 349.23,
+        "noteName": "F4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_37_31",
+        "step": 31,
+        "freq": 293.66,
+        "noteName": "D4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_38_31",
+        "step": 31,
+        "freq": 349.23,
+        "noteName": "F4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_39_32",
+        "step": 32,
+        "freq": 392,
+        "noteName": "G4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_40_32",
+        "step": 32,
+        "freq": 293.66,
+        "noteName": "D4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_41_32",
+        "step": 32,
+        "freq": 73.42,
+        "noteName": "D2",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_42_33",
+        "step": 33,
+        "freq": 293.66,
+        "noteName": "D4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_43_33",
+        "step": 33,
+        "freq": 587.33,
+        "noteName": "D5",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_44_33",
+        "step": 33,
+        "freq": 73.42,
+        "noteName": "D2",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_45_34",
+        "step": 34,
+        "freq": 440,
+        "noteName": "A4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_46_34",
+        "step": 34,
+        "freq": 73.42,
+        "noteName": "D2",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_47_35",
+        "step": 35,
+        "freq": 73.42,
+        "noteName": "D2",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_48_36",
+        "step": 36,
+        "freq": 415.3,
+        "noteName": "Ab4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_49_36",
+        "step": 36,
+        "freq": 73.42,
+        "noteName": "D2",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_50_37",
+        "step": 37,
+        "freq": 392,
+        "noteName": "G4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_51_37",
+        "step": 37,
+        "freq": 73.42,
+        "noteName": "D2",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_52_38",
+        "step": 38,
+        "freq": 349.23,
+        "noteName": "F4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_53_38",
+        "step": 38,
+        "freq": 73.42,
+        "noteName": "D2",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_54_39",
+        "step": 39,
+        "freq": 293.66,
+        "noteName": "D4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_55_39",
+        "step": 39,
+        "freq": 73.42,
+        "noteName": "D2",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_56_39",
+        "step": 39,
+        "freq": 349.23,
+        "noteName": "F4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_57_39",
+        "step": 39,
+        "freq": 73.42,
+        "noteName": "D2",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_58_40",
+        "step": 40,
+        "freq": 392,
+        "noteName": "G4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_59_40",
+        "step": 40,
+        "freq": 73.42,
+        "noteName": "D2",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_60_40",
+        "step": 40,
+        "freq": 261.63,
+        "noteName": "C4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_61_40",
+        "step": 40,
+        "freq": 65.41,
+        "noteName": "C2",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_62_41",
+        "step": 41,
+        "freq": 261.63,
+        "noteName": "C4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_63_41",
+        "step": 41,
+        "freq": 587.33,
+        "noteName": "D5",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_64_41",
+        "step": 41,
+        "freq": 65.41,
+        "noteName": "C2",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_65_42",
+        "step": 42,
+        "freq": 440,
+        "noteName": "A4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_66_42",
+        "step": 42,
+        "freq": 65.41,
+        "noteName": "C2",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_67_43",
+        "step": 43,
+        "freq": 65.41,
+        "noteName": "C2",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_68_44",
+        "step": 44,
+        "freq": 415.3,
+        "noteName": "Ab4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_69_44",
+        "step": 44,
+        "freq": 65.41,
+        "noteName": "C2",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_70_45",
+        "step": 45,
+        "freq": 392,
+        "noteName": "G4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_71_45",
+        "step": 45,
+        "freq": 65.41,
+        "noteName": "C2",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_72_46",
+        "step": 46,
+        "freq": 349.23,
+        "noteName": "F4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_73_46",
+        "step": 46,
+        "freq": 65.41,
+        "noteName": "C2",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_74_47",
+        "step": 47,
+        "freq": 293.66,
+        "noteName": "D4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_75_47",
+        "step": 47,
+        "freq": 65.41,
+        "noteName": "C2",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_76_47",
+        "step": 47,
+        "freq": 349.23,
+        "noteName": "F4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_77_47",
+        "step": 47,
+        "freq": 65.41,
+        "noteName": "C2",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_78_48",
+        "step": 48,
+        "freq": 392,
+        "noteName": "G4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_79_48",
+        "step": 48,
+        "freq": 65.41,
+        "noteName": "C2",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_80_48",
+        "step": 48,
+        "freq": 246.94,
+        "noteName": "B3",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_81_48",
+        "step": 48,
+        "freq": 61.74,
+        "noteName": "B1",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_82_49",
+        "step": 49,
+        "freq": 246.94,
+        "noteName": "B3",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_83_49",
+        "step": 49,
+        "freq": 587.33,
+        "noteName": "D5",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_84_49",
+        "step": 49,
+        "freq": 61.74,
+        "noteName": "B1",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_85_50",
+        "step": 50,
+        "freq": 440,
+        "noteName": "A4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_86_50",
+        "step": 50,
+        "freq": 61.74,
+        "noteName": "B1",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_87_51",
+        "step": 51,
+        "freq": 61.74,
+        "noteName": "B1",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_88_52",
+        "step": 52,
+        "freq": 415.3,
+        "noteName": "Ab4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_89_52",
+        "step": 52,
+        "freq": 61.74,
+        "noteName": "B1",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_90_53",
+        "step": 53,
+        "freq": 392,
+        "noteName": "G4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_91_53",
+        "step": 53,
+        "freq": 61.74,
+        "noteName": "B1",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_92_54",
+        "step": 54,
+        "freq": 349.23,
+        "noteName": "F4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_93_54",
+        "step": 54,
+        "freq": 61.74,
+        "noteName": "B1",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_94_55",
+        "step": 55,
+        "freq": 293.66,
+        "noteName": "D4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_95_55",
+        "step": 55,
+        "freq": 61.74,
+        "noteName": "B1",
+        "durationBeats": 0.25
+      }
+    ],
+    "synthNotes": [],
+    "barFlowRules": [
+      {
+        "barIndex": 0,
+        "minFlow": 0,
+        "maxFlow": 45
+      },
+      {
+        "barIndex": 1,
+        "minFlow": 0,
+        "maxFlow": 45
+      },
+      {
+        "barIndex": 2,
+        "minFlow": 0,
+        "maxFlow": 45
+      },
+      {
+        "barIndex": 3,
+        "minFlow": 0,
+        "maxFlow": 45
+      },
+      {
+        "barIndex": 4,
+        "minFlow": 0,
+        "maxFlow": 45
+      },
+      {
+        "barIndex": 5,
+        "minFlow": 0,
+        "maxFlow": 45
+      },
+      {
+        "barIndex": 6,
+        "minFlow": 0,
+        "maxFlow": 45
+      },
+      {
+        "barIndex": 7,
+        "minFlow": 0,
+        "maxFlow": 45
+      }
+    ],
+    "createdAt": 1792954140378
+  },
+  {
+    "id": "stage_midi_1792954078350",
+    "name": "Aria Math - C418 (Modified M",
+    "author": "Developer MIDI",
+    "biomeId": 0,
+    "soundBankId": "arcade_crt_pulse",
+    "bpm": 104,
+    "totalSteps": 80,
+    "notes": [
+      {
+        "id": "midi_0_0",
+        "step": 0,
+        "freq": 130.81,
+        "noteName": "C3",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_1_1",
+        "step": 1,
+        "freq": 246.94,
+        "noteName": "B3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_2_2",
+        "step": 2,
+        "freq": 329.63,
+        "noteName": "E4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_3_2",
+        "step": 2,
+        "freq": 164.81,
+        "noteName": "E3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_4_3",
+        "step": 3,
+        "freq": 246.94,
+        "noteName": "B3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_5_4",
+        "step": 4,
+        "freq": 164.81,
+        "noteName": "E3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_6_5",
+        "step": 5,
+        "freq": 196,
+        "noteName": "G3",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_7_6",
+        "step": 6,
+        "freq": 261.63,
+        "noteName": "C4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_8_6",
+        "step": 6,
+        "freq": 246.94,
+        "noteName": "B3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_9_7",
+        "step": 7,
+        "freq": 196,
+        "noteName": "G3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_10_8",
+        "step": 8,
+        "freq": 130.81,
+        "noteName": "C3",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_11_9",
+        "step": 9,
+        "freq": 246.94,
+        "noteName": "B3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_12_10",
+        "step": 10,
+        "freq": 329.63,
+        "noteName": "E4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_13_10",
+        "step": 10,
+        "freq": 164.81,
+        "noteName": "E3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_14_11",
+        "step": 11,
+        "freq": 246.94,
+        "noteName": "B3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_15_12",
+        "step": 12,
+        "freq": 164.81,
+        "noteName": "E3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_16_13",
+        "step": 13,
+        "freq": 196,
+        "noteName": "G3",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_17_14",
+        "step": 14,
+        "freq": 261.63,
+        "noteName": "C4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_18_14",
+        "step": 14,
+        "freq": 246.94,
+        "noteName": "B3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_19_15",
+        "step": 15,
+        "freq": 196,
+        "noteName": "G3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_20_16",
+        "step": 16,
+        "freq": 130.81,
+        "noteName": "C3",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_21_17",
+        "step": 17,
+        "freq": 246.94,
+        "noteName": "B3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_22_18",
+        "step": 18,
+        "freq": 329.63,
+        "noteName": "E4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_23_18",
+        "step": 18,
+        "freq": 164.81,
+        "noteName": "E3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_24_19",
+        "step": 19,
+        "freq": 246.94,
+        "noteName": "B3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_25_20",
+        "step": 20,
+        "freq": 164.81,
+        "noteName": "E3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_26_21",
+        "step": 21,
+        "freq": 196,
+        "noteName": "G3",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_27_22",
+        "step": 22,
+        "freq": 261.63,
+        "noteName": "C4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_28_22",
+        "step": 22,
+        "freq": 246.94,
+        "noteName": "B3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_29_23",
+        "step": 23,
+        "freq": 196,
+        "noteName": "G3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_30_24",
+        "step": 24,
+        "freq": 130.81,
+        "noteName": "C3",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_31_25",
+        "step": 25,
+        "freq": 246.94,
+        "noteName": "B3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_32_26",
+        "step": 26,
+        "freq": 329.63,
+        "noteName": "E4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_33_26",
+        "step": 26,
+        "freq": 164.81,
+        "noteName": "E3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_34_27",
+        "step": 27,
+        "freq": 246.94,
+        "noteName": "B3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_35_28",
+        "step": 28,
+        "freq": 164.81,
+        "noteName": "E3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_36_29",
+        "step": 29,
+        "freq": 196,
+        "noteName": "G3",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_37_30",
+        "step": 30,
+        "freq": 261.63,
+        "noteName": "C4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_38_30",
+        "step": 30,
+        "freq": 246.94,
+        "noteName": "B3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_39_31",
+        "step": 31,
+        "freq": 196,
+        "noteName": "G3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_40_32",
+        "step": 32,
+        "freq": 130.81,
+        "noteName": "C3",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_41_33",
+        "step": 33,
+        "freq": 246.94,
+        "noteName": "B3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_42_34",
+        "step": 34,
+        "freq": 329.63,
+        "noteName": "E4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_43_34",
+        "step": 34,
+        "freq": 164.81,
+        "noteName": "E3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_44_35",
+        "step": 35,
+        "freq": 246.94,
+        "noteName": "B3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_45_36",
+        "step": 36,
+        "freq": 164.81,
+        "noteName": "E3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_46_37",
+        "step": 37,
+        "freq": 196,
+        "noteName": "G3",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_47_38",
+        "step": 38,
+        "freq": 261.63,
+        "noteName": "C4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_48_38",
+        "step": 38,
+        "freq": 246.94,
+        "noteName": "B3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_49_39",
+        "step": 39,
+        "freq": 196,
+        "noteName": "G3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_50_40",
+        "step": 40,
+        "freq": 130.81,
+        "noteName": "C3",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_51_41",
+        "step": 41,
+        "freq": 246.94,
+        "noteName": "B3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_52_42",
+        "step": 42,
+        "freq": 329.63,
+        "noteName": "E4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_53_42",
+        "step": 42,
+        "freq": 164.81,
+        "noteName": "E3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_54_43",
+        "step": 43,
+        "freq": 246.94,
+        "noteName": "B3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_55_44",
+        "step": 44,
+        "freq": 164.81,
+        "noteName": "E3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_56_45",
+        "step": 45,
+        "freq": 196,
+        "noteName": "G3",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_57_46",
+        "step": 46,
+        "freq": 261.63,
+        "noteName": "C4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_58_46",
+        "step": 46,
+        "freq": 246.94,
+        "noteName": "B3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_59_47",
+        "step": 47,
+        "freq": 196,
+        "noteName": "G3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_60_48",
+        "step": 48,
+        "freq": 130.81,
+        "noteName": "C3",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_61_49",
+        "step": 49,
+        "freq": 246.94,
+        "noteName": "B3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_62_50",
+        "step": 50,
+        "freq": 329.63,
+        "noteName": "E4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_63_50",
+        "step": 50,
+        "freq": 164.81,
+        "noteName": "E3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_64_51",
+        "step": 51,
+        "freq": 246.94,
+        "noteName": "B3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_65_52",
+        "step": 52,
+        "freq": 164.81,
+        "noteName": "E3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_66_53",
+        "step": 53,
+        "freq": 196,
+        "noteName": "G3",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_67_54",
+        "step": 54,
+        "freq": 261.63,
+        "noteName": "C4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_68_54",
+        "step": 54,
+        "freq": 246.94,
+        "noteName": "B3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_69_55",
+        "step": 55,
+        "freq": 196,
+        "noteName": "G3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_70_56",
+        "step": 56,
+        "freq": 130.81,
+        "noteName": "C3",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_71_57",
+        "step": 57,
+        "freq": 246.94,
+        "noteName": "B3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_72_58",
+        "step": 58,
+        "freq": 329.63,
+        "noteName": "E4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_73_58",
+        "step": 58,
+        "freq": 164.81,
+        "noteName": "E3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_74_59",
+        "step": 59,
+        "freq": 246.94,
+        "noteName": "B3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_75_60",
+        "step": 60,
+        "freq": 164.81,
+        "noteName": "E3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_76_61",
+        "step": 61,
+        "freq": 196,
+        "noteName": "G3",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_77_62",
+        "step": 62,
+        "freq": 261.63,
+        "noteName": "C4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_78_62",
+        "step": 62,
+        "freq": 246.94,
+        "noteName": "B3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_79_63",
+        "step": 63,
+        "freq": 196,
+        "noteName": "G3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_80_64",
+        "step": 64,
+        "freq": 659.26,
+        "noteName": "E5",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_81_64",
+        "step": 64,
+        "freq": 130.81,
+        "noteName": "C3",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_82_65",
+        "step": 65,
+        "freq": 392,
+        "noteName": "G4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_83_65",
+        "step": 65,
+        "freq": 246.94,
+        "noteName": "B3",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_84_65",
+        "step": 65,
+        "freq": 329.63,
+        "noteName": "E4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_85_66",
+        "step": 66,
+        "freq": 659.26,
+        "noteName": "E5",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_86_66",
+        "step": 66,
+        "freq": 329.63,
+        "noteName": "E4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_87_66",
+        "step": 66,
+        "freq": 164.81,
+        "noteName": "E3",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_88_67",
+        "step": 67,
+        "freq": 493.88,
+        "noteName": "B4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_89_67",
+        "step": 67,
+        "freq": 246.94,
+        "noteName": "B3",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_90_68",
+        "step": 68,
+        "freq": 493.88,
+        "noteName": "B4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_91_68",
+        "step": 68,
+        "freq": 659.26,
+        "noteName": "E5",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_92_68",
+        "step": 68,
+        "freq": 164.81,
+        "noteName": "E3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_93_69",
+        "step": 69,
+        "freq": 659.26,
+        "noteName": "E5",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_94_69",
+        "step": 69,
+        "freq": 196,
+        "noteName": "G3",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_95_70",
+        "step": 70,
+        "freq": 261.63,
+        "noteName": "C4",
+        "durationBeats": 0.25
+      }
+    ],
+    "synthNotes": [],
+    "barFlowRules": [
+      {
+        "barIndex": 0,
+        "minFlow": 0,
+        "maxFlow": 45
+      },
+      {
+        "barIndex": 1,
+        "minFlow": 0,
+        "maxFlow": 45
+      },
+      {
+        "barIndex": 2,
+        "minFlow": 0,
+        "maxFlow": 45
+      },
+      {
+        "barIndex": 3,
+        "minFlow": 0,
+        "maxFlow": 45
+      },
+      {
+        "barIndex": 4,
+        "minFlow": 0,
+        "maxFlow": 45
+      },
+      {
+        "barIndex": 5,
+        "minFlow": 0,
+        "maxFlow": 45
+      },
+      {
+        "barIndex": 6,
+        "minFlow": 0,
+        "maxFlow": 45
+      },
+      {
+        "barIndex": 7,
+        "minFlow": 0,
+        "maxFlow": 45
+      },
+      {
+        "barIndex": 8,
+        "minFlow": 0,
+        "maxFlow": 45
+      },
+      {
+        "barIndex": 9,
+        "minFlow": 0,
+        "maxFlow": 45
+      }
+    ],
+    "createdAt": 1792954078350
+  },
+  {
+    "id": "stage_midi_1792953942126",
+    "name": "Gravity Falls melody only",
+    "author": "Developer MIDI",
+    "biomeId": 0,
+    "soundBankId": "arcade_crt_pulse",
+    "bpm": 104,
+    "totalSteps": 128,
+    "notes": [
+      {
+        "id": "midi_0_0",
+        "step": 0,
+        "freq": 349.23,
+        "noteName": "F4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_1_1",
+        "step": 1,
+        "freq": 293.66,
+        "noteName": "D4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_2_2",
+        "step": 2,
+        "freq": 220,
+        "noteName": "A3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_3_3",
+        "step": 3,
+        "freq": 293.66,
+        "noteName": "D4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_4_4",
+        "step": 4,
+        "freq": 349.23,
+        "noteName": "F4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_5_5",
+        "step": 5,
+        "freq": 293.66,
+        "noteName": "D4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_6_6",
+        "step": 6,
+        "freq": 220,
+        "noteName": "A3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_7_7",
+        "step": 7,
+        "freq": 293.66,
+        "noteName": "D4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_8_8",
+        "step": 8,
+        "freq": 349.23,
+        "noteName": "F4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_9_9",
+        "step": 9,
+        "freq": 261.63,
+        "noteName": "C4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_10_10",
+        "step": 10,
+        "freq": 220,
+        "noteName": "A3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_11_11",
+        "step": 11,
+        "freq": 261.63,
+        "noteName": "C4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_12_12",
+        "step": 12,
+        "freq": 349.23,
+        "noteName": "F4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_13_13",
+        "step": 13,
+        "freq": 261.63,
+        "noteName": "C4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_14_14",
+        "step": 14,
+        "freq": 220,
+        "noteName": "A3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_15_15",
+        "step": 15,
+        "freq": 261.63,
+        "noteName": "C4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_16_16",
+        "step": 16,
+        "freq": 329.63,
+        "noteName": "E4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_17_17",
+        "step": 17,
+        "freq": 277.18,
+        "noteName": "C#4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_18_18",
+        "step": 18,
+        "freq": 220,
+        "noteName": "A3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_19_19",
+        "step": 19,
+        "freq": 277.18,
+        "noteName": "C#4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_20_20",
+        "step": 20,
+        "freq": 329.63,
+        "noteName": "E4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_21_21",
+        "step": 21,
+        "freq": 277.18,
+        "noteName": "C#4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_22_22",
+        "step": 22,
+        "freq": 220,
+        "noteName": "A3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_23_23",
+        "step": 23,
+        "freq": 277.18,
+        "noteName": "C#4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_24_24",
+        "step": 24,
+        "freq": 329.63,
+        "noteName": "E4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_25_25",
+        "step": 25,
+        "freq": 277.18,
+        "noteName": "C#4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_26_26",
+        "step": 26,
+        "freq": 220,
+        "noteName": "A3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_27_27",
+        "step": 27,
+        "freq": 277.18,
+        "noteName": "C#4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_28_28",
+        "step": 28,
+        "freq": 329.63,
+        "noteName": "E4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_29_29",
+        "step": 29,
+        "freq": 277.18,
+        "noteName": "C#4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_30_30",
+        "step": 30,
+        "freq": 329.63,
+        "noteName": "E4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_31_31",
+        "step": 31,
+        "freq": 277.18,
+        "noteName": "C#4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_32_31",
+        "step": 31,
+        "freq": 277.18,
+        "noteName": "C#4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_33_32",
+        "step": 32,
+        "freq": 293.66,
+        "noteName": "D4",
+        "durationBeats": 3
+      },
+      {
+        "id": "midi_34_32",
+        "step": 32,
+        "freq": 220,
+        "noteName": "A3",
+        "durationBeats": 3
+      },
+      {
+        "id": "midi_35_38",
+        "step": 38,
+        "freq": 329.63,
+        "noteName": "E4",
+        "durationBeats": 1
+      },
+      {
+        "id": "midi_36_38",
+        "step": 38,
+        "freq": 220,
+        "noteName": "A3",
+        "durationBeats": 1
+      },
+      {
+        "id": "midi_37_40",
+        "step": 40,
+        "freq": 349.23,
+        "noteName": "F4",
+        "durationBeats": 4
+      },
+      {
+        "id": "midi_38_40",
+        "step": 40,
+        "freq": 220,
+        "noteName": "A3",
+        "durationBeats": 4
+      },
+      {
+        "id": "midi_39_48",
+        "step": 48,
+        "freq": 440,
+        "noteName": "A4",
+        "durationBeats": 1.5
+      },
+      {
+        "id": "midi_40_48",
+        "step": 48,
+        "freq": 261.63,
+        "noteName": "C4",
+        "durationBeats": 1.5
+      },
+      {
+        "id": "midi_41_51",
+        "step": 51,
+        "freq": 392,
+        "noteName": "G4",
+        "durationBeats": 1.5
+      },
+      {
+        "id": "midi_42_51",
+        "step": 51,
+        "freq": 261.63,
+        "noteName": "C4",
+        "durationBeats": 1.5
+      },
+      {
+        "id": "midi_43_54",
+        "step": 54,
+        "freq": 440,
+        "noteName": "A4",
+        "durationBeats": 1
+      },
+      {
+        "id": "midi_44_54",
+        "step": 54,
+        "freq": 261.63,
+        "noteName": "C4",
+        "durationBeats": 1
+      },
+      {
+        "id": "midi_45_56",
+        "step": 56,
+        "freq": 261.63,
+        "noteName": "C4",
+        "durationBeats": 4
+      },
+      {
+        "id": "midi_46_64",
+        "step": 64,
+        "freq": 293.66,
+        "noteName": "D4",
+        "durationBeats": 3
+      },
+      {
+        "id": "midi_47_64",
+        "step": 64,
+        "freq": 233.08,
+        "noteName": "Bb3",
+        "durationBeats": 3
+      },
+      {
+        "id": "midi_48_70",
+        "step": 70,
+        "freq": 329.63,
+        "noteName": "E4",
+        "durationBeats": 1
+      },
+      {
+        "id": "midi_49_70",
+        "step": 70,
+        "freq": 233.08,
+        "noteName": "Bb3",
+        "durationBeats": 1
+      },
+      {
+        "id": "midi_50_72",
+        "step": 72,
+        "freq": 349.23,
+        "noteName": "F4",
+        "durationBeats": 2
+      },
+      {
+        "id": "midi_51_72",
+        "step": 72,
+        "freq": 233.08,
+        "noteName": "Bb3",
+        "durationBeats": 2
+      },
+      {
+        "id": "midi_52_76",
+        "step": 76,
+        "freq": 329.63,
+        "noteName": "E4",
+        "durationBeats": 2
+      },
+      {
+        "id": "midi_53_76",
+        "step": 76,
+        "freq": 233.08,
+        "noteName": "Bb3",
+        "durationBeats": 2
+      },
+      {
+        "id": "midi_54_80",
+        "step": 80,
+        "freq": 392,
+        "noteName": "G4",
+        "durationBeats": 2
+      },
+      {
+        "id": "midi_55_80",
+        "step": 80,
+        "freq": 261.63,
+        "noteName": "C4",
+        "durationBeats": 2
+      },
+      {
+        "id": "midi_56_84",
+        "step": 84,
+        "freq": 440,
+        "noteName": "A4",
+        "durationBeats": 2
+      },
+      {
+        "id": "midi_57_84",
+        "step": 84,
+        "freq": 261.63,
+        "noteName": "C4",
+        "durationBeats": 2
+      },
+      {
+        "id": "midi_58_88",
+        "step": 88,
+        "freq": 392,
+        "noteName": "G4",
+        "durationBeats": 2
+      },
+      {
+        "id": "midi_59_88",
+        "step": 88,
+        "freq": 277.18,
+        "noteName": "C#4",
+        "durationBeats": 2
+      },
+      {
+        "id": "midi_60_92",
+        "step": 92,
+        "freq": 349.23,
+        "noteName": "F4",
+        "durationBeats": 2
+      },
+      {
+        "id": "midi_61_92",
+        "step": 92,
+        "freq": 277.18,
+        "noteName": "C#4",
+        "durationBeats": 3
+      },
+      {
+        "id": "midi_62_98",
+        "step": 98,
+        "freq": 349.23,
+        "noteName": "F4",
+        "durationBeats": 1
+      },
+      {
+        "id": "midi_63_98",
+        "step": 98,
+        "freq": 293.66,
+        "noteName": "D4",
+        "durationBeats": 1
+      },
+      {
+        "id": "midi_64_98",
+        "step": 98,
+        "freq": 220,
+        "noteName": "A3",
+        "durationBeats": 1
+      },
+      {
+        "id": "midi_65_100",
+        "step": 100,
+        "freq": 349.23,
+        "noteName": "F4",
+        "durationBeats": 1
+      },
+      {
+        "id": "midi_66_100",
+        "step": 100,
+        "freq": 293.66,
+        "noteName": "D4",
+        "durationBeats": 1
+      },
+      {
+        "id": "midi_67_100",
+        "step": 100,
+        "freq": 220,
+        "noteName": "A3",
+        "durationBeats": 1
+      },
+      {
+        "id": "midi_68_102",
+        "step": 102,
+        "freq": 349.23,
+        "noteName": "F4",
+        "durationBeats": 1
+      },
+      {
+        "id": "midi_69_102",
+        "step": 102,
+        "freq": 293.66,
+        "noteName": "D4",
+        "durationBeats": 1
+      },
+      {
+        "id": "midi_70_102",
+        "step": 102,
+        "freq": 220,
+        "noteName": "A3",
+        "durationBeats": 1
+      },
+      {
+        "id": "midi_71_104",
+        "step": 104,
+        "freq": 440,
+        "noteName": "A4",
+        "durationBeats": 1
+      },
+      {
+        "id": "midi_72_104",
+        "step": 104,
+        "freq": 293.66,
+        "noteName": "D4",
+        "durationBeats": 1
+      },
+      {
+        "id": "midi_73_104",
+        "step": 104,
+        "freq": 220,
+        "noteName": "A3",
+        "durationBeats": 1
+      },
+      {
+        "id": "midi_74_106",
+        "step": 106,
+        "freq": 440,
+        "noteName": "A4",
+        "durationBeats": 1
+      },
+      {
+        "id": "midi_75_106",
+        "step": 106,
+        "freq": 293.66,
+        "noteName": "D4",
+        "durationBeats": 1
+      },
+      {
+        "id": "midi_76_106",
+        "step": 106,
+        "freq": 220,
+        "noteName": "A3",
+        "durationBeats": 1
+      },
+      {
+        "id": "midi_77_108",
+        "step": 108,
+        "freq": 392,
+        "noteName": "G4",
+        "durationBeats": 1
+      },
+      {
+        "id": "midi_78_108",
+        "step": 108,
+        "freq": 293.66,
+        "noteName": "D4",
+        "durationBeats": 1
+      },
+      {
+        "id": "midi_79_108",
+        "step": 108,
+        "freq": 220,
+        "noteName": "A3",
+        "durationBeats": 1
+      },
+      {
+        "id": "midi_80_110",
+        "step": 110,
+        "freq": 349.23,
+        "noteName": "F4",
+        "durationBeats": 1
+      },
+      {
+        "id": "midi_81_110",
+        "step": 110,
+        "freq": 293.66,
+        "noteName": "D4",
+        "durationBeats": 1
+      },
+      {
+        "id": "midi_82_110",
+        "step": 110,
+        "freq": 220,
+        "noteName": "A3",
+        "durationBeats": 2
+      },
+      {
+        "id": "midi_83_114",
+        "step": 114,
+        "freq": 440,
+        "noteName": "A4",
+        "durationBeats": 1
+      },
+      {
+        "id": "midi_84_114",
+        "step": 114,
+        "freq": 349.23,
+        "noteName": "F4",
+        "durationBeats": 1
+      },
+      {
+        "id": "midi_85_114",
+        "step": 114,
+        "freq": 261.63,
+        "noteName": "C4",
+        "durationBeats": 1
+      },
+      {
+        "id": "midi_86_116",
+        "step": 116,
+        "freq": 440,
+        "noteName": "A4",
+        "durationBeats": 1
+      },
+      {
+        "id": "midi_87_116",
+        "step": 116,
+        "freq": 349.23,
+        "noteName": "F4",
+        "durationBeats": 1
+      },
+      {
+        "id": "midi_88_116",
+        "step": 116,
+        "freq": 261.63,
+        "noteName": "C4",
+        "durationBeats": 1
+      },
+      {
+        "id": "midi_89_118",
+        "step": 118,
+        "freq": 440,
+        "noteName": "A4",
+        "durationBeats": 1
+      },
+      {
+        "id": "midi_90_118",
+        "step": 118,
+        "freq": 349.23,
+        "noteName": "F4",
+        "durationBeats": 1
+      },
+      {
+        "id": "midi_91_118",
+        "step": 118,
+        "freq": 261.63,
+        "noteName": "C4",
+        "durationBeats": 1
+      },
+      {
+        "id": "midi_92_120",
+        "step": 120,
+        "freq": 392,
+        "noteName": "G4",
+        "durationBeats": 1
+      },
+      {
+        "id": "midi_93_120",
+        "step": 120,
+        "freq": 261.63,
+        "noteName": "C4",
+        "durationBeats": 1
+      },
+      {
+        "id": "midi_94_122",
+        "step": 122,
+        "freq": 440,
+        "noteName": "A4",
+        "durationBeats": 1
+      },
+      {
+        "id": "midi_95_122",
+        "step": 122,
+        "freq": 261.63,
+        "noteName": "C4",
+        "durationBeats": 1
+      }
+    ],
+    "synthNotes": [],
+    "barFlowRules": [
+      {
+        "barIndex": 0,
+        "minFlow": 0,
+        "maxFlow": 45
+      },
+      {
+        "barIndex": 1,
+        "minFlow": 0,
+        "maxFlow": 45
+      },
+      {
+        "barIndex": 2,
+        "minFlow": 0,
+        "maxFlow": 45
+      },
+      {
+        "barIndex": 3,
+        "minFlow": 0,
+        "maxFlow": 45
+      },
+      {
+        "barIndex": 4,
+        "minFlow": 0,
+        "maxFlow": 45
+      },
+      {
+        "barIndex": 5,
+        "minFlow": 0,
+        "maxFlow": 45
+      },
+      {
+        "barIndex": 6,
+        "minFlow": 0,
+        "maxFlow": 45
+      },
+      {
+        "barIndex": 7,
+        "minFlow": 0,
+        "maxFlow": 45
+      },
+      {
+        "barIndex": 8,
+        "minFlow": 0,
+        "maxFlow": 45
+      },
+      {
+        "barIndex": 9,
+        "minFlow": 0,
+        "maxFlow": 45
+      },
+      {
+        "barIndex": 10,
+        "minFlow": 0,
+        "maxFlow": 45
+      },
+      {
+        "barIndex": 11,
+        "minFlow": 0,
+        "maxFlow": 45
+      },
+      {
+        "barIndex": 12,
+        "minFlow": 0,
+        "maxFlow": 45
+      },
+      {
+        "barIndex": 13,
+        "minFlow": 0,
+        "maxFlow": 45
+      },
+      {
+        "barIndex": 14,
+        "minFlow": 0,
+        "maxFlow": 45
+      },
+      {
+        "barIndex": 15,
+        "minFlow": 0,
+        "maxFlow": 45
+      }
+    ],
+    "createdAt": 1792953942126
+  },
+  {
+    "id": "stage_midi_1792953913663",
+    "name": "Gravity Falls - Made Me Real",
+    "author": "Developer MIDI",
+    "biomeId": 0,
+    "soundBankId": "arcade_crt_pulse",
+    "bpm": 104,
+    "totalSteps": 72,
+    "notes": [
+      {
+        "id": "midi_0_0",
+        "step": 0,
+        "freq": 349.23,
+        "noteName": "F4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_1_1",
+        "step": 1,
+        "freq": 293.66,
+        "noteName": "D4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_2_2",
+        "step": 2,
+        "freq": 220,
+        "noteName": "A3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_3_3",
+        "step": 3,
+        "freq": 293.66,
+        "noteName": "D4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_4_4",
+        "step": 4,
+        "freq": 349.23,
+        "noteName": "F4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_5_5",
+        "step": 5,
+        "freq": 293.66,
+        "noteName": "D4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_6_6",
+        "step": 6,
+        "freq": 220,
+        "noteName": "A3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_7_7",
+        "step": 7,
+        "freq": 293.66,
+        "noteName": "D4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_8_8",
+        "step": 8,
+        "freq": 349.23,
+        "noteName": "F4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_9_9",
+        "step": 9,
+        "freq": 261.63,
+        "noteName": "C4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_10_10",
+        "step": 10,
+        "freq": 220,
+        "noteName": "A3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_11_11",
+        "step": 11,
+        "freq": 261.63,
+        "noteName": "C4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_12_12",
+        "step": 12,
+        "freq": 349.23,
+        "noteName": "F4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_13_13",
+        "step": 13,
+        "freq": 261.63,
+        "noteName": "C4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_14_14",
+        "step": 14,
+        "freq": 220,
+        "noteName": "A3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_15_15",
+        "step": 15,
+        "freq": 261.63,
+        "noteName": "C4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_16_16",
+        "step": 16,
+        "freq": 329.63,
+        "noteName": "E4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_17_17",
+        "step": 17,
+        "freq": 277.18,
+        "noteName": "C#4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_18_18",
+        "step": 18,
+        "freq": 220,
+        "noteName": "A3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_19_19",
+        "step": 19,
+        "freq": 277.18,
+        "noteName": "C#4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_20_20",
+        "step": 20,
+        "freq": 329.63,
+        "noteName": "E4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_21_21",
+        "step": 21,
+        "freq": 277.18,
+        "noteName": "C#4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_22_22",
+        "step": 22,
+        "freq": 220,
+        "noteName": "A3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_23_23",
+        "step": 23,
+        "freq": 277.18,
+        "noteName": "C#4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_24_24",
+        "step": 24,
+        "freq": 329.63,
+        "noteName": "E4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_25_24",
+        "step": 24,
+        "freq": 110,
+        "noteName": "A2",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_26_24",
+        "step": 24,
+        "freq": 55,
+        "noteName": "A1",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_27_25",
+        "step": 25,
+        "freq": 277.18,
+        "noteName": "C#4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_28_25",
+        "step": 25,
+        "freq": 110,
+        "noteName": "A2",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_29_25",
+        "step": 25,
+        "freq": 55,
+        "noteName": "A1",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_30_26",
+        "step": 26,
+        "freq": 220,
+        "noteName": "A3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_31_26",
+        "step": 26,
+        "freq": 110,
+        "noteName": "A2",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_32_26",
+        "step": 26,
+        "freq": 55,
+        "noteName": "A1",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_33_27",
+        "step": 27,
+        "freq": 277.18,
+        "noteName": "C#4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_34_27",
+        "step": 27,
+        "freq": 110,
+        "noteName": "A2",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_35_27",
+        "step": 27,
+        "freq": 55,
+        "noteName": "A1",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_36_28",
+        "step": 28,
+        "freq": 329.63,
+        "noteName": "E4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_37_28",
+        "step": 28,
+        "freq": 110,
+        "noteName": "A2",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_38_28",
+        "step": 28,
+        "freq": 55,
+        "noteName": "A1",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_39_29",
+        "step": 29,
+        "freq": 277.18,
+        "noteName": "C#4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_40_29",
+        "step": 29,
+        "freq": 110,
+        "noteName": "A2",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_41_29",
+        "step": 29,
+        "freq": 55,
+        "noteName": "A1",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_42_30",
+        "step": 30,
+        "freq": 329.63,
+        "noteName": "E4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_43_30",
+        "step": 30,
+        "freq": 110,
+        "noteName": "A2",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_44_30",
+        "step": 30,
+        "freq": 55,
+        "noteName": "A1",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_45_31",
+        "step": 31,
+        "freq": 277.18,
+        "noteName": "C#4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_46_31",
+        "step": 31,
+        "freq": 110,
+        "noteName": "A2",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_47_31",
+        "step": 31,
+        "freq": 55,
+        "noteName": "A1",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_48_31",
+        "step": 31,
+        "freq": 277.18,
+        "noteName": "C#4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_49_32",
+        "step": 32,
+        "freq": 293.66,
+        "noteName": "D4",
+        "durationBeats": 3
+      },
+      {
+        "id": "midi_50_32",
+        "step": 32,
+        "freq": 220,
+        "noteName": "A3",
+        "durationBeats": 3
+      },
+      {
+        "id": "midi_51_32",
+        "step": 32,
+        "freq": 73.42,
+        "noteName": "D2",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_52_33",
+        "step": 33,
+        "freq": 110,
+        "noteName": "A2",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_53_34",
+        "step": 34,
+        "freq": 146.83,
+        "noteName": "D3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_54_35",
+        "step": 35,
+        "freq": 110,
+        "noteName": "A2",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_55_36",
+        "step": 36,
+        "freq": 73.42,
+        "noteName": "D2",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_56_37",
+        "step": 37,
+        "freq": 110,
+        "noteName": "A2",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_57_38",
+        "step": 38,
+        "freq": 329.63,
+        "noteName": "E4",
+        "durationBeats": 1
+      },
+      {
+        "id": "midi_58_38",
+        "step": 38,
+        "freq": 220,
+        "noteName": "A3",
+        "durationBeats": 1
+      },
+      {
+        "id": "midi_59_38",
+        "step": 38,
+        "freq": 146.83,
+        "noteName": "D3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_60_39",
+        "step": 39,
+        "freq": 110,
+        "noteName": "A2",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_61_40",
+        "step": 40,
+        "freq": 349.23,
+        "noteName": "F4",
+        "durationBeats": 4
+      },
+      {
+        "id": "midi_62_40",
+        "step": 40,
+        "freq": 220,
+        "noteName": "A3",
+        "durationBeats": 4
+      },
+      {
+        "id": "midi_63_40",
+        "step": 40,
+        "freq": 73.42,
+        "noteName": "D2",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_64_41",
+        "step": 41,
+        "freq": 110,
+        "noteName": "A2",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_65_42",
+        "step": 42,
+        "freq": 146.83,
+        "noteName": "D3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_66_43",
+        "step": 43,
+        "freq": 110,
+        "noteName": "A2",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_67_44",
+        "step": 44,
+        "freq": 73.42,
+        "noteName": "D2",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_68_45",
+        "step": 45,
+        "freq": 110,
+        "noteName": "A2",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_69_46",
+        "step": 46,
+        "freq": 146.83,
+        "noteName": "D3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_70_47",
+        "step": 47,
+        "freq": 110,
+        "noteName": "A2",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_71_48",
+        "step": 48,
+        "freq": 440,
+        "noteName": "A4",
+        "durationBeats": 1.5
+      },
+      {
+        "id": "midi_72_48",
+        "step": 48,
+        "freq": 261.63,
+        "noteName": "C4",
+        "durationBeats": 1.5
+      },
+      {
+        "id": "midi_73_48",
+        "step": 48,
+        "freq": 87.31,
+        "noteName": "F2",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_74_49",
+        "step": 49,
+        "freq": 130.81,
+        "noteName": "C3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_75_50",
+        "step": 50,
+        "freq": 174.61,
+        "noteName": "F3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_76_51",
+        "step": 51,
+        "freq": 392,
+        "noteName": "G4",
+        "durationBeats": 1.5
+      },
+      {
+        "id": "midi_77_51",
+        "step": 51,
+        "freq": 261.63,
+        "noteName": "C4",
+        "durationBeats": 1.5
+      },
+      {
+        "id": "midi_78_51",
+        "step": 51,
+        "freq": 130.81,
+        "noteName": "C3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_79_52",
+        "step": 52,
+        "freq": 87.31,
+        "noteName": "F2",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_80_53",
+        "step": 53,
+        "freq": 130.81,
+        "noteName": "C3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_81_54",
+        "step": 54,
+        "freq": 440,
+        "noteName": "A4",
+        "durationBeats": 1
+      },
+      {
+        "id": "midi_82_54",
+        "step": 54,
+        "freq": 261.63,
+        "noteName": "C4",
+        "durationBeats": 1
+      },
+      {
+        "id": "midi_83_54",
+        "step": 54,
+        "freq": 174.61,
+        "noteName": "F3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_84_55",
+        "step": 55,
+        "freq": 130.81,
+        "noteName": "C3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_85_56",
+        "step": 56,
+        "freq": 261.63,
+        "noteName": "C4",
+        "durationBeats": 4
+      },
+      {
+        "id": "midi_86_56",
+        "step": 56,
+        "freq": 87.31,
+        "noteName": "F2",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_87_57",
+        "step": 57,
+        "freq": 130.81,
+        "noteName": "C3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_88_58",
+        "step": 58,
+        "freq": 174.61,
+        "noteName": "F3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_89_59",
+        "step": 59,
+        "freq": 130.81,
+        "noteName": "C3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_90_60",
+        "step": 60,
+        "freq": 174.61,
+        "noteName": "F3",
+        "durationBeats": 1
+      },
+      {
+        "id": "midi_91_60",
+        "step": 60,
+        "freq": 87.31,
+        "noteName": "F2",
+        "durationBeats": 1
+      },
+      {
+        "id": "midi_92_62",
+        "step": 62,
+        "freq": 164.81,
+        "noteName": "E3",
+        "durationBeats": 1
+      },
+      {
+        "id": "midi_93_62",
+        "step": 62,
+        "freq": 82.41,
+        "noteName": "E2",
+        "durationBeats": 1
+      },
+      {
+        "id": "midi_94_64",
+        "step": 64,
+        "freq": 293.66,
+        "noteName": "D4",
+        "durationBeats": 3
+      },
+      {
+        "id": "midi_95_64",
+        "step": 64,
+        "freq": 233.08,
+        "noteName": "Bb3",
+        "durationBeats": 3
+      }
+    ],
+    "synthNotes": [],
+    "barFlowRules": [
+      {
+        "barIndex": 0,
+        "minFlow": 0,
+        "maxFlow": 45
+      },
+      {
+        "barIndex": 1,
+        "minFlow": 0,
+        "maxFlow": 45
+      },
+      {
+        "barIndex": 2,
+        "minFlow": 0,
+        "maxFlow": 45
+      },
+      {
+        "barIndex": 3,
+        "minFlow": 0,
+        "maxFlow": 45
+      },
+      {
+        "barIndex": 4,
+        "minFlow": 0,
+        "maxFlow": 45
+      },
+      {
+        "barIndex": 5,
+        "minFlow": 0,
+        "maxFlow": 45
+      },
+      {
+        "barIndex": 6,
+        "minFlow": 0,
+        "maxFlow": 45
+      },
+      {
+        "barIndex": 7,
+        "minFlow": 0,
+        "maxFlow": 45
+      },
+      {
+        "barIndex": 8,
+        "minFlow": 0,
+        "maxFlow": 45
+      }
+    ],
+    "createdAt": 1792953913663
+  },
+  {
+    "id": "stage_midi_1792953881655",
+    "name": "Interstellar - No Time For C",
+    "author": "Developer MIDI",
+    "biomeId": 0,
+    "soundBankId": "arcade_crt_pulse",
+    "bpm": 104,
+    "totalSteps": 32,
+    "notes": [
+      {
+        "id": "midi_0_0",
+        "step": 0,
+        "freq": 880,
+        "noteName": "A5",
+        "durationBeats": 4
+      },
+      {
+        "id": "midi_1_0",
+        "step": 0,
+        "freq": 880,
+        "noteName": "A5",
+        "durationBeats": 4
+      },
+      {
+        "id": "midi_2_0",
+        "step": 0,
+        "freq": 440,
+        "noteName": "A4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_3_0",
+        "step": 0,
+        "freq": 440,
+        "noteName": "A4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_4_0",
+        "step": 0,
+        "freq": 440,
+        "noteName": "A4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_5_0",
+        "step": 0,
+        "freq": 440,
+        "noteName": "A4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_6_1",
+        "step": 1,
+        "freq": 440,
+        "noteName": "A4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_7_1",
+        "step": 1,
+        "freq": 440,
+        "noteName": "A4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_8_1",
+        "step": 1,
+        "freq": 440,
+        "noteName": "A4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_9_1",
+        "step": 1,
+        "freq": 440,
+        "noteName": "A4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_10_1",
+        "step": 1,
+        "freq": 440,
+        "noteName": "A4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_11_1",
+        "step": 1,
+        "freq": 440,
+        "noteName": "A4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_12_1",
+        "step": 1,
+        "freq": 440,
+        "noteName": "A4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_13_1",
+        "step": 1,
+        "freq": 440,
+        "noteName": "A4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_14_1",
+        "step": 1,
+        "freq": 440,
+        "noteName": "A4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_15_2",
+        "step": 2,
+        "freq": 440,
+        "noteName": "A4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_16_2",
+        "step": 2,
+        "freq": 440,
+        "noteName": "A4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_17_2",
+        "step": 2,
+        "freq": 440,
+        "noteName": "A4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_18_2",
+        "step": 2,
+        "freq": 440,
+        "noteName": "A4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_19_2",
+        "step": 2,
+        "freq": 440,
+        "noteName": "A4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_20_2",
+        "step": 2,
+        "freq": 440,
+        "noteName": "A4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_21_2",
+        "step": 2,
+        "freq": 440,
+        "noteName": "A4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_22_2",
+        "step": 2,
+        "freq": 440,
+        "noteName": "A4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_23_2",
+        "step": 2,
+        "freq": 440,
+        "noteName": "A4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_24_3",
+        "step": 3,
+        "freq": 440,
+        "noteName": "A4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_25_3",
+        "step": 3,
+        "freq": 440,
+        "noteName": "A4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_26_3",
+        "step": 3,
+        "freq": 440,
+        "noteName": "A4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_27_3",
+        "step": 3,
+        "freq": 440,
+        "noteName": "A4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_28_3",
+        "step": 3,
+        "freq": 440,
+        "noteName": "A4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_29_3",
+        "step": 3,
+        "freq": 440,
+        "noteName": "A4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_30_3",
+        "step": 3,
+        "freq": 440,
+        "noteName": "A4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_31_3",
+        "step": 3,
+        "freq": 440,
+        "noteName": "A4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_32_3",
+        "step": 3,
+        "freq": 440,
+        "noteName": "A4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_33_3",
+        "step": 3,
+        "freq": 440,
+        "noteName": "A4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_34_4",
+        "step": 4,
+        "freq": 440,
+        "noteName": "A4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_35_4",
+        "step": 4,
+        "freq": 440,
+        "noteName": "A4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_36_4",
+        "step": 4,
+        "freq": 440,
+        "noteName": "A4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_37_4",
+        "step": 4,
+        "freq": 440,
+        "noteName": "A4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_38_4",
+        "step": 4,
+        "freq": 440,
+        "noteName": "A4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_39_4",
+        "step": 4,
+        "freq": 440,
+        "noteName": "A4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_40_4",
+        "step": 4,
+        "freq": 440,
+        "noteName": "A4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_41_4",
+        "step": 4,
+        "freq": 440,
+        "noteName": "A4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_42_4",
+        "step": 4,
+        "freq": 440,
+        "noteName": "A4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_43_5",
+        "step": 5,
+        "freq": 440,
+        "noteName": "A4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_44_5",
+        "step": 5,
+        "freq": 440,
+        "noteName": "A4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_45_5",
+        "step": 5,
+        "freq": 440,
+        "noteName": "A4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_46_5",
+        "step": 5,
+        "freq": 440,
+        "noteName": "A4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_47_5",
+        "step": 5,
+        "freq": 440,
+        "noteName": "A4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_48_5",
+        "step": 5,
+        "freq": 440,
+        "noteName": "A4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_49_5",
+        "step": 5,
+        "freq": 440,
+        "noteName": "A4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_50_5",
+        "step": 5,
+        "freq": 440,
+        "noteName": "A4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_51_6",
+        "step": 6,
+        "freq": 440,
+        "noteName": "A4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_52_6",
+        "step": 6,
+        "freq": 440,
+        "noteName": "A4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_53_6",
+        "step": 6,
+        "freq": 440,
+        "noteName": "A4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_54_6",
+        "step": 6,
+        "freq": 440,
+        "noteName": "A4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_55_6",
+        "step": 6,
+        "freq": 440,
+        "noteName": "A4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_56_6",
+        "step": 6,
+        "freq": 440,
+        "noteName": "A4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_57_6",
+        "step": 6,
+        "freq": 440,
+        "noteName": "A4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_58_6",
+        "step": 6,
+        "freq": 440,
+        "noteName": "A4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_59_7",
+        "step": 7,
+        "freq": 440,
+        "noteName": "A4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_60_7",
+        "step": 7,
+        "freq": 440,
+        "noteName": "A4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_61_7",
+        "step": 7,
+        "freq": 440,
+        "noteName": "A4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_62_7",
+        "step": 7,
+        "freq": 440,
+        "noteName": "A4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_63_7",
+        "step": 7,
+        "freq": 440,
+        "noteName": "A4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_64_7",
+        "step": 7,
+        "freq": 440,
+        "noteName": "A4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_65_7",
+        "step": 7,
+        "freq": 440,
+        "noteName": "A4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_66_7",
+        "step": 7,
+        "freq": 440,
+        "noteName": "A4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_67_8",
+        "step": 8,
+        "freq": 440,
+        "noteName": "A4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_68_8",
+        "step": 8,
+        "freq": 440,
+        "noteName": "A4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_69_8",
+        "step": 8,
+        "freq": 440,
+        "noteName": "A4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_70_8",
+        "step": 8,
+        "freq": 440,
+        "noteName": "A4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_71_8",
+        "step": 8,
+        "freq": 659.26,
+        "noteName": "E5",
+        "durationBeats": 4
+      },
+      {
+        "id": "midi_72_8",
+        "step": 8,
+        "freq": 659.26,
+        "noteName": "E5",
+        "durationBeats": 4
+      },
+      {
+        "id": "midi_73_8",
+        "step": 8,
+        "freq": 523.25,
+        "noteName": "C5",
+        "durationBeats": 4
+      },
+      {
+        "id": "midi_74_8",
+        "step": 8,
+        "freq": 523.25,
+        "noteName": "C5",
+        "durationBeats": 4
+      },
+      {
+        "id": "midi_75_8",
+        "step": 8,
+        "freq": 440,
+        "noteName": "A4",
+        "durationBeats": 4
+      },
+      {
+        "id": "midi_76_8",
+        "step": 8,
+        "freq": 440,
+        "noteName": "A4",
+        "durationBeats": 4
+      },
+      {
+        "id": "midi_77_8",
+        "step": 8,
+        "freq": 440,
+        "noteName": "A4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_78_8",
+        "step": 8,
+        "freq": 329.63,
+        "noteName": "E4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_79_8",
+        "step": 8,
+        "freq": 261.63,
+        "noteName": "C4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_80_8",
+        "step": 8,
+        "freq": 220,
+        "noteName": "A3",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_81_8",
+        "step": 8,
+        "freq": 440,
+        "noteName": "A4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_82_8",
+        "step": 8,
+        "freq": 329.63,
+        "noteName": "E4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_83_8",
+        "step": 8,
+        "freq": 261.63,
+        "noteName": "C4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_84_8",
+        "step": 8,
+        "freq": 220,
+        "noteName": "A3",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_85_8",
+        "step": 8,
+        "freq": 440,
+        "noteName": "A4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_86_8",
+        "step": 8,
+        "freq": 329.63,
+        "noteName": "E4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_87_8",
+        "step": 8,
+        "freq": 261.63,
+        "noteName": "C4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_88_8",
+        "step": 8,
+        "freq": 220,
+        "noteName": "A3",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_89_8",
+        "step": 8,
+        "freq": 440,
+        "noteName": "A4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_90_8",
+        "step": 8,
+        "freq": 329.63,
+        "noteName": "E4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_91_8",
+        "step": 8,
+        "freq": 261.63,
+        "noteName": "C4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_92_8",
+        "step": 8,
+        "freq": 220,
+        "noteName": "A3",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_93_8",
+        "step": 8,
+        "freq": 440,
+        "noteName": "A4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_94_8",
+        "step": 8,
+        "freq": 329.63,
+        "noteName": "E4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_95_8",
+        "step": 8,
+        "freq": 261.63,
+        "noteName": "C4",
+        "durationBeats": 0.25
+      }
+    ],
+    "synthNotes": [],
+    "barFlowRules": [
+      {
+        "barIndex": 0,
+        "minFlow": 0,
+        "maxFlow": 45
+      },
+      {
+        "barIndex": 1,
+        "minFlow": 0,
+        "maxFlow": 45
+      },
+      {
+        "barIndex": 2,
+        "minFlow": 0,
+        "maxFlow": 45
+      },
+      {
+        "barIndex": 3,
+        "minFlow": 0,
+        "maxFlow": 45
+      }
+    ],
+    "createdAt": 1792953881655
+  },
+  {
+    "id": "stage_midi_1792953804305",
+    "name": "Interstellar Theme - S.T.A.Y",
+    "author": "Developer MIDI",
+    "biomeId": 0,
+    "soundBankId": "arcade_crt_pulse",
+    "bpm": 104,
+    "totalSteps": 64,
+    "notes": [
+      {
+        "id": "midi_0_0",
+        "step": 0,
+        "freq": 329.63,
+        "noteName": "E4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_1_1",
+        "step": 1,
+        "freq": 261.63,
+        "noteName": "C4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_2_2",
+        "step": 2,
+        "freq": 329.63,
+        "noteName": "E4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_3_3",
+        "step": 3,
+        "freq": 261.63,
+        "noteName": "C4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_4_4",
+        "step": 4,
+        "freq": 329.63,
+        "noteName": "E4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_5_5",
+        "step": 5,
+        "freq": 261.63,
+        "noteName": "C4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_6_6",
+        "step": 6,
+        "freq": 329.63,
+        "noteName": "E4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_7_7",
+        "step": 7,
+        "freq": 261.63,
+        "noteName": "C4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_8_8",
+        "step": 8,
+        "freq": 329.63,
+        "noteName": "E4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_9_9",
+        "step": 9,
+        "freq": 261.63,
+        "noteName": "C4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_10_10",
+        "step": 10,
+        "freq": 329.63,
+        "noteName": "E4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_11_11",
+        "step": 11,
+        "freq": 261.63,
+        "noteName": "C4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_12_12",
+        "step": 12,
+        "freq": 329.63,
+        "noteName": "E4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_13_13",
+        "step": 13,
+        "freq": 261.63,
+        "noteName": "C4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_14_14",
+        "step": 14,
+        "freq": 329.63,
+        "noteName": "E4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_15_15",
+        "step": 15,
+        "freq": 261.63,
+        "noteName": "C4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_16_16",
+        "step": 16,
+        "freq": 329.63,
+        "noteName": "E4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_17_17",
+        "step": 17,
+        "freq": 261.63,
+        "noteName": "C4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_18_18",
+        "step": 18,
+        "freq": 329.63,
+        "noteName": "E4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_19_19",
+        "step": 19,
+        "freq": 261.63,
+        "noteName": "C4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_20_20",
+        "step": 20,
+        "freq": 329.63,
+        "noteName": "E4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_21_21",
+        "step": 21,
+        "freq": 261.63,
+        "noteName": "C4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_22_22",
+        "step": 22,
+        "freq": 329.63,
+        "noteName": "E4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_23_23",
+        "step": 23,
+        "freq": 261.63,
+        "noteName": "C4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_24_24",
+        "step": 24,
+        "freq": 329.63,
+        "noteName": "E4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_25_24",
+        "step": 24,
+        "freq": 329.63,
+        "noteName": "E4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_26_24",
+        "step": 24,
+        "freq": 220,
+        "noteName": "A3",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_27_25",
+        "step": 25,
+        "freq": 261.63,
+        "noteName": "C4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_28_26",
+        "step": 26,
+        "freq": 329.63,
+        "noteName": "E4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_29_27",
+        "step": 27,
+        "freq": 261.63,
+        "noteName": "C4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_30_28",
+        "step": 28,
+        "freq": 329.63,
+        "noteName": "E4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_31_29",
+        "step": 29,
+        "freq": 261.63,
+        "noteName": "C4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_32_30",
+        "step": 30,
+        "freq": 329.63,
+        "noteName": "E4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_33_30",
+        "step": 30,
+        "freq": 329.63,
+        "noteName": "E4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_34_30",
+        "step": 30,
+        "freq": 246.94,
+        "noteName": "B3",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_35_31",
+        "step": 31,
+        "freq": 246.94,
+        "noteName": "B3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_36_32",
+        "step": 32,
+        "freq": 329.63,
+        "noteName": "E4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_37_33",
+        "step": 33,
+        "freq": 246.94,
+        "noteName": "B3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_38_34",
+        "step": 34,
+        "freq": 329.63,
+        "noteName": "E4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_39_35",
+        "step": 35,
+        "freq": 246.94,
+        "noteName": "B3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_40_36",
+        "step": 36,
+        "freq": 329.63,
+        "noteName": "E4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_41_37",
+        "step": 37,
+        "freq": 246.94,
+        "noteName": "B3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_42_38",
+        "step": 38,
+        "freq": 329.63,
+        "noteName": "E4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_43_39",
+        "step": 39,
+        "freq": 246.94,
+        "noteName": "B3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_44_40",
+        "step": 40,
+        "freq": 329.63,
+        "noteName": "E4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_45_41",
+        "step": 41,
+        "freq": 246.94,
+        "noteName": "B3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_46_42",
+        "step": 42,
+        "freq": 329.63,
+        "noteName": "E4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_47_42",
+        "step": 42,
+        "freq": 220,
+        "noteName": "A3",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_48_42",
+        "step": 42,
+        "freq": 329.63,
+        "noteName": "E4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_49_42",
+        "step": 42,
+        "freq": 220,
+        "noteName": "A3",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_50_43",
+        "step": 43,
+        "freq": 220,
+        "noteName": "A3",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_51_43",
+        "step": 43,
+        "freq": 220,
+        "noteName": "A3",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_52_43",
+        "step": 43,
+        "freq": 220,
+        "noteName": "A3",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_53_44",
+        "step": 44,
+        "freq": 220,
+        "noteName": "A3",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_54_44",
+        "step": 44,
+        "freq": 329.63,
+        "noteName": "E4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_55_44",
+        "step": 44,
+        "freq": 246.94,
+        "noteName": "B3",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_56_44",
+        "step": 44,
+        "freq": 329.63,
+        "noteName": "E4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_57_44",
+        "step": 44,
+        "freq": 246.94,
+        "noteName": "B3",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_58_45",
+        "step": 45,
+        "freq": 246.94,
+        "noteName": "B3",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_59_45",
+        "step": 45,
+        "freq": 246.94,
+        "noteName": "B3",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_60_45",
+        "step": 45,
+        "freq": 246.94,
+        "noteName": "B3",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_61_46",
+        "step": 46,
+        "freq": 246.94,
+        "noteName": "B3",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_62_46",
+        "step": 46,
+        "freq": 329.63,
+        "noteName": "E4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_63_46",
+        "step": 46,
+        "freq": 261.63,
+        "noteName": "C4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_64_46",
+        "step": 46,
+        "freq": 329.63,
+        "noteName": "E4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_65_46",
+        "step": 46,
+        "freq": 261.63,
+        "noteName": "C4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_66_47",
+        "step": 47,
+        "freq": 261.63,
+        "noteName": "C4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_67_47",
+        "step": 47,
+        "freq": 261.63,
+        "noteName": "C4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_68_47",
+        "step": 47,
+        "freq": 261.63,
+        "noteName": "C4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_69_48",
+        "step": 48,
+        "freq": 261.63,
+        "noteName": "C4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_70_48",
+        "step": 48,
+        "freq": 329.63,
+        "noteName": "E4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_71_48",
+        "step": 48,
+        "freq": 246.94,
+        "noteName": "B3",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_72_48",
+        "step": 48,
+        "freq": 329.63,
+        "noteName": "E4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_73_48",
+        "step": 48,
+        "freq": 246.94,
+        "noteName": "B3",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_74_49",
+        "step": 49,
+        "freq": 246.94,
+        "noteName": "B3",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_75_49",
+        "step": 49,
+        "freq": 246.94,
+        "noteName": "B3",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_76_49",
+        "step": 49,
+        "freq": 246.94,
+        "noteName": "B3",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_77_50",
+        "step": 50,
+        "freq": 246.94,
+        "noteName": "B3",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_78_50",
+        "step": 50,
+        "freq": 329.63,
+        "noteName": "E4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_79_50",
+        "step": 50,
+        "freq": 220,
+        "noteName": "A3",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_80_50",
+        "step": 50,
+        "freq": 329.63,
+        "noteName": "E4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_81_50",
+        "step": 50,
+        "freq": 220,
+        "noteName": "A3",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_82_51",
+        "step": 51,
+        "freq": 220,
+        "noteName": "A3",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_83_51",
+        "step": 51,
+        "freq": 220,
+        "noteName": "A3",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_84_51",
+        "step": 51,
+        "freq": 220,
+        "noteName": "A3",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_85_52",
+        "step": 52,
+        "freq": 220,
+        "noteName": "A3",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_86_52",
+        "step": 52,
+        "freq": 329.63,
+        "noteName": "E4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_87_52",
+        "step": 52,
+        "freq": 246.94,
+        "noteName": "B3",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_88_52",
+        "step": 52,
+        "freq": 329.63,
+        "noteName": "E4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_89_52",
+        "step": 52,
+        "freq": 246.94,
+        "noteName": "B3",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_90_53",
+        "step": 53,
+        "freq": 246.94,
+        "noteName": "B3",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_91_53",
+        "step": 53,
+        "freq": 246.94,
+        "noteName": "B3",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_92_53",
+        "step": 53,
+        "freq": 246.94,
+        "noteName": "B3",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_93_54",
+        "step": 54,
+        "freq": 246.94,
+        "noteName": "B3",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_94_54",
+        "step": 54,
+        "freq": 329.63,
+        "noteName": "E4",
+        "durationBeats": 0.25
+      },
+      {
+        "id": "midi_95_54",
+        "step": 54,
+        "freq": 261.63,
+        "noteName": "C4",
+        "durationBeats": 0.25
+      }
+    ],
+    "synthNotes": [],
+    "barFlowRules": [
+      {
+        "barIndex": 0,
+        "minFlow": 0,
+        "maxFlow": 45
+      },
+      {
+        "barIndex": 1,
+        "minFlow": 0,
+        "maxFlow": 45
+      },
+      {
+        "barIndex": 2,
+        "minFlow": 0,
+        "maxFlow": 45
+      },
+      {
+        "barIndex": 3,
+        "minFlow": 0,
+        "maxFlow": 45
+      },
+      {
+        "barIndex": 4,
+        "minFlow": 0,
+        "maxFlow": 45
+      },
+      {
+        "barIndex": 5,
+        "minFlow": 0,
+        "maxFlow": 45
+      },
+      {
+        "barIndex": 6,
+        "minFlow": 0,
+        "maxFlow": 45
+      },
+      {
+        "barIndex": 7,
+        "minFlow": 0,
+        "maxFlow": 45
+      }
+    ],
+    "createdAt": 1792953804306
+  },
+  {
+    "id": "stage_midi_1792953603090",
+    "name": "Undertale - Fallen down by T",
+    "author": "Developer MIDI",
+    "biomeId": 0,
+    "soundBankId": "crt_velvet",
+    "bpm": 104,
+    "totalSteps": 56,
+    "notes": [
+      {
+        "id": "midi_0_0",
+        "step": 0,
+        "freq": 369.99,
+        "noteName": "F#4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_1_0",
+        "step": 0,
+        "freq": 146.83,
+        "noteName": "D3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_2_1",
+        "step": 1,
+        "freq": 277.18,
+        "noteName": "C#4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_3_1",
+        "step": 1,
+        "freq": 185,
+        "noteName": "F#3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_4_2",
+        "step": 2,
+        "freq": 369.99,
+        "noteName": "F#4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_5_2",
+        "step": 2,
+        "freq": 220,
+        "noteName": "A3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_6_3",
+        "step": 3,
+        "freq": 277.18,
+        "noteName": "C#4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_7_3",
+        "step": 3,
+        "freq": 185,
+        "noteName": "F#3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_8_4",
+        "step": 4,
+        "freq": 369.99,
+        "noteName": "F#4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_9_4",
+        "step": 4,
+        "freq": 220,
+        "noteName": "A3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_10_5",
+        "step": 5,
+        "freq": 277.18,
+        "noteName": "C#4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_11_5",
+        "step": 5,
+        "freq": 185,
+        "noteName": "F#3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_12_6",
+        "step": 6,
+        "freq": 369.99,
+        "noteName": "F#4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_13_6",
+        "step": 6,
+        "freq": 146.83,
+        "noteName": "D3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_14_7",
+        "step": 7,
+        "freq": 277.18,
+        "noteName": "C#4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_15_7",
+        "step": 7,
+        "freq": 185,
+        "noteName": "F#3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_16_8",
+        "step": 8,
+        "freq": 369.99,
+        "noteName": "F#4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_17_8",
+        "step": 8,
+        "freq": 220,
+        "noteName": "A3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_18_9",
+        "step": 9,
+        "freq": 277.18,
+        "noteName": "C#4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_19_9",
+        "step": 9,
+        "freq": 185,
+        "noteName": "F#3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_20_10",
+        "step": 10,
+        "freq": 369.99,
+        "noteName": "F#4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_21_10",
+        "step": 10,
+        "freq": 220,
+        "noteName": "A3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_22_11",
+        "step": 11,
+        "freq": 277.18,
+        "noteName": "C#4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_23_11",
+        "step": 11,
+        "freq": 185,
+        "noteName": "F#3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_24_12",
+        "step": 12,
+        "freq": 246.94,
+        "noteName": "B3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_25_12",
+        "step": 12,
+        "freq": 123.47,
+        "noteName": "B2",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_26_13",
+        "step": 13,
+        "freq": 220,
+        "noteName": "A3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_27_13",
+        "step": 13,
+        "freq": 155.56,
+        "noteName": "Eb3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_28_14",
+        "step": 14,
+        "freq": 277.18,
+        "noteName": "C#4",
+        "durationBeats": 1
+      },
+      {
+        "id": "midi_29_14",
+        "step": 14,
+        "freq": 185,
+        "noteName": "F#3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_30_15",
+        "step": 15,
+        "freq": 155.56,
+        "noteName": "Eb3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_31_16",
+        "step": 16,
+        "freq": 220,
+        "noteName": "A3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_32_16",
+        "step": 16,
+        "freq": 185,
+        "noteName": "F#3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_33_17",
+        "step": 17,
+        "freq": 246.94,
+        "noteName": "B3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_34_17",
+        "step": 17,
+        "freq": 155.56,
+        "noteName": "Eb3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_35_18",
+        "step": 18,
+        "freq": 329.63,
+        "noteName": "E4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_36_18",
+        "step": 18,
+        "freq": 123.47,
+        "noteName": "B2",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_37_19",
+        "step": 19,
+        "freq": 311.13,
+        "noteName": "Eb4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_38_19",
+        "step": 19,
+        "freq": 155.56,
+        "noteName": "Eb3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_39_20",
+        "step": 20,
+        "freq": 329.63,
+        "noteName": "E4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_40_20",
+        "step": 20,
+        "freq": 185,
+        "noteName": "F#3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_41_21",
+        "step": 21,
+        "freq": 369.99,
+        "noteName": "F#4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_42_21",
+        "step": 21,
+        "freq": 155.56,
+        "noteName": "Eb3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_43_22",
+        "step": 22,
+        "freq": 311.13,
+        "noteName": "Eb4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_44_22",
+        "step": 22,
+        "freq": 185,
+        "noteName": "F#3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_45_23",
+        "step": 23,
+        "freq": 246.94,
+        "noteName": "B3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_46_23",
+        "step": 23,
+        "freq": 155.56,
+        "noteName": "Eb3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_47_24",
+        "step": 24,
+        "freq": 369.99,
+        "noteName": "F#4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_48_24",
+        "step": 24,
+        "freq": 98,
+        "noteName": "G2",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_49_25",
+        "step": 25,
+        "freq": 246.94,
+        "noteName": "B3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_50_25",
+        "step": 25,
+        "freq": 123.47,
+        "noteName": "B2",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_51_26",
+        "step": 26,
+        "freq": 369.99,
+        "noteName": "F#4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_52_26",
+        "step": 26,
+        "freq": 146.83,
+        "noteName": "D3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_53_27",
+        "step": 27,
+        "freq": 246.94,
+        "noteName": "B3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_54_27",
+        "step": 27,
+        "freq": 123.47,
+        "noteName": "B2",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_55_28",
+        "step": 28,
+        "freq": 369.99,
+        "noteName": "F#4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_56_28",
+        "step": 28,
+        "freq": 146.83,
+        "noteName": "D3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_57_29",
+        "step": 29,
+        "freq": 246.94,
+        "noteName": "B3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_58_29",
+        "step": 29,
+        "freq": 123.47,
+        "noteName": "B2",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_59_30",
+        "step": 30,
+        "freq": 369.99,
+        "noteName": "F#4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_60_30",
+        "step": 30,
+        "freq": 98,
+        "noteName": "G2",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_61_31",
+        "step": 31,
+        "freq": 233.08,
+        "noteName": "Bb3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_62_31",
+        "step": 31,
+        "freq": 116.54,
+        "noteName": "Bb2",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_63_32",
+        "step": 32,
+        "freq": 369.99,
+        "noteName": "F#4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_64_32",
+        "step": 32,
+        "freq": 146.83,
+        "noteName": "D3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_65_33",
+        "step": 33,
+        "freq": 233.08,
+        "noteName": "Bb3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_66_33",
+        "step": 33,
+        "freq": 116.54,
+        "noteName": "Bb2",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_67_34",
+        "step": 34,
+        "freq": 392,
+        "noteName": "G4",
+        "durationBeats": 1
+      },
+      {
+        "id": "midi_68_34",
+        "step": 34,
+        "freq": 146.83,
+        "noteName": "D3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_69_35",
+        "step": 35,
+        "freq": 116.54,
+        "noteName": "Bb2",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_70_36",
+        "step": 36,
+        "freq": 369.99,
+        "noteName": "F#4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_71_36",
+        "step": 36,
+        "freq": 146.83,
+        "noteName": "D3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_72_37",
+        "step": 37,
+        "freq": 293.66,
+        "noteName": "D4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_73_37",
+        "step": 37,
+        "freq": 185,
+        "noteName": "F#3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_74_38",
+        "step": 38,
+        "freq": 369.99,
+        "noteName": "F#4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_75_38",
+        "step": 38,
+        "freq": 220,
+        "noteName": "A3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_76_39",
+        "step": 39,
+        "freq": 293.66,
+        "noteName": "D4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_77_39",
+        "step": 39,
+        "freq": 185,
+        "noteName": "F#3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_78_40",
+        "step": 40,
+        "freq": 329.63,
+        "noteName": "E4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_79_40",
+        "step": 40,
+        "freq": 220,
+        "noteName": "A3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_80_41",
+        "step": 41,
+        "freq": 369.99,
+        "noteName": "F#4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_81_41",
+        "step": 41,
+        "freq": 185,
+        "noteName": "F#3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_82_42",
+        "step": 42,
+        "freq": 329.63,
+        "noteName": "E4",
+        "durationBeats": 1
+      },
+      {
+        "id": "midi_83_42",
+        "step": 42,
+        "freq": 138.59,
+        "noteName": "C#3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_84_43",
+        "step": 43,
+        "freq": 164.81,
+        "noteName": "E3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_85_44",
+        "step": 44,
+        "freq": 293.66,
+        "noteName": "D4",
+        "durationBeats": 1
+      },
+      {
+        "id": "midi_86_44",
+        "step": 44,
+        "freq": 220,
+        "noteName": "A3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_87_45",
+        "step": 45,
+        "freq": 164.81,
+        "noteName": "E3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_88_46",
+        "step": 46,
+        "freq": 277.18,
+        "noteName": "C#4",
+        "durationBeats": 1
+      },
+      {
+        "id": "midi_89_46",
+        "step": 46,
+        "freq": 220,
+        "noteName": "A3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_90_46",
+        "step": 46,
+        "freq": 69.3,
+        "noteName": "C#2",
+        "durationBeats": 1
+      },
+      {
+        "id": "midi_91_47",
+        "step": 47,
+        "freq": 164.81,
+        "noteName": "E3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_92_48",
+        "step": 48,
+        "freq": 369.99,
+        "noteName": "F#4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_93_48",
+        "step": 48,
+        "freq": 146.83,
+        "noteName": "D3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "midi_94_48",
+        "step": 48,
+        "freq": 73.42,
+        "noteName": "D2",
+        "durationBeats": 1.5
+      },
+      {
+        "id": "midi_95_49",
+        "step": 49,
+        "freq": 277.18,
+        "noteName": "C#4",
+        "durationBeats": 0.5
+      }
+    ],
+    "synthNotes": [],
+    "barFlowRules": [
+      {
+        "barIndex": 0,
+        "minFlow": 0,
+        "maxFlow": 45
+      },
+      {
+        "barIndex": 1,
+        "minFlow": 0,
+        "maxFlow": 45
+      },
+      {
+        "barIndex": 2,
+        "minFlow": 0,
+        "maxFlow": 45
+      },
+      {
+        "barIndex": 3,
+        "minFlow": 0,
+        "maxFlow": 45
+      },
+      {
+        "barIndex": 4,
+        "minFlow": 0,
+        "maxFlow": 45
+      },
+      {
+        "barIndex": 5,
+        "minFlow": 0,
+        "maxFlow": 45
+      },
+      {
+        "barIndex": 6,
+        "minFlow": 0,
+        "maxFlow": 45
+      }
+    ],
+    "createdAt": 1792953603090
+  },
+  {
+    "id": "stage_custom_1792842375294",
+    "name": "01 · Neon Odyssey (C Minor 9) (Custom)",
+    "author": "Omni Core",
+    "isBuiltIn": false,
+    "biomeId": 0,
+    "soundBankId": "crt_velvet",
+    "bpm": 102,
+    "totalSteps": 40,
+    "notes": [
+      {
+        "id": "n2",
+        "step": 2,
+        "freq": 311.13,
+        "noteName": "Eb4",
+        "durationBeats": 1
+      },
+      {
+        "id": "n3",
+        "step": 4,
+        "freq": 392,
+        "noteName": "G4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "n4",
+        "step": 5,
+        "freq": 466.16,
+        "noteName": "Bb4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "n5",
+        "step": 6,
+        "freq": 523.25,
+        "noteName": "C5",
+        "durationBeats": 1
+      },
+      {
+        "id": "n6",
+        "step": 8,
+        "freq": 587.33,
+        "noteName": "D5",
+        "durationBeats": 2
+      },
+      {
+        "id": "n7",
+        "step": 12,
+        "freq": 523.25,
+        "noteName": "C5",
+        "durationBeats": 0.75
+      },
+      {
+        "id": "n8",
+        "step": 14,
+        "freq": 392,
+        "noteName": "G4",
+        "durationBeats": 1
+      },
+      {
+        "id": "n9",
+        "step": 16,
+        "freq": 207.65,
+        "noteName": "Ab3",
+        "durationBeats": 1.5
+      },
+      {
+        "id": "n10",
+        "step": 19,
+        "freq": 261.63,
+        "noteName": "C4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "n11",
+        "step": 20,
+        "freq": 349.23,
+        "noteName": "F4",
+        "durationBeats": 1
+      },
+      {
+        "id": "n12",
+        "step": 22,
+        "freq": 415.3,
+        "noteName": "Ab4",
+        "durationBeats": 1
+      },
+      {
+        "id": "n13",
+        "step": 24,
+        "freq": 783.99,
+        "noteName": "G5",
+        "durationBeats": 2
+      },
+      {
+        "id": "n14",
+        "step": 28,
+        "freq": 622.25,
+        "noteName": "Eb5",
+        "durationBeats": 1
+      },
+      {
+        "id": "n15",
+        "step": 30,
+        "freq": 523.25,
+        "noteName": "C5",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_1792842171806_r2go",
+        "step": 0,
+        "freq": 261.63,
+        "noteName": "C4",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_1792842314862_5qzh",
+        "step": 32,
+        "freq": 932.32,
+        "noteName": "Bb5",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_1792842321559_n0ct",
+        "step": 34,
+        "freq": 698.46,
+        "noteName": "F5",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "lead_1792842337362_tbq9",
+        "step": 35,
+        "freq": 587.32,
+        "noteName": "D5",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "lead_1792842341127_gn7b",
+        "step": 36,
+        "freq": 622.26,
+        "noteName": "Eb5",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_1792842345437_eekr",
+        "step": 38,
+        "freq": 466.16,
+        "noteName": "Bb4",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_1792842345902_4x67",
+        "step": 38,
+        "freq": 698.46,
+        "noteName": "F5",
+        "durationBeats": 1
+      }
+    ],
+    "synthNotes": [
+      {
+        "id": "s3",
+        "step": 16,
+        "freq": 174.61,
+        "noteName": "F3",
+        "durationBeats": 4
+      },
+      {
+        "id": "s4",
+        "step": 24,
+        "freq": 196,
+        "noteName": "G3",
+        "durationBeats": 4
+      },
+      {
+        "id": "synth_1792842246733_oh4a",
+        "step": 0,
+        "freq": 130.81,
+        "noteName": "C3",
+        "durationBeats": 1
+      },
+      {
+        "id": "synth_1792842276269_7qn1",
+        "step": 8,
+        "freq": 155.56,
+        "noteName": "Eb3",
+        "durationBeats": 1
+      },
+      {
+        "id": "synth_1792842285905_z1gc",
+        "step": 10,
+        "freq": 155.56,
+        "noteName": "Eb3",
+        "durationBeats": 1
+      },
+      {
+        "id": "synth_1792842287998_w6ry",
+        "step": 12,
+        "freq": 155.56,
+        "noteName": "Eb3",
+        "durationBeats": 1
+      },
+      {
+        "id": "synth_1792842288565_v785",
+        "step": 14,
+        "freq": 155.56,
+        "noteName": "Eb3",
+        "durationBeats": 1
+      },
+      {
+        "id": "synth_1792842295846_q5if",
+        "step": 4,
+        "freq": 130.81,
+        "noteName": "C3",
+        "durationBeats": 1
+      }
+    ],
+    "barFlowRules": [
+      {
+        "barIndex": 0,
+        "minFlow": 0,
+        "maxFlow": 45
+      },
+      {
+        "barIndex": 1,
+        "minFlow": 0,
+        "maxFlow": 45
+      },
+      {
+        "barIndex": 2,
+        "minFlow": 0,
+        "maxFlow": 45
+      },
+      {
+        "barIndex": 3,
+        "minFlow": 2,
+        "maxFlow": 45
+      },
+      {
+        "barIndex": 4,
+        "minFlow": 4,
+        "maxFlow": 45
+      }
+    ],
+    "createdAt": 1792842375294
+  },
+  {
+    "id": "stage_custom_1792842726374",
+    "name": "02 · Cyber Zen Protocol (Hirajoshi) (Custom)",
+    "author": "Omni Core",
+    "isBuiltIn": false,
+    "biomeId": 3,
+    "soundBankId": "arcade_crt_pulse",
+    "bpm": 96,
+    "totalSteps": 40,
+    "notes": [
+      {
+        "id": "k1",
+        "step": 0,
+        "freq": 220,
+        "noteName": "A3",
+        "durationBeats": 1
+      },
+      {
+        "id": "k2",
+        "step": 2,
+        "freq": 246.94,
+        "noteName": "B3",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "k3",
+        "step": 3,
+        "freq": 293.66,
+        "noteName": "D4",
+        "durationBeats": 1.5
+      },
+      {
+        "id": "k4",
+        "step": 6,
+        "freq": 329.63,
+        "noteName": "E4",
+        "durationBeats": 1
+      },
+      {
+        "id": "k5",
+        "step": 8,
+        "freq": 440,
+        "noteName": "A4",
+        "durationBeats": 2
+      },
+      {
+        "id": "k6",
+        "step": 12,
+        "freq": 493.88,
+        "noteName": "B4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "k7",
+        "step": 13,
+        "freq": 440,
+        "noteName": "A4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "k8",
+        "step": 14,
+        "freq": 293.66,
+        "noteName": "D4",
+        "durationBeats": 1
+      },
+      {
+        "id": "k9",
+        "step": 16,
+        "freq": 587.32,
+        "noteName": "D5",
+        "durationBeats": 2
+      },
+      {
+        "id": "k10",
+        "step": 20,
+        "freq": 440,
+        "noteName": "A4",
+        "durationBeats": 1
+      },
+      {
+        "id": "k11",
+        "step": 22,
+        "freq": 329.63,
+        "noteName": "E4",
+        "durationBeats": 1
+      },
+      {
+        "id": "k12",
+        "step": 24,
+        "freq": 880,
+        "noteName": "A5",
+        "durationBeats": 2
+      },
+      {
+        "id": "k13",
+        "step": 28,
+        "freq": 493.88,
+        "noteName": "B4",
+        "durationBeats": 2
+      },
+      {
+        "id": "lead_1792842604134_z0yu",
+        "step": 18,
+        "freq": 739.98,
+        "noteName": "F#5",
+        "durationBeats": 1
+      }
+    ],
+    "synthNotes": [
+      {
+        "id": "ks1",
+        "step": 0,
+        "freq": 110,
+        "noteName": "A2",
+        "durationBeats": 4
+      },
+      {
+        "id": "ks2",
+        "step": 8,
+        "freq": 164.81,
+        "noteName": "E3",
+        "durationBeats": 4
+      },
+      {
+        "id": "ks3",
+        "step": 16,
+        "freq": 146.83,
+        "noteName": "D3",
+        "durationBeats": 4
+      },
+      {
+        "id": "ks4",
+        "step": 24,
+        "freq": 220,
+        "noteName": "A3",
+        "durationBeats": 4
+      }
+    ],
+    "barFlowRules": [
+      {
+        "barIndex": 0,
+        "minFlow": 0,
+        "maxFlow": 45
+      },
+      {
+        "barIndex": 1,
+        "minFlow": 0,
+        "maxFlow": 45
+      },
+      {
+        "barIndex": 2,
+        "minFlow": 0,
+        "maxFlow": 45
+      },
+      {
+        "barIndex": 3,
+        "minFlow": 3,
+        "maxFlow": 45
+      },
+      {
+        "barIndex": 4,
+        "minFlow": 0,
+        "maxFlow": 45
+      }
+    ],
+    "createdAt": 1792842726374
+  },
+  {
+    "id": "stage_custom_1792850505066",
+    "name": "01 · Neon Odyssey (C Minor 9) (Custom)",
+    "author": "Omni Core",
+    "isBuiltIn": false,
+    "biomeId": 0,
+    "soundBankId": "crt_velvet",
+    "bpm": 102,
+    "totalSteps": 32,
+    "notes": [
+      {
+        "id": "n1",
+        "step": 0,
+        "freq": 261.63,
+        "noteName": "C4",
+        "durationBeats": 1
+      },
+      {
+        "id": "n2",
+        "step": 2,
+        "freq": 311.13,
+        "noteName": "Eb4",
+        "durationBeats": 1
+      },
+      {
+        "id": "n3",
+        "step": 4,
+        "freq": 392,
+        "noteName": "G4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "n4",
+        "step": 5,
+        "freq": 466.16,
+        "noteName": "Bb4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "n5",
+        "step": 6,
+        "freq": 523.25,
+        "noteName": "C5",
+        "durationBeats": 1
+      },
+      {
+        "id": "n6",
+        "step": 8,
+        "freq": 587.33,
+        "noteName": "D5",
+        "durationBeats": 2
+      },
+      {
+        "id": "n7",
+        "step": 12,
+        "freq": 523.25,
+        "noteName": "C5",
+        "durationBeats": 0.75
+      },
+      {
+        "id": "n8",
+        "step": 14,
+        "freq": 392,
+        "noteName": "G4",
+        "durationBeats": 1
+      },
+      {
+        "id": "n9",
+        "step": 16,
+        "freq": 207.65,
+        "noteName": "Ab3",
+        "durationBeats": 1.5
+      },
+      {
+        "id": "n10",
+        "step": 19,
+        "freq": 261.63,
+        "noteName": "C4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "n11",
+        "step": 20,
+        "freq": 349.23,
+        "noteName": "F4",
+        "durationBeats": 1
+      },
+      {
+        "id": "n12",
+        "step": 22,
+        "freq": 415.3,
+        "noteName": "Ab4",
+        "durationBeats": 1
+      },
+      {
+        "id": "n13",
+        "step": 24,
+        "freq": 783.99,
+        "noteName": "G5",
+        "durationBeats": 2
+      },
+      {
+        "id": "n14",
+        "step": 28,
+        "freq": 622.25,
+        "noteName": "Eb5",
+        "durationBeats": 1
+      },
+      {
+        "id": "n15",
+        "step": 30,
+        "freq": 523.25,
+        "noteName": "C5",
+        "durationBeats": 1
+      }
+    ],
+    "synthNotes": [
+      {
+        "id": "s1",
+        "step": 0,
+        "freq": 130.81,
+        "noteName": "C3",
+        "durationBeats": 4
+      },
+      {
+        "id": "s2",
+        "step": 8,
+        "freq": 155.56,
+        "noteName": "Eb3",
+        "durationBeats": 4
+      },
+      {
+        "id": "s3",
+        "step": 16,
+        "freq": 174.61,
+        "noteName": "F3",
+        "durationBeats": 4
+      },
+      {
+        "id": "s4",
+        "step": 24,
+        "freq": 196,
+        "noteName": "G3",
+        "durationBeats": 4
+      }
+    ],
+    "barFlowRules": [
+      {
+        "barIndex": 0,
+        "minFlow": 0,
+        "maxFlow": 45
+      },
+      {
+        "barIndex": 1,
+        "minFlow": 0,
+        "maxFlow": 45
+      },
+      {
+        "barIndex": 2,
+        "minFlow": 0,
+        "maxFlow": 45
+      },
+      {
+        "barIndex": 3,
+        "minFlow": 2,
+        "maxFlow": 45
+      }
+    ],
+    "createdAt": 1792850505066
+  },
+  {
+    "id": "stage_custom_1792850510210",
+    "name": "01 · Neon Odyssey (C Minor 9) (Custom)",
+    "author": "Omni Core",
+    "isBuiltIn": false,
+    "biomeId": 0,
+    "soundBankId": "crt_velvet",
+    "bpm": 90,
+    "totalSteps": 40,
+    "notes": [
+      {
+        "id": "lead_1792852038913_1xuw",
+        "step": 0,
+        "freq": 311.13,
+        "noteName": "Eb4",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_1792852039544_e67k",
+        "step": 2,
+        "freq": 349.23,
+        "noteName": "F4",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_1792852040336_j5fb",
+        "step": 4,
+        "freq": 311.13,
+        "noteName": "Eb4",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_1792852041008_z6fv",
+        "step": 6,
+        "freq": 415.3,
+        "noteName": "Ab4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "lead_1792852042064_mo3w",
+        "step": 8,
+        "freq": 466.16,
+        "noteName": "Bb4",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_1792852042728_ed4q",
+        "step": 10,
+        "freq": 349.23,
+        "noteName": "F4",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_1792852043280_pxu4",
+        "step": 12,
+        "freq": 392,
+        "noteName": "G4",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_1792852043919_2847",
+        "step": 14,
+        "freq": 311.13,
+        "noteName": "Eb4",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_1792852064872_2vl2",
+        "step": 16,
+        "freq": 622.26,
+        "noteName": "Eb5",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_1792852065504_kkxc",
+        "step": 18,
+        "freq": 466.16,
+        "noteName": "Bb4",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_1792852066136_yi14",
+        "step": 20,
+        "freq": 622.26,
+        "noteName": "Eb5",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_1792852066776_x000",
+        "step": 22,
+        "freq": 392,
+        "noteName": "G4",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_1792852071583_klzf",
+        "step": 0,
+        "freq": 233.08,
+        "noteName": "Bb3",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_1792852072592_31j5",
+        "step": 2,
+        "freq": 261.63,
+        "noteName": "C4",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_1792852073503_577n",
+        "step": 4,
+        "freq": 207.65,
+        "noteName": "Ab3",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_1792852075464_pp8x",
+        "step": 6,
+        "freq": 174.62,
+        "noteName": "F3",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_1792852087879_w2ku",
+        "step": 8,
+        "freq": 233.08,
+        "noteName": "Bb3",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_1792852088599_kg3s",
+        "step": 10,
+        "freq": 196,
+        "noteName": "G3",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_1792852092664_uw4v",
+        "step": 12,
+        "freq": 261.63,
+        "noteName": "C4",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_1792852094280_fdsk",
+        "step": 14,
+        "freq": 523.26,
+        "noteName": "C5",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "lead_1792852097119_v7qn",
+        "step": 16,
+        "freq": 349.23,
+        "noteName": "F4",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_1792852099702_8hyp",
+        "step": 18,
+        "freq": 784,
+        "noteName": "G5",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "lead_1792852100824_lyew",
+        "step": 20,
+        "freq": 349.23,
+        "noteName": "F4",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_1792852101664_evdf",
+        "step": 22,
+        "freq": 523.26,
+        "noteName": "C5",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "lead_1792852120305_cv5c",
+        "step": 24,
+        "freq": 830.6,
+        "noteName": "Ab5",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "lead_1792852121159_bnt4",
+        "step": 26,
+        "freq": 784,
+        "noteName": "G5",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "lead_1792852121776_4e2l",
+        "step": 28,
+        "freq": 698.46,
+        "noteName": "F5",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_1792852122496_tpkd",
+        "step": 30,
+        "freq": 932.32,
+        "noteName": "Bb5",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_1792852125048_itk1",
+        "step": 24,
+        "freq": 523.26,
+        "noteName": "C5",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_1792852125464_ghp3",
+        "step": 26,
+        "freq": 587.32,
+        "noteName": "D5",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_1792852125855_o239",
+        "step": 28,
+        "freq": 415.3,
+        "noteName": "Ab4",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_1792852126472_1xaj",
+        "step": 30,
+        "freq": 587.32,
+        "noteName": "D5",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_1792852139711_9haw",
+        "step": 7,
+        "freq": 523.26,
+        "noteName": "C5",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "lead_1792852147503_aip7",
+        "step": 15,
+        "freq": 415.3,
+        "noteName": "Ab4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "lead_1792852150064_yddc",
+        "step": 19,
+        "freq": 1046.52,
+        "noteName": "C6",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "lead_1792852156679_wbwi",
+        "step": 23,
+        "freq": 466.16,
+        "noteName": "Bb4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "lead_1792852158703_rq1f",
+        "step": 25,
+        "freq": 1046.52,
+        "noteName": "C6",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "lead_1792852163647_rdna",
+        "step": 27,
+        "freq": 1174.64,
+        "noteName": "D6",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "lead_1792852309231_fpjw",
+        "step": 32,
+        "freq": 739.98,
+        "noteName": "F#5",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_1792852316599_6i93",
+        "step": 32,
+        "freq": 1108.72,
+        "noteName": "C#6",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_1792852321375_ycgu",
+        "step": 34,
+        "freq": 987.76,
+        "noteName": "B5",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_1792852322064_bcuf",
+        "step": 38,
+        "freq": 1318.52,
+        "noteName": "E6",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_1792852322743_x6an",
+        "step": 38,
+        "freq": 659.26,
+        "noteName": "E5",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_1792852361567_3kdy",
+        "step": 36,
+        "freq": 587.32,
+        "noteName": "D5",
+        "durationBeats": 1
+      }
+    ],
+    "synthNotes": [],
+    "barFlowRules": [
+      {
+        "barIndex": 0,
+        "minFlow": 0,
+        "maxFlow": 45
+      },
+      {
+        "barIndex": 1,
+        "minFlow": 0,
+        "maxFlow": 45
+      },
+      {
+        "barIndex": 2,
+        "minFlow": 0,
+        "maxFlow": 45
+      },
+      {
+        "barIndex": 3,
+        "minFlow": 2,
+        "maxFlow": 45
+      },
+      {
+        "barIndex": 4,
+        "minFlow": 0,
+        "maxFlow": 45,
+        "biomeId": 3
+      }
+    ],
+    "createdAt": 1792852398528
+  },
+  {
+    "id": "stage_custom_1792857173576",
+    "name": "01 · Neon Odyssey (C Minor 9) (Custom)",
+    "author": "Omni Core",
+    "isBuiltIn": false,
+    "biomeId": 0,
+    "soundBankId": "crt_velvet",
+    "bpm": 102,
+    "totalSteps": 32,
+    "notes": [
+      {
+        "id": "n1",
+        "step": 0,
+        "freq": 261.63,
+        "noteName": "C4",
+        "durationBeats": 1
+      },
+      {
+        "id": "n2",
+        "step": 2,
+        "freq": 311.13,
+        "noteName": "Eb4",
+        "durationBeats": 1
+      },
+      {
+        "id": "n3",
+        "step": 4,
+        "freq": 392,
+        "noteName": "G4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "n4",
+        "step": 5,
+        "freq": 466.16,
+        "noteName": "Bb4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "n5",
+        "step": 6,
+        "freq": 523.25,
+        "noteName": "C5",
+        "durationBeats": 1
+      },
+      {
+        "id": "n6",
+        "step": 8,
+        "freq": 587.33,
+        "noteName": "D5",
+        "durationBeats": 2
+      },
+      {
+        "id": "n7",
+        "step": 12,
+        "freq": 523.25,
+        "noteName": "C5",
+        "durationBeats": 0.75
+      },
+      {
+        "id": "n8",
+        "step": 14,
+        "freq": 392,
+        "noteName": "G4",
+        "durationBeats": 1
+      },
+      {
+        "id": "n9",
+        "step": 16,
+        "freq": 207.65,
+        "noteName": "Ab3",
+        "durationBeats": 1.5
+      },
+      {
+        "id": "n10",
+        "step": 19,
+        "freq": 261.63,
+        "noteName": "C4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "n11",
+        "step": 20,
+        "freq": 349.23,
+        "noteName": "F4",
+        "durationBeats": 1
+      },
+      {
+        "id": "n12",
+        "step": 22,
+        "freq": 415.3,
+        "noteName": "Ab4",
+        "durationBeats": 1
+      },
+      {
+        "id": "n13",
+        "step": 24,
+        "freq": 783.99,
+        "noteName": "G5",
+        "durationBeats": 2
+      },
+      {
+        "id": "n14",
+        "step": 28,
+        "freq": 622.25,
+        "noteName": "Eb5",
+        "durationBeats": 1
+      },
+      {
+        "id": "n15",
+        "step": 30,
+        "freq": 523.25,
+        "noteName": "C5",
+        "durationBeats": 1
+      }
+    ],
+    "synthNotes": [
+      {
+        "id": "s1",
+        "step": 0,
+        "freq": 130.81,
+        "noteName": "C3",
+        "durationBeats": 4
+      },
+      {
+        "id": "s2",
+        "step": 8,
+        "freq": 155.56,
+        "noteName": "Eb3",
+        "durationBeats": 4
+      },
+      {
+        "id": "s3",
+        "step": 16,
+        "freq": 174.61,
+        "noteName": "F3",
+        "durationBeats": 4
+      },
+      {
+        "id": "s4",
+        "step": 24,
+        "freq": 196,
+        "noteName": "G3",
+        "durationBeats": 4
+      }
+    ],
+    "barFlowRules": [
+      {
+        "barIndex": 0,
+        "minFlow": 0,
+        "maxFlow": 45
+      },
+      {
+        "barIndex": 1,
+        "minFlow": 0,
+        "maxFlow": 45
+      },
+      {
+        "barIndex": 2,
+        "minFlow": 0,
+        "maxFlow": 45
+      },
+      {
+        "barIndex": 3,
+        "minFlow": 2,
+        "maxFlow": 45
+      }
+    ],
+    "createdAt": 1792857173576
+  },
+  {
+    "id": "stage_custom_1792861120361",
+    "name": "01 · Neon Odyssey (C Minor 9) (Custom)",
+    "author": "Omni Core",
+    "isBuiltIn": false,
+    "biomeId": 0,
+    "soundBankId": "crt_velvet",
+    "bpm": 102,
+    "totalSteps": 32,
+    "notes": [
+      {
+        "id": "n1",
+        "step": 0,
+        "freq": 261.63,
+        "noteName": "C4",
+        "durationBeats": 1
+      },
+      {
+        "id": "n2",
+        "step": 2,
+        "freq": 311.13,
+        "noteName": "Eb4",
+        "durationBeats": 1
+      },
+      {
+        "id": "n3",
+        "step": 4,
+        "freq": 392,
+        "noteName": "G4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "n4",
+        "step": 5,
+        "freq": 466.16,
+        "noteName": "Bb4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "n5",
+        "step": 6,
+        "freq": 523.25,
+        "noteName": "C5",
+        "durationBeats": 1
+      },
+      {
+        "id": "n6",
+        "step": 8,
+        "freq": 587.33,
+        "noteName": "D5",
+        "durationBeats": 2
+      },
+      {
+        "id": "n7",
+        "step": 12,
+        "freq": 523.25,
+        "noteName": "C5",
+        "durationBeats": 0.75
+      },
+      {
+        "id": "n8",
+        "step": 14,
+        "freq": 392,
+        "noteName": "G4",
+        "durationBeats": 1
+      },
+      {
+        "id": "n9",
+        "step": 16,
+        "freq": 207.65,
+        "noteName": "Ab3",
+        "durationBeats": 1.5
+      },
+      {
+        "id": "n10",
+        "step": 19,
+        "freq": 261.63,
+        "noteName": "C4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "n11",
+        "step": 20,
+        "freq": 349.23,
+        "noteName": "F4",
+        "durationBeats": 1
+      },
+      {
+        "id": "n12",
+        "step": 22,
+        "freq": 415.3,
+        "noteName": "Ab4",
+        "durationBeats": 1
+      },
+      {
+        "id": "n13",
+        "step": 24,
+        "freq": 783.99,
+        "noteName": "G5",
+        "durationBeats": 2
+      },
+      {
+        "id": "n14",
+        "step": 28,
+        "freq": 622.25,
+        "noteName": "Eb5",
+        "durationBeats": 1
+      },
+      {
+        "id": "n15",
+        "step": 30,
+        "freq": 523.25,
+        "noteName": "C5",
+        "durationBeats": 1
+      }
+    ],
+    "synthNotes": [
+      {
+        "id": "s1",
+        "step": 0,
+        "freq": 130.81,
+        "noteName": "C3",
+        "durationBeats": 4
+      },
+      {
+        "id": "s2",
+        "step": 8,
+        "freq": 155.56,
+        "noteName": "Eb3",
+        "durationBeats": 4
+      },
+      {
+        "id": "s3",
+        "step": 16,
+        "freq": 174.61,
+        "noteName": "F3",
+        "durationBeats": 4
+      },
+      {
+        "id": "s4",
+        "step": 24,
+        "freq": 196,
+        "noteName": "G3",
+        "durationBeats": 4
+      }
+    ],
+    "barFlowRules": [
+      {
+        "barIndex": 0,
+        "minFlow": 0,
+        "maxFlow": 45
+      },
+      {
+        "barIndex": 1,
+        "minFlow": 0,
+        "maxFlow": 45
+      },
+      {
+        "barIndex": 2,
+        "minFlow": 0,
+        "maxFlow": 45
+      },
+      {
+        "barIndex": 3,
+        "minFlow": 2,
+        "maxFlow": 45
+      }
+    ],
+    "createdAt": 1792861120361
+  },
+  {
+    "id": "stage_custom_1792930426724",
+    "name": "01 · Neon Odyssey (C Minor 9) (Custom)",
+    "author": "Omni Core",
+    "isBuiltIn": false,
+    "biomeId": 0,
+    "soundBankId": "crt_velvet",
+    "bpm": 102,
+    "totalSteps": 32,
+    "notes": [
+      {
+        "id": "n1",
+        "step": 0,
+        "freq": 261.63,
+        "noteName": "C4",
+        "durationBeats": 1
+      },
+      {
+        "id": "n2",
+        "step": 2,
+        "freq": 311.13,
+        "noteName": "Eb4",
+        "durationBeats": 1
+      },
+      {
+        "id": "n3",
+        "step": 4,
+        "freq": 392,
+        "noteName": "G4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "n4",
+        "step": 5,
+        "freq": 466.16,
+        "noteName": "Bb4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "n5",
+        "step": 6,
+        "freq": 523.25,
+        "noteName": "C5",
+        "durationBeats": 1
+      },
+      {
+        "id": "n6",
+        "step": 8,
+        "freq": 622.25,
+        "noteName": "Eb5",
+        "durationBeats": 2
+      },
+      {
+        "id": "n7",
+        "step": 12,
+        "freq": 523.25,
+        "noteName": "C5",
+        "durationBeats": 0.75
+      },
+      {
+        "id": "n8",
+        "step": 14,
+        "freq": 392,
+        "noteName": "G4",
+        "durationBeats": 1
+      },
+      {
+        "id": "n9",
+        "step": 16,
+        "freq": 207.65,
+        "noteName": "Ab3",
+        "durationBeats": 1.5
+      },
+      {
+        "id": "n10",
+        "step": 19,
+        "freq": 261.63,
+        "noteName": "C4",
+        "durationBeats": 0.5
+      },
+      {
+        "id": "n11",
+        "step": 20,
+        "freq": 349.23,
+        "noteName": "F4",
+        "durationBeats": 1
+      },
+      {
+        "id": "n12",
+        "step": 22,
+        "freq": 415.3,
+        "noteName": "Ab4",
+        "durationBeats": 1
+      },
+      {
+        "id": "n13",
+        "step": 24,
+        "freq": 783.99,
+        "noteName": "G5",
+        "durationBeats": 2
+      },
+      {
+        "id": "n14",
+        "step": 28,
+        "freq": 622.25,
+        "noteName": "Eb5",
+        "durationBeats": 1
+      },
+      {
+        "id": "n15",
+        "step": 30,
+        "freq": 523.25,
+        "noteName": "C5",
+        "durationBeats": 1
+      }
+    ],
+    "synthNotes": [
+      {
+        "id": "s1",
+        "step": 0,
+        "freq": 130.81,
+        "noteName": "C3",
+        "durationBeats": 4
+      },
+      {
+        "id": "s2",
+        "step": 8,
+        "freq": 155.56,
+        "noteName": "Eb3",
+        "durationBeats": 4
+      },
+      {
+        "id": "s3",
+        "step": 16,
+        "freq": 174.61,
+        "noteName": "F3",
+        "durationBeats": 4
+      },
+      {
+        "id": "s4",
+        "step": 24,
+        "freq": 196,
+        "noteName": "G3",
+        "durationBeats": 4
+      }
+    ],
+    "barFlowRules": [
+      {
+        "barIndex": 0,
+        "minFlow": 0,
+        "maxFlow": 45
+      },
+      {
+        "barIndex": 1,
+        "minFlow": 0,
+        "maxFlow": 45,
+        "biomeId": 7
+      },
+      {
+        "barIndex": 2,
+        "minFlow": 0,
+        "maxFlow": 45
+      },
+      {
+        "barIndex": 3,
+        "minFlow": 2,
+        "maxFlow": 45
+      }
+    ],
+    "createdAt": 1792930426724
+  },
+  {
+    "id": "stage_custom_1792938982697",
+    "name": "01 · Neon Odyssey (C Minor 9) (Custom)",
+    "author": "Omni Core",
+    "isBuiltIn": false,
+    "biomeId": 214,
+    "soundBankId": "crt_velvet",
+    "bpm": 102,
+    "totalSteps": 32,
+    "notes": [],
+    "synthNotes": [
+      {
+        "id": "synth_1792938914872_ssem",
+        "step": 0,
+        "freq": 329.63,
+        "noteName": "E4",
+        "durationBeats": 1
+      },
+      {
+        "id": "synth_1792938915313_z3sn",
+        "step": 2,
+        "freq": 369.99,
+        "noteName": "F#4",
+        "durationBeats": 1
+      },
+      {
+        "id": "synth_1792938921752_jlbj",
+        "step": 4,
+        "freq": 392,
+        "noteName": "G4",
+        "durationBeats": 1
+      },
+      {
+        "id": "synth_1792938922752_5xbb",
+        "step": 6,
+        "freq": 369.99,
+        "noteName": "F#4",
+        "durationBeats": 1
+      },
+      {
+        "id": "synth_1792938928800_qbid",
+        "step": 8,
+        "freq": 440,
+        "noteName": "A4",
+        "durationBeats": 1
+      },
+      {
+        "id": "synth_1792938938481_vis5",
+        "step": 10,
+        "freq": 440,
+        "noteName": "A4",
+        "durationBeats": 1
+      },
+      {
+        "id": "synth_1792938973252_lheg",
+        "step": 12,
+        "freq": 329.63,
+        "noteName": "E4",
+        "durationBeats": 2
+      }
+    ],
+    "barFlowRules": [
+      {
+        "barIndex": 0,
+        "minFlow": 0,
+        "maxFlow": 45,
+        "biomeId": 214
+      },
+      {
+        "barIndex": 1,
+        "minFlow": 0,
+        "maxFlow": 45
+      },
+      {
+        "barIndex": 2,
+        "minFlow": 0,
+        "maxFlow": 45
+      },
+      {
+        "barIndex": 3,
+        "minFlow": 2,
+        "maxFlow": 45
+      }
+    ],
+    "createdAt": 1792938982697
+  },
+  {
+    "id": "stage_custom_1792939543009",
+    "name": "01 · Neon Odyssey (C Minor 9) (Custom)",
+    "author": "Omni Core",
+    "isBuiltIn": false,
+    "biomeId": 214,
+    "soundBankId": "crt_velvet",
+    "bpm": 118,
+    "totalSteps": 128,
+    "notes": [
+      {
+        "id": "lead_1792939029968_j10o",
+        "step": 0,
+        "freq": 329.63,
+        "noteName": "E4",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_1792939035488_ommu",
+        "step": 2,
+        "freq": 369.99,
+        "noteName": "F#4",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_1792939036264_mwha",
+        "step": 4,
+        "freq": 392,
+        "noteName": "G4",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_1792939037057_4hxc",
+        "step": 6,
+        "freq": 369.99,
+        "noteName": "F#4",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_1792939039608_yzdu",
+        "step": 8,
+        "freq": 440,
+        "noteName": "A4",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_1792939040848_35ec",
+        "step": 10,
+        "freq": 440,
+        "noteName": "A4",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_1792939041505_glvb",
+        "step": 12,
+        "freq": 329.63,
+        "noteName": "E4",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_1792939053864_996f",
+        "step": 14,
+        "freq": 329.63,
+        "noteName": "E4",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_dup_1792939062246_0_5fi4",
+        "step": 16,
+        "freq": 329.63,
+        "noteName": "E4",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_dup_1792939062246_1_afid",
+        "step": 18,
+        "freq": 369.99,
+        "noteName": "F#4",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_dup_1792939062246_2_2tty",
+        "step": 20,
+        "freq": 392,
+        "noteName": "G4",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_dup_1792939062246_3_u6g7",
+        "step": 22,
+        "freq": 369.99,
+        "noteName": "F#4",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_dup_1792939062246_4_x5qp",
+        "step": 24,
+        "freq": 440,
+        "noteName": "A4",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_dup_1792939062246_5_nmjb",
+        "step": 26,
+        "freq": 440,
+        "noteName": "A4",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_dup_1792939062246_6_qmyq",
+        "step": 28,
+        "freq": 329.63,
+        "noteName": "E4",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_dup_1792939062246_7_5e9g",
+        "step": 30,
+        "freq": 329.63,
+        "noteName": "E4",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_dup_1792939064845_0_lgjz",
+        "step": 32,
+        "freq": 329.63,
+        "noteName": "E4",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_dup_1792939064845_1_4zcx",
+        "step": 34,
+        "freq": 369.99,
+        "noteName": "F#4",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_dup_1792939064845_2_nu1h",
+        "step": 36,
+        "freq": 392,
+        "noteName": "G4",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_dup_1792939064845_3_i81e",
+        "step": 38,
+        "freq": 369.99,
+        "noteName": "F#4",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_dup_1792939064845_4_i5wk",
+        "step": 40,
+        "freq": 440,
+        "noteName": "A4",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_dup_1792939064845_5_3gda",
+        "step": 42,
+        "freq": 440,
+        "noteName": "A4",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_dup_1792939064845_6_ibs4",
+        "step": 44,
+        "freq": 329.63,
+        "noteName": "E4",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_dup_1792939064845_7_quwy",
+        "step": 46,
+        "freq": 329.63,
+        "noteName": "E4",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_dup_1792939110782_0_1w01",
+        "step": 48,
+        "freq": 440,
+        "noteName": "A4",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_dup_1792939110782_1_57cz",
+        "step": 50,
+        "freq": 392,
+        "noteName": "G4",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_dup_1792939110782_2_fta1",
+        "step": 52,
+        "freq": 369.99,
+        "noteName": "F#4",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_1792939130947_i0pq",
+        "step": 54,
+        "freq": 329.63,
+        "noteName": "E4",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_dup_1792939134138_0_vj30",
+        "step": 56,
+        "freq": 440,
+        "noteName": "A4",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_dup_1792939134138_1_esiu",
+        "step": 58,
+        "freq": 392,
+        "noteName": "G4",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_dup_1792939134138_2_a1sq",
+        "step": 60,
+        "freq": 369.99,
+        "noteName": "F#4",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_dup_1792939134138_3_waf9",
+        "step": 62,
+        "freq": 329.63,
+        "noteName": "E4",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_dup_1792939160760_4_vkg9",
+        "step": 72,
+        "freq": 440,
+        "noteName": "A4",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_dup_1792939160760_5_ah4b",
+        "step": 74,
+        "freq": 440,
+        "noteName": "A4",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_dup_1792939160760_6_8ywy",
+        "step": 76,
+        "freq": 329.63,
+        "noteName": "E4",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_dup_1792939160760_7_551s",
+        "step": 78,
+        "freq": 329.63,
+        "noteName": "E4",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_paste_1792939246384_0_wupp",
+        "step": 64,
+        "freq": 329.63,
+        "noteName": "E4",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_paste_1792939246384_1_ebzx",
+        "step": 66,
+        "freq": 369.99,
+        "noteName": "F#4",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_paste_1792939246384_2_2ve9",
+        "step": 68,
+        "freq": 392,
+        "noteName": "G4",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_paste_1792939246384_3_iksh",
+        "step": 70,
+        "freq": 369.99,
+        "noteName": "F#4",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_1792939274897_q9s1",
+        "step": 64,
+        "freq": 659.26,
+        "noteName": "E5",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_1792939277784_nmzb",
+        "step": 66,
+        "freq": 739.98,
+        "noteName": "F#5",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_1792939278463_m5i1",
+        "step": 68,
+        "freq": 784,
+        "noteName": "G5",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_1792939279125_4wks",
+        "step": 70,
+        "freq": 739.98,
+        "noteName": "F#5",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_1792939280337_4aa1",
+        "step": 72,
+        "freq": 880,
+        "noteName": "A5",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_1792939281032_addk",
+        "step": 74,
+        "freq": 880,
+        "noteName": "A5",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_1792939281642_5jnu",
+        "step": 76,
+        "freq": 659.26,
+        "noteName": "E5",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_1792939286555_djti",
+        "step": 78,
+        "freq": 659.26,
+        "noteName": "E5",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_dup_1792939330521_0_xtwm",
+        "step": 88,
+        "freq": 440,
+        "noteName": "A4",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_dup_1792939330521_1_z4e2",
+        "step": 90,
+        "freq": 440,
+        "noteName": "A4",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_dup_1792939330521_2_nxf8",
+        "step": 92,
+        "freq": 329.63,
+        "noteName": "E4",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_dup_1792939330521_3_98n1",
+        "step": 94,
+        "freq": 329.63,
+        "noteName": "E4",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_dup_1792939330521_4_ce0y",
+        "step": 80,
+        "freq": 329.63,
+        "noteName": "E4",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_dup_1792939330521_5_zfhv",
+        "step": 82,
+        "freq": 369.99,
+        "noteName": "F#4",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_dup_1792939330521_6_j05b",
+        "step": 84,
+        "freq": 392,
+        "noteName": "G4",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_dup_1792939330521_7_w6n1",
+        "step": 86,
+        "freq": 369.99,
+        "noteName": "F#4",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_dup_1792939330521_8_wprq",
+        "step": 80,
+        "freq": 659.26,
+        "noteName": "E5",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_dup_1792939330521_9_uc6c",
+        "step": 82,
+        "freq": 739.98,
+        "noteName": "F#5",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_dup_1792939330521_10_aztw",
+        "step": 84,
+        "freq": 784,
+        "noteName": "G5",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_dup_1792939330521_11_jk8x",
+        "step": 86,
+        "freq": 739.98,
+        "noteName": "F#5",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_dup_1792939330521_12_g80p",
+        "step": 88,
+        "freq": 880,
+        "noteName": "A5",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_dup_1792939330521_13_qjle",
+        "step": 90,
+        "freq": 880,
+        "noteName": "A5",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_dup_1792939330521_14_ehfn",
+        "step": 92,
+        "freq": 659.26,
+        "noteName": "E5",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_dup_1792939330521_15_ueu9",
+        "step": 94,
+        "freq": 659.26,
+        "noteName": "E5",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_dup_1792939331921_0_xnnz",
+        "step": 104,
+        "freq": 440,
+        "noteName": "A4",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_dup_1792939331921_1_2nju",
+        "step": 106,
+        "freq": 440,
+        "noteName": "A4",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_dup_1792939331921_2_ldjh",
+        "step": 108,
+        "freq": 329.63,
+        "noteName": "E4",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_dup_1792939331921_3_rqs3",
+        "step": 110,
+        "freq": 329.63,
+        "noteName": "E4",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_dup_1792939331921_4_qjqw",
+        "step": 96,
+        "freq": 329.63,
+        "noteName": "E4",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_dup_1792939331921_5_r11e",
+        "step": 98,
+        "freq": 369.99,
+        "noteName": "F#4",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_dup_1792939331921_6_4ikv",
+        "step": 100,
+        "freq": 392,
+        "noteName": "G4",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_dup_1792939331921_7_qk68",
+        "step": 102,
+        "freq": 369.99,
+        "noteName": "F#4",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_dup_1792939331921_8_a932",
+        "step": 96,
+        "freq": 659.26,
+        "noteName": "E5",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_dup_1792939331921_9_yvv6",
+        "step": 98,
+        "freq": 739.98,
+        "noteName": "F#5",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_dup_1792939331921_10_shbi",
+        "step": 100,
+        "freq": 784,
+        "noteName": "G5",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_dup_1792939331921_11_bqgm",
+        "step": 102,
+        "freq": 739.98,
+        "noteName": "F#5",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_dup_1792939331921_12_p61c",
+        "step": 104,
+        "freq": 880,
+        "noteName": "A5",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_dup_1792939331921_13_w53d",
+        "step": 106,
+        "freq": 880,
+        "noteName": "A5",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_dup_1792939331921_14_crq4",
+        "step": 108,
+        "freq": 659.26,
+        "noteName": "E5",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_dup_1792939331921_15_0hre",
+        "step": 110,
+        "freq": 659.26,
+        "noteName": "E5",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_1792939341959_6nrv",
+        "step": 112,
+        "freq": 440,
+        "noteName": "A4",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_1792939342866_kng0",
+        "step": 114,
+        "freq": 392,
+        "noteName": "G4",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_1792939343534_rx3j",
+        "step": 116,
+        "freq": 369.99,
+        "noteName": "F#4",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_1792939344258_n4nf",
+        "step": 118,
+        "freq": 329.63,
+        "noteName": "E4",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_1792939345997_7ray",
+        "step": 112,
+        "freq": 880,
+        "noteName": "A5",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_1792939346894_z4s9",
+        "step": 114,
+        "freq": 784,
+        "noteName": "G5",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_1792939347445_j1mw",
+        "step": 116,
+        "freq": 739.98,
+        "noteName": "F#5",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_1792939350261_xom4",
+        "step": 118,
+        "freq": 659.26,
+        "noteName": "E5",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_dup_1792939356646_0_rf5q",
+        "step": 120,
+        "freq": 440,
+        "noteName": "A4",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_dup_1792939356646_1_8j9s",
+        "step": 122,
+        "freq": 392,
+        "noteName": "G4",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_dup_1792939356646_2_oynv",
+        "step": 124,
+        "freq": 369.99,
+        "noteName": "F#4",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_dup_1792939356646_3_ol0y",
+        "step": 126,
+        "freq": 329.63,
+        "noteName": "E4",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_dup_1792939356646_4_6jiy",
+        "step": 120,
+        "freq": 880,
+        "noteName": "A5",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_dup_1792939356646_5_9kqm",
+        "step": 122,
+        "freq": 784,
+        "noteName": "G5",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_dup_1792939356646_6_82iv",
+        "step": 124,
+        "freq": 739.98,
+        "noteName": "F#5",
+        "durationBeats": 1
+      },
+      {
+        "id": "lead_dup_1792939356646_7_a6yl",
+        "step": 126,
+        "freq": 659.26,
+        "noteName": "E5",
+        "durationBeats": 1
+      }
+    ],
+    "synthNotes": [
+      {
+        "id": "synth_1792939071780_r7rz",
+        "step": 0,
+        "freq": 164.81,
+        "noteName": "E3",
+        "durationBeats": 4
+      },
+      {
+        "id": "synth_1792939084404_mw3c",
+        "step": 16,
+        "freq": 146.83,
+        "noteName": "D3",
+        "durationBeats": 4
+      },
+      {
+        "id": "synth_1792939088546_86yh",
+        "step": 8,
+        "freq": 164.81,
+        "noteName": "E3",
+        "durationBeats": 4
+      },
+      {
+        "id": "synth_1792939093764_6dme",
+        "step": 24,
+        "freq": 146.83,
+        "noteName": "D3",
+        "durationBeats": 4
+      },
+      {
+        "id": "synth_1792939095741_grox",
+        "step": 32,
+        "freq": 130.81,
+        "noteName": "C3",
+        "durationBeats": 4
+      },
+      {
+        "id": "synth_1792939099253_qo3t",
+        "step": 40,
+        "freq": 130.81,
+        "noteName": "C3",
+        "durationBeats": 4
+      },
+      {
+        "id": "synth_1792939115943_ldok",
+        "step": 48,
+        "freq": 123.47,
+        "noteName": "B2",
+        "durationBeats": 4
+      },
+      {
+        "id": "synth_1792939118504_0w14",
+        "step": 56,
+        "freq": 123.47,
+        "noteName": "B2",
+        "durationBeats": 4
+      },
+      {
+        "id": "synth_1792939429160_q8v0",
+        "step": 64,
+        "freq": 82.41,
+        "noteName": "E2",
+        "durationBeats": 4
+      },
+      {
+        "id": "synth_1792939432404_6fof",
+        "step": 72,
+        "freq": 82.41,
+        "noteName": "E2",
+        "durationBeats": 4
+      },
+      {
+        "id": "synth_dup_1792939434891_0_6agm",
+        "step": 80,
+        "freq": 73.42,
+        "noteName": "D2",
+        "durationBeats": 4
+      },
+      {
+        "id": "synth_dup_1792939434891_1_u2hj",
+        "step": 88,
+        "freq": 73.42,
+        "noteName": "D2",
+        "durationBeats": 4
+      },
+      {
+        "id": "synth_dup_1792939449453_0_72m6",
+        "step": 96,
+        "freq": 65.41,
+        "noteName": "C2",
+        "durationBeats": 4
+      },
+      {
+        "id": "synth_dup_1792939449453_1_vd4u",
+        "step": 104,
+        "freq": 65.41,
+        "noteName": "C2",
+        "durationBeats": 4
+      },
+      {
+        "id": "synth_1792939467895_x6gw",
+        "step": 112,
+        "freq": 123.47,
+        "noteName": "B2",
+        "durationBeats": 4
+      },
+      {
+        "id": "synth_1792939469727_3gek",
+        "step": 120,
+        "freq": 123.47,
+        "noteName": "B2",
+        "durationBeats": 4
+      }
+    ],
+    "barFlowRules": [
+      {
+        "barIndex": 0,
+        "minFlow": 0,
+        "maxFlow": 45,
+        "biomeId": 214
+      },
+      {
+        "barIndex": 1,
+        "minFlow": 0,
+        "maxFlow": 45,
+        "biomeId": 214
+      },
+      {
+        "barIndex": 2,
+        "minFlow": 0,
+        "maxFlow": 45,
+        "biomeId": 214
+      },
+      {
+        "barIndex": 3,
+        "minFlow": 2,
+        "maxFlow": 45,
+        "biomeId": 214
+      },
+      {
+        "barIndex": 4,
+        "minFlow": 0,
+        "maxFlow": 45,
+        "biomeId": 214
+      },
+      {
+        "barIndex": 5,
+        "minFlow": 0,
+        "maxFlow": 45,
+        "biomeId": 214
+      },
+      {
+        "barIndex": 6,
+        "minFlow": 0,
+        "maxFlow": 45,
+        "biomeId": 214
+      },
+      {
+        "barIndex": 7,
+        "minFlow": 0,
+        "maxFlow": 45,
+        "biomeId": 214
+      },
+      {
+        "barIndex": 8,
+        "minFlow": 0,
+        "maxFlow": 45,
+        "biomeId": 214
+      },
+      {
+        "barIndex": 9,
+        "minFlow": 0,
+        "maxFlow": 45,
+        "biomeId": 214
+      },
+      {
+        "barIndex": 10,
+        "minFlow": 0,
+        "maxFlow": 45,
+        "biomeId": 214
+      },
+      {
+        "barIndex": 11,
+        "minFlow": 0,
+        "maxFlow": 45,
+        "biomeId": 214
+      },
+      {
+        "barIndex": 12,
+        "minFlow": 0,
+        "maxFlow": 45,
+        "biomeId": 214
+      },
+      {
+        "barIndex": 13,
+        "minFlow": 0,
+        "maxFlow": 45,
+        "biomeId": 214
+      },
+      {
+        "barIndex": 14,
+        "minFlow": 0,
+        "maxFlow": 45,
+        "biomeId": 214
+      },
+      {
+        "barIndex": 15,
+        "minFlow": 0,
+        "maxFlow": 45,
+        "biomeId": 214
+      }
+    ],
+    "createdAt": 1792939543009
+  }
+]

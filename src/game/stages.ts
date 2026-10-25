@@ -4,7 +4,9 @@
  * with Exact Note Beat Durations for NEON ASCENT: OMNI.
  */
 
-import { MASTER_SCALES, ScaleBiome, getAllBiomes } from './rules';
+import { MASTER_SCALES, ScaleBiome, getAllBiomes, buildExtendedScale } from './rules';
+import { ALL_CURATED_MELODIES, CuratedBiomeMelody } from './melodies';
+import devBundleStagesRaw from './devBundleStages.json';
 
 export interface StageNoteEvent {
   id: string;
@@ -34,6 +36,9 @@ export interface CustomStage {
   name: string;
   author: string;
   isBuiltIn?: boolean;
+  isCuratedBuiltIn?: boolean;
+  curatedMelodyId?: string;
+  styleTag?: string;
   biomeId: number;
   soundBankId: string;
   bpm: number;
@@ -41,6 +46,8 @@ export interface CustomStage {
   notes: StageNoteEvent[];
   synthNotes: StageSynthEvent[];
   barFlowRules: StageBarFlowRule[];
+  /** Grid step indices where a 4-Gate Chord Progression Sequence triggers when this note/step is reached */
+  chordGateTriggerSteps?: number[];
   createdAt: number;
 }
 
@@ -63,6 +70,7 @@ export interface CompiledStageStep {
   durationBeats: number; // Exact beat duration governing platform distance & jump power!
   synthFreqs: number[];
   synthDurationBeats: number;
+  isChordGateTrigger?: boolean;
 }
 
 export const STEPS_PER_BEAT = 2; // Each grid column = 0.5 beats (eighth note), 8 columns = 1 bar (4 beats)
@@ -86,7 +94,7 @@ export function getBiomeForBar(
 ): ScaleBiome {
   const rule = (stage.barFlowRules || []).find((r) => r.barIndex === barIndex);
   const targetId = rule?.biomeId !== undefined ? rule.biomeId : stage.biomeId;
-  const all = getAllBiomes(customBiomes);
+  const all = getAllBiomes(customBiomes, true);
   return all.find((b) => b.id === targetId) || MASTER_SCALES[0];
 }
 
@@ -194,6 +202,7 @@ export function compileStageForGameplay(
   });
 
   const activeSteps = matchingStepIndices.length > 0 ? matchingStepIndices : allStepIndices;
+  const triggerSet = new Set<number>(stage.chordGateTriggerSteps || []);
   const compiled: CompiledStageStep[] = [];
 
   for (let i = 0; i < activeSteps.length; i++) {
@@ -233,6 +242,7 @@ export function compileStageForGameplay(
         matchingSynths.length > 0
           ? Math.max(...matchingSynths.map((s) => s.durationBeats || 2.0))
           : 2.0,
+      isChordGateTrigger: triggerSet.has(stepIdx),
     });
   }
 
@@ -255,11 +265,12 @@ export function midiNoteToNameAndFreq(midi: number): { freq: number; noteName: s
 /**
  * Parses a Standard MIDI File (SMF) binary buffer into a full CustomStage,
  * extracting note pitches, step positions, and exact beat durations (0.25, 0.5, 0.75, 1.0, 1.5, 2.0, etc.).
+ * Automatically assigns biomeId = 99 (FREE_12_KEY_BIOME) by default so all 12 chromatic semitones are preserved.
  */
 export function parseMidiBufferToStage(
   arrayBuffer: ArrayBuffer,
   fileName = 'Imported MIDI Stage',
-  biomeId = 0,
+  biomeId = 99,
   soundBankId = 'crt_velvet'
 ): CustomStage {
   const bytes = new Uint8Array(arrayBuffer);
@@ -282,6 +293,7 @@ export function parseMidiBufferToStage(
 
   // Parse MTrk chunks with delta-time ticks so we get real note-on / note-off beat durations!
   let pos = 0;
+  let detectedBpm = 104;
   const rawEvents: Array<{ beatStart: number; beatDuration: number; midi: number }> = [];
 
   while (pos < bytes.length - 8) {
@@ -292,10 +304,11 @@ export function parseMidiBufferToStage(
       bytes[pos + 3] === 0x6b
     ) {
       const trackLen =
-        (bytes[pos + 4] << 24) |
-        (bytes[pos + 5] << 16) |
-        (bytes[pos + 6] << 8) |
-        bytes[pos + 7];
+        (((bytes[pos + 4] << 24) >>> 0) +
+          (bytes[pos + 5] << 16) +
+          (bytes[pos + 6] << 8) +
+          bytes[pos + 7]) >>>
+        0;
       let tPos = pos + 8;
       const trackEnd = Math.min(bytes.length, tPos + trackLen);
       let currentTick = 0;
@@ -326,6 +339,15 @@ export function parseMidiBufferToStage(
           const note = bytes[tPos++];
           const vel = bytes[tPos++];
           if (vel > 0) {
+            // If same note was already active without note-off, close previous occurrence first
+            const prevStart = activeNoteOnTick.get(note);
+            if (prevStart !== undefined && currentTick > prevStart) {
+              rawEvents.push({
+                beatStart: prevStart / ticksPerBeat,
+                beatDuration: Math.max(0.25, (currentTick - prevStart) / ticksPerBeat),
+                midi: note,
+              });
+            }
             activeNoteOnTick.set(note, currentTick);
           } else {
             const startTick = activeNoteOnTick.get(note);
@@ -357,12 +379,19 @@ export function parseMidiBufferToStage(
         } else if (cmd === 0xc0 || cmd === 0xd0) {
           tPos += 1;
         } else if (status === 0xff && tPos < trackEnd) {
-          tPos++; // meta type
+          const metaType = bytes[tPos++];
           let metaLen = 0;
           while (tPos < trackEnd) {
             const b = bytes[tPos++];
             metaLen = (metaLen << 7) | (b & 0x7f);
             if ((b & 0x80) === 0) break;
+          }
+          // Parse MIDI Set Tempo Meta Event (0x51, length 3)
+          if (metaType === 0x51 && metaLen === 3 && tPos + 2 < trackEnd) {
+            const mpqn = (bytes[tPos] << 16) | (bytes[tPos + 1] << 8) | bytes[tPos + 2];
+            if (mpqn > 0) {
+              detectedBpm = Math.max(60, Math.min(200, Math.round(60000000 / mpqn)));
+            }
           }
           tPos += metaLen;
         } else if (status === 0xf0 || status === 0xf7) {
@@ -377,6 +406,17 @@ export function parseMidiBufferToStage(
           tPos++;
         }
       }
+
+      // Flush any sustained notes that never received an explicit Note-Off before track end
+      activeNoteOnTick.forEach((startTick, note) => {
+        const durBeats = Math.max(0.5, ( Math.max(currentTick, startTick + ticksPerBeat) - startTick ) / ticksPerBeat);
+        rawEvents.push({
+          beatStart: startTick / ticksPerBeat,
+          beatDuration: durBeats,
+          midi: note,
+        });
+      });
+
       pos = trackEnd;
     } else {
       pos++;
@@ -402,7 +442,8 @@ export function parseMidiBufferToStage(
 
   if (rawEvents.length > 0) {
     const firstBeat = rawEvents[0].beatStart;
-    const limited = rawEvents.slice(0, 96);
+    // Allow full-length MIDI compositions (up to 4096 note events) without arbitrary 96-note cutoff!
+    const limited = rawEvents.slice(0, 4096);
     for (let i = 0; i < limited.length; i++) {
       const ev = limited[i];
       const relBeat = Math.max(0, ev.beatStart - firstBeat);
@@ -427,7 +468,7 @@ export function parseMidiBufferToStage(
   } else {
     // Fallback byte scan if non-standard MIDI stream
     let stepCursor = 0;
-    for (let i = 0; i < bytes.length - 2 && notes.length < 64; i++) {
+    for (let i = 0; i < bytes.length - 2 && notes.length < 1024; i++) {
       if ((bytes[i] & 0xf0) === 0x90) {
         const m = bytes[i + 1];
         const v = bytes[i + 2];
@@ -457,7 +498,7 @@ export function parseMidiBufferToStage(
     author: 'Developer MIDI',
     biomeId,
     soundBankId,
-    bpm: 104,
+    bpm: detectedBpm,
     totalSteps,
     notes,
     synthNotes: [],
@@ -556,6 +597,109 @@ export const DEFAULT_BUILT_IN_STAGES: CustomStage[] = [
       { barIndex: 2, minFlow: 0, maxFlow: 45 },
       { barIndex: 3, minFlow: 3, maxFlow: 45 },
     ],
+    chordGateTriggerSteps: [12, 28],
     createdAt: 1700000002000,
   },
+  ...(devBundleStagesRaw as CustomStage[]).map((st) => ({
+    ...st,
+    isBuiltIn: true,
+  })),
 ];
+
+/**
+ * Converts a CuratedBiomeMelody (from the 81 built-in curated compositions)
+ * into a full editable Piano Roll `CustomStage` so that all curated melodies
+ * and DAW stages share one unified library, can be edited in the Piano Roll,
+ * and can be toggled Active/Inactive!
+ */
+export function convertCuratedMelodyToStage(melody: CuratedBiomeMelody): CustomStage {
+  const biome = MASTER_SCALES.find((b) => b.id === melody.biomeId) || MASTER_SCALES[0];
+  const ext = buildExtendedScale(biome.scale);
+  const coreLen = Math.max(5, biome.noteNames.length - 1);
+
+  const notes: StageNoteEvent[] = [];
+  const synthNotes: StageSynthEvent[] = [];
+  const seq = melody.extendedDegreeSequence.slice(0, 32); // 32 notes across 64 half-beat steps (8 bars)
+  const totalSteps = 64;
+
+  for (let i = 0; i < seq.length; i++) {
+    const step = i * 2;
+    const deg = Math.max(0, Math.min(ext.length - 1, seq[i] ?? 8));
+    const freq = Number((ext[deg] || biome.scale[0] || 261.63).toFixed(2));
+    const nameIdx = deg % coreLen;
+    const rawName = biome.noteNames[nameIdx] || 'C4';
+    const octShift = Math.floor(deg / coreLen) - 1;
+    const match = rawName.match(/^([A-G][#b~]?)(\d+)$/);
+    const noteName = match
+      ? `${match[1]}${Math.max(2, parseInt(match[2], 10) + octShift)}`
+      : rawName;
+
+    notes.push({
+      id: `${melody.id}_n_${i}`,
+      step,
+      freq,
+      noteName,
+      durationBeats: i % 4 === 3 ? 1.5 : 1.0,
+    });
+
+    if (i % 4 === 0) {
+      const padFreq = Number((freq * 0.5).toFixed(2));
+      const padName = match
+        ? `${match[1]}${Math.max(1, parseInt(match[2], 10) + octShift - 1)}`
+        : rawName;
+      synthNotes.push({
+        id: `${melody.id}_s_${i}`,
+        step,
+        freq: padFreq,
+        noteName: padName,
+        durationBeats: 4.0,
+      });
+    }
+  }
+
+  return {
+    id: melody.id,
+    curatedMelodyId: melody.id,
+    name: `${melody.title} (${biome.name})`,
+    author: melody.composer || 'Omni Curated',
+    isBuiltIn: true,
+    isCuratedBuiltIn: true,
+    styleTag: melody.styleTag,
+    biomeId: melody.biomeId,
+    soundBankId: 'crt_velvet',
+    bpm: melody.styleTag === 'ANTHEM' ? 108 : melody.styleTag === 'ARPEGGIO' ? 104 : 96,
+    totalSteps,
+    notes,
+    synthNotes,
+    barFlowRules: Array.from({ length: totalSteps / STEPS_PER_BAR }, (_, barIndex) => ({
+      barIndex,
+      minFlow: 0,
+      maxFlow: 45,
+      biomeId: melody.biomeId,
+    })),
+    chordGateTriggerSteps: [20, 48],
+    createdAt: 1700000010000 + melody.biomeId * 10 + melody.indexInBiome,
+  };
+}
+
+export const ALL_CURATED_MELODY_STAGES: CustomStage[] = ALL_CURATED_MELODIES.map(
+  convertCuratedMelodyToStage
+);
+
+/**
+ * Returns the complete unified list of all built-in + curated + user stages,
+ * merging any user edits made to built-in or curated melodies in `customStages`.
+ */
+export function getUnifiedStageLibrary(customStages: CustomStage[] = []): CustomStage[] {
+  const baseLibrary = [...DEFAULT_BUILT_IN_STAGES, ...ALL_CURATED_MELODY_STAGES];
+  const customMap = new Map<string, CustomStage>();
+  for (const cs of customStages) {
+    customMap.set(cs.id, cs);
+  }
+
+  const mergedBase = baseLibrary.map((b) => customMap.get(b.id) || b);
+  const baseIds = new Set(baseLibrary.map((b) => b.id));
+  const pureUserStages = customStages.filter((cs) => !baseIds.has(cs.id));
+  return [...pureUserStages, ...mergedBase];
+}
+

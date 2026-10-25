@@ -3,6 +3,7 @@ import {
   ScaleBiome,
   PlatformEntity,
   AerialHazardEntity,
+  HeartPickupEntity,
   HarmonicOrb,
   ActivePowerUp,
   ParticlePool,
@@ -175,7 +176,8 @@ export function renderGameFrame(
   aerialHazards: AerialHazardEntity[] = [],
   chordComboHud?: ChordComboHudState,
   dyingSequence?: DyingSequenceState,
-  jetpackGlitters: GlitterParticle[] = []
+  jetpackGlitters: GlitterParticle[] = [],
+  heartPickups: HeartPickupEntity[] = []
 ): void {
   ctx.imageSmoothingEnabled = false;
 
@@ -408,7 +410,7 @@ export function renderGameFrame(
       continue;
     }
 
-    if (p.type === 'moving') {
+    if (p.type === 'moving' || Math.abs(p.vx) > 0) {
       ctx.save();
       ctx.strokeStyle = withAlpha(col, 0.22);
       ctx.lineWidth = 2;
@@ -502,7 +504,13 @@ export function renderGameFrame(
       ctx.moveTo(p.x + p.w * 0.7, p.y);
       ctx.lineTo(p.x + p.w * 0.6, p.y + p.h);
       ctx.stroke();
-    } else if (p.type === 'moving') {
+      if (Math.abs(p.vx) > 0) {
+        ctx.fillStyle = lighten(col, 0.55);
+        ctx.font = "7px 'Press Start 2P', monospace";
+        ctx.textAlign = 'right';
+        ctx.fillText(p.vx > 0 ? '»' : '«', p.x + p.w - 4, p.y + 11);
+      }
+    } else if (p.type === 'moving' || Math.abs(p.vx) > 0) {
       ctx.fillStyle = lighten(col, 0.5);
       ctx.font = "7px 'Press Start 2P', monospace";
       ctx.textAlign = 'center';
@@ -524,7 +532,7 @@ export function renderGameFrame(
       const hx = p.x + p.hazardXOffset;
       const hw = p.hazardWidth;
       ctx.fillStyle = '#fb7185';
-      const spikeCount = Math.max(2, Math.floor(hw / 9));
+      const spikeCount = p.spikeCount ? Math.max(2, Math.min(7, p.spikeCount)) : Math.max(2, Math.floor(hw / 9));
       const sw = hw / spikeCount;
       for (let s = 0; s < spikeCount; s++) {
         ctx.beginPath();
@@ -589,6 +597,35 @@ export function renderGameFrame(
     ctx.beginPath();
     ctx.arc(ox, bobY, outerR, 0, Math.PI * 2);
     ctx.stroke();
+    ctx.restore();
+  }
+
+  // --- 5B. RARE MID-AIR HEART HEALTH PICKUPS (♥) ---
+  for (let i = 0; i < heartPickups.length; i++) {
+    const hpItem = heartPickups[i];
+    if (hpItem.collected || hpItem.y < camY - 80 || hpItem.y > camY + height + 80) continue;
+    const bobY = hpItem.y + Math.sin(gameTime * 3.8 + hpItem.phase) * 5;
+    const hx = Math.round(hpItem.x);
+    const hy = Math.round(bobY);
+    const pulse = 1 + 0.14 * Math.sin(gameTime * 7 + hpItem.phase);
+
+    ctx.save();
+    ctx.translate(hx, hy);
+    ctx.scale(pulse, pulse);
+    ctx.shadowBlur = 12;
+    ctx.shadowColor = '#f43f5e';
+
+    // Crisp Pixel Heart Shape
+    ctx.fillStyle = '#fb7185';
+    ctx.fillRect(-7, -6, 6, 6);
+    ctx.fillRect(1, -6, 6, 6);
+    ctx.fillRect(-9, -4, 18, 6);
+    ctx.fillRect(-7, 2, 14, 3);
+    ctx.fillRect(-4, 5, 8, 3);
+    ctx.fillRect(-2, 8, 4, 2);
+
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(-6, -4, 2, 2);
     ctx.restore();
   }
 

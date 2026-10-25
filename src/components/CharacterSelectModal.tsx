@@ -46,6 +46,7 @@ interface CharacterSelectModalProps {
   primaryColor: string;
   horizonColor: string;
   bpm?: number;
+  menuBeatInfoRef?: React.MutableRefObject<{ phase: number; beatCount: number }>;
   onSelectAvatar: (avatarId: string) => void;
   onUnlockAvatar: (avatar: CharacterAvatarDef) => void;
   onSetOrbs: (newAmount: number) => void;
@@ -181,6 +182,7 @@ export default function CharacterSelectModal({
   primaryColor,
   horizonColor,
   bpm = 100,
+  menuBeatInfoRef,
   onSelectAvatar,
   onUnlockAvatar,
   onSetOrbs,
@@ -286,8 +288,12 @@ export default function CharacterSelectModal({
 
       const totalCycle = hopDuration * 2;
       const cycleTime = t % totalCycle;
-      const goingRight = cycleTime < hopDuration;
-      const phase = (cycleTime % hopDuration) / hopDuration;
+      const goingRight = menuBeatInfoRef
+        ? menuBeatInfoRef.current.beatCount % 2 === 0
+        : cycleTime < hopDuration;
+      const phase = menuBeatInfoRef
+        ? Math.max(0, Math.min(1, menuBeatInfoRef.current.phase))
+        : (cycleTime % hopDuration) / hopDuration;
 
       const startX = goingRight ? leftPadX : rightPadX;
       const endX = goingRight ? rightPadX : leftPadX;
@@ -365,7 +371,7 @@ export default function CharacterSelectModal({
 
     animId = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(animId);
-  }, [previewedId, primaryColor, horizonColor, bpm]);
+  }, [previewedId, primaryColor, horizonColor, bpm, menuBeatInfoRef]);
 
   const previewAvatar = getCharacterById(previewedId);
   const isPreviewUnlocked =
@@ -408,6 +414,9 @@ export default function CharacterSelectModal({
               }`}
             >
               {previewAvatar.isSecret ? `★ SECRET ${previewAvatar.tier}` : previewAvatar.tier}
+            </span>
+            <span className="text-[7px] px-1.5 py-0.5 bg-rose-500/20 border border-rose-400/70 text-rose-300 flex items-center gap-1">
+              ♥ {previewAvatar.maxHealth} HP
             </span>
             {previewAvatar.perks.orbBonusPct > 0 && (
               <span className="text-[7px] px-1.5 py-0.5 bg-amber-500/20 border border-amber-400/60 text-amber-300 flex items-center gap-1">
@@ -534,24 +543,29 @@ export default function CharacterSelectModal({
               </div>
 
               <div className="flex items-center justify-between pt-1 border-t border-slate-800/80">
-                <span
-                  className={`text-[7px] uppercase flex items-center gap-0.5 ${
-                    av.tier === 'rainbow'
-                      ? 'text-pink-400'
-                      : av.tier === 'gold'
-                      ? 'text-amber-300'
-                      : 'text-slate-400'
-                  }`}
-                >
-                  {av.perks.orbBonusPct > 0 ? (
-                    <>
-                      <span>+{av.perks.orbBonusPct}%</span>
-                      <RadiantOrbIcon size={9} />
-                    </>
-                  ) : (
-                    av.tier
-                  )}
-                </span>
+                <div className="flex items-center gap-1">
+                  <span className="text-[7px] text-rose-300 bg-rose-950/60 border border-rose-500/40 px-1 py-0.5">
+                    ♥{av.maxHealth}
+                  </span>
+                  <span
+                    className={`text-[7px] uppercase flex items-center gap-0.5 ${
+                      av.tier === 'rainbow'
+                        ? 'text-pink-400'
+                        : av.tier === 'gold'
+                        ? 'text-amber-300'
+                        : 'text-slate-400'
+                    }`}
+                  >
+                    {av.perks.orbBonusPct > 0 ? (
+                      <>
+                        <span>+{av.perks.orbBonusPct}%</span>
+                        <RadiantOrbIcon size={9} />
+                      </>
+                    ) : (
+                      av.tier
+                    )}
+                  </span>
+                </div>
 
                 {unlocked ? (
                   <button

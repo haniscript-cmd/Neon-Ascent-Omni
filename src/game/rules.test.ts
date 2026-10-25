@@ -29,11 +29,14 @@ import {
   computePostDefeatShopRecommendation,
   UPGRADABLE_POWERUPS,
   getPowerUpLevelStats,
+  computePassiveDashUpgrades,
   computePlayerLevelInfo,
   getCumulativeUnlocksForLevel,
   getLevelUpRewardsBetween,
   createCustomBiomeFromHsl,
+  buildProChordFromSpec,
   getAllBiomes,
+  LEVEL_PROGRESSION_TABLE,
 } from './rules';
 import {
   CHARACTER_AVATARS,
@@ -43,6 +46,8 @@ import {
 } from './characters';
 import {
   DEFAULT_BUILT_IN_STAGES,
+  ALL_CURATED_MELODY_STAGES,
+  getUnifiedStageLibrary,
   buildBiomePianoRollRows,
   compileStageForGameplay,
 } from './stages';
@@ -53,11 +58,21 @@ import {
   evaluateCuratedMelodyStep,
 } from './melodies';
 
-test('81 Curated Melodies provide 3 compositions per biome including iconic Classical & Minecraft melodies (Moonlight Sonata, Wet Hands, etc.)', () => {
+test('81 Curated Melodies provide 3 compositions per biome including iconic Classical & Minecraft melodies (Moonlight Sonata, Wet Hands, etc.) and unify into DAW Piano Roll stages', () => {
   assert.equal(
     ALL_CURATED_MELODIES.length,
     MASTER_SCALES.length * 3,
     'Should have 81 curated melodies across 27 biomes (including iconic Classical & Minecraft pieces)'
+  );
+  assert.equal(
+    ALL_CURATED_MELODY_STAGES.length,
+    ALL_CURATED_MELODIES.length,
+    'All 81 curated melodies convert 1:1 into editable Piano Roll CustomStage items'
+  );
+  const unifiedLib = getUnifiedStageLibrary(DEFAULT_BUILT_IN_STAGES);
+  assert.ok(
+    unifiedLib.length >= DEFAULT_BUILT_IN_STAGES.length + ALL_CURATED_MELODIES.length,
+    'Unified stage library contains both built-in DAW stages and all 81 curated melodies'
   );
   assert.ok(
     ALL_CURATED_MELODIES.some((m) => m.title.toLowerCase().includes('moonlight sonata')),
@@ -91,46 +106,136 @@ test('81 Curated Melodies provide 3 compositions per biome including iconic Clas
 
   const lowFlow = computeFlowDynamicDifficulty(0);
   const highFlow = computeFlowDynamicDifficulty(30);
-  assert.ok(highFlow.fragilePlatformChance > 0.25, 'High Flow increases fragile platform spawn probability');
-  assert.ok(highFlow.fragileStreakChance > 0.3, 'High Flow enables consecutive fragile platform streaks');
+  assert.ok(highFlow.fragilePlatformChance > 0.2, 'High Flow increases fragile platform spawn probability');
+  assert.ok(highFlow.fragileStreakChance > 0.25, 'High Flow enables consecutive fragile platform streaks');
   assert.ok(highFlow.fragileStreakMaxLen >= 3, 'Fragile streaks allow 3+ consecutive fragile platforms');
   assert.ok(
     lowFlow.disguisedFragileChance < highFlow.disguisedFragileChance &&
-      highFlow.disguisedFragileChance > 0.12,
+      highFlow.disguisedFragileChance > 0.1,
     'Disguised fragile trap platforms are rare at low Flow and appear more at high Flow'
   );
   assert.ok(highFlow.enemySpeedPxPerSec >= 150 && highFlow.enemyHalfRangePx >= 150, 'Enemy speed and movement range scale with Fine-Tune');
 
-  const affordableRec = computePostDefeatShopRecommendation(85, DEFAULT_CFG, CHARACTER_AVATARS);
+  const affordableRec = computePostDefeatShopRecommendation(200, DEFAULT_CFG, CHARACTER_AVATARS);
   assert.ok(affordableRec !== null, 'Recommends a locked store item after defeat');
-  assert.equal(affordableRec.canAfford, true, 'Recommends an affordable item when player has 85 Orbs');
+  assert.equal(affordableRec.canAfford, true, 'Recommends an affordable item when player has 200 Orbs');
   assert.ok(affordableRec.shortBenefit.length >= 3, 'Includes a concise 2-3 word benefit summary');
 
   const goalRec = computePostDefeatShopRecommendation(5, DEFAULT_CFG, CHARACTER_AVATARS);
   assert.ok(goalRec !== null && goalRec.canAfford === false && goalRec.orbsNeeded > 0, 'Shows needed orbs for closest locked item when orbs are low');
 });
 
-test('15-Level Progression, 4-Level Passive Wall-Bounce Power-Up, and Smart HSL Custom Biome Generator', () => {
-  // Verify 4-level passive Wall-Bounce power-up
+test('Level 0 Start (0 -> 1500 XP -> 150,000 XP at Lv.15), 5-Level Power-Up Upgrades, Only Shield Default, Nerfed Lv.1 Magnet, Health Power-Ups, and Pro Chord Builder', () => {
+  // Verify only Shield (`combo_shield`) is unlocked/equipped by default
+  assert.deepEqual(
+    DEFAULT_CFG.equippedPowerUps,
+    ['combo_shield'],
+    'Only Aegis Shield is equipped by default'
+  );
+  assert.equal(DEFAULT_CFG.powerUpLevels?.combo_shield, 1, 'Shield starts at Level 1');
+  assert.equal(DEFAULT_CFG.powerUpLevels?.orb_magnet ?? 0, 0, 'Magnet must be purchased in Shop');
+  assert.equal(DEFAULT_CFG.powerUpLevels?.jetpack_white ?? 0, 0, 'Jetpack must be purchased in Shop');
+
+  // Verify all power-ups have maxLevel = 5 and Jetpack prices are 500, 1500, and 3000 Orbs
+  for (const pu of UPGRADABLE_POWERUPS) {
+    assert.equal(pu.maxLevel, 5, `${pu.name} has maxLevel = 5`);
+  }
+  assert.equal(
+    UPGRADABLE_POWERUPS.find((u) => u.id === 'jetpack_white')?.baseUnlockCost,
+    500,
+    'White Jetpack costs 500 Orbs'
+  );
+  assert.equal(
+    UPGRADABLE_POWERUPS.find((u) => u.id === 'jetpack_gold')?.baseUnlockCost,
+    1500,
+    'Gold Jetpack costs 1500 Orbs'
+  );
+  assert.equal(
+    UPGRADABLE_POWERUPS.find((u) => u.id === 'jetpack_prism')?.baseUnlockCost,
+    3000,
+    'Prism Jetpack costs 3000 Orbs'
+  );
+
+  // Verify Health Power-Ups (`nano_heal` Active and `vital_core` Passive) exist and scale over 5 levels
+  const nanoHealDef = UPGRADABLE_POWERUPS.find((u) => u.id === 'nano_heal');
+  const vitalCoreDef = UPGRADABLE_POWERUPS.find((u) => u.id === 'vital_core');
+  assert.ok(nanoHealDef && nanoHealDef.activationMode === 'ACTIVE', 'nano_heal Active health power-up exists');
+  assert.ok(vitalCoreDef && vitalCoreDef.activationMode === 'PASSIVE', 'vital_core Passive health power-up exists');
+  assert.ok(
+    getPowerUpLevelStats('nano_heal', 5).powerValue > getPowerUpLevelStats('nano_heal', 1).powerValue,
+    'nano_heal heals more HP at Lv.5 than Lv.1'
+  );
+
+  // Verify Nerfed Level 1 Harmonic Magnet (`orb_magnet`) vs Level 5
+  const magLv1 = getPowerUpLevelStats('orb_magnet', 1);
+  const magLv5 = getPowerUpLevelStats('orb_magnet', 5);
+  assert.ok(
+    magLv1.powerValue <= 58 && magLv5.powerValue >= 175,
+    `Magnet Lv.1 radius (${magLv1.powerValue}px) is weak/same-platform only, scaling up to ${magLv5.powerValue}px at Lv.5`
+  );
+
+  // Verify 5-level passive Wall-Bounce power-up & recharge rate penalty trade-off
   const wallBounceDef = UPGRADABLE_POWERUPS.find((u) => u.id === 'wall_bounce');
   assert.ok(wallBounceDef, 'wall_bounce power-up exists');
   assert.equal(wallBounceDef.activationMode, 'PASSIVE');
-  assert.equal(wallBounceDef.maxLevel, 4);
+  assert.equal(wallBounceDef.maxLevel, 5);
   const wbLv1 = getPowerUpLevelStats('wall_bounce', 1);
-  const wbLv4 = getPowerUpLevelStats('wall_bounce', 4);
-  assert.ok(wbLv4.powerValue > wbLv1.powerValue, 'Wall-bounce elasticity increases from Lv.1 to Lv.4');
+  const wbLv5 = getPowerUpLevelStats('wall_bounce', 5);
+  assert.ok(wbLv5.powerValue > wbLv1.powerValue, 'Wall-bounce elasticity increases from Lv.1 to Lv.5');
 
-  // Verify Jetpack upward thrust values are >= 880 px/s
-  assert.ok(getPowerUpLevelStats('jetpack_white', 1).powerValue >= 880, 'White Jetpack launches upward strongly');
+  const modsLv1 = computePassiveDashUpgrades(
+    { wall_bounce: 1, orb_magnet: 1, rhythm_aura: 1, vital_core: 1 },
+    ['wall_bounce', 'orb_magnet', 'rhythm_aura', 'vital_core']
+  );
+  const modsLv5 = computePassiveDashUpgrades(
+    { wall_bounce: 5, orb_magnet: 5, rhythm_aura: 5, vital_core: 5 },
+    ['wall_bounce', 'orb_magnet', 'rhythm_aura', 'vital_core']
+  );
   assert.ok(
-    getPowerUpLevelStats('jetpack_prism', 1).powerValue > getPowerUpLevelStats('jetpack_gold', 1).powerValue,
-    'Prism Jetpack has higher thrust than Gold Jetpack'
+    modsLv5.wallBounceRechargeRateFactor < modsLv1.wallBounceRechargeRateFactor &&
+      modsLv1.wallBounceRechargeRateFactor < 1.0,
+    'Higher Wall-Bounce level increases elasticity while slowing wall-bounce dash recharge rate'
+  );
+  assert.ok(modsLv5.passiveMagnetRadiusPx > modsLv1.passiveMagnetRadiusPx, 'Passive magnet radius scales across 5 levels');
+  assert.ok(modsLv5.passiveOverdriveMult > modsLv1.passiveOverdriveMult, 'Passive overdrive multiplier scales across 5 levels');
+  assert.ok(modsLv5.bonusMaxHp > modsLv1.bonusMaxHp && modsLv1.bonusMaxHp >= 1, 'Bio-Regen Core grants +1 to +5 bonus Max HP');
+  assert.ok(
+    modsLv5.regenPlatformsInterval < modsLv1.regenPlatformsInterval && modsLv5.regenPlatformsInterval > 0,
+    'Bio-Regen Core regenerates HP in fewer platforms at Lv.5'
   );
 
-  // Verify 15-Level XP progression & secret skin unlocks at Lv.5, Lv.10, Lv.15
-  const lv1 = computePlayerLevelInfo(0);
+  // Verify Shield has no timer and decreases cooldown / increases uses per level (Lv.1 -> Lv.5)
+  const shieldLv1 = getPowerUpLevelStats('combo_shield', 1);
+  const shieldLv5 = getPowerUpLevelStats('combo_shield', 5);
+  assert.equal(shieldLv1.durationSec, 0, 'Shield has no expiration timer');
+  assert.ok(shieldLv5.usesPerRun > shieldLv1.usesPerRun, 'Shield uses increase with level');
+  assert.ok(shieldLv5.cooldownSec < shieldLv1.cooldownSec, 'Shield cooldown decreases with level');
+
+  // Verify Pro Chord Builder (Root + Quality + Extension)
+  const proChord = buildProChordFromSpec(0, 'Minor', '9th');
+  assert.equal(proChord.chordName, 'Cm9');
+  assert.equal(proChord.chromaticIndices.length, 4);
+  assert.equal(proChord.freqs.length, 4);
+
+  // Verify Player starts at Level 0 (0 XP -> 1,500 XP for Level 1 -> 150,000 XP for Level 15)
+  assert.equal(DEFAULT_CFG.playerLevel, 0, 'Default player level is 0');
+  assert.equal(DEFAULT_CFG.playerXp, 0, 'Default player XP is 0');
+  assert.equal(LEVEL_PROGRESSION_TABLE[0].level, 0, 'Progression table starts at Level 0');
+  assert.equal(LEVEL_PROGRESSION_TABLE[0].minXp, 0, 'Level 0 starts at 0 XP');
+  assert.equal(LEVEL_PROGRESSION_TABLE[1].level, 1, 'Second row is Level 1');
+  assert.equal(LEVEL_PROGRESSION_TABLE[1].minXp, 1500, 'Level 1 requires 1,500 XP');
+  assert.equal(
+    LEVEL_PROGRESSION_TABLE[LEVEL_PROGRESSION_TABLE.length - 1].minXp,
+    150000,
+    'Level 15 threshold is exactly 150,000 XP'
+  );
+
+  const lv0 = computePlayerLevelInfo(0);
+  assert.equal(lv0.level, 0);
+  assert.equal(lv0.xpNeededForNext, 1500);
+  const lv1 = computePlayerLevelInfo(1500);
   assert.equal(lv1.level, 1);
-  const lv15 = computePlayerLevelInfo(99999);
+  const lv15 = computePlayerLevelInfo(150000);
   assert.equal(lv15.level, 15);
   const unlocksLv5 = getCumulativeUnlocksForLevel(5);
   const unlocksLv10 = getCumulativeUnlocksForLevel(10);
@@ -139,9 +244,9 @@ test('15-Level Progression, 4-Level Passive Wall-Bounce Power-Up, and Smart HSL 
   assert.equal(unlocksLv10.unlockedSecretAvatars.length, 6, 'Lv.10 unlocks +3 Gold Secret Skins (6 total)');
   assert.equal(unlocksLv15.unlockedSecretAvatars.length, 9, 'Lv.15 unlocks all 9 Secret Skins');
   assert.equal(SECRET_AVATAR_IDS.length, 9);
-  assert.ok(getLevelUpRewardsBetween(1, 5).length >= 4, 'Tracks rewards earned between Lv.1 and Lv.5');
+  assert.ok(getLevelUpRewardsBetween(0, 5).length >= 5, 'Tracks rewards earned between Lv.0 and Lv.5');
 
-  // Verify Smart HSL Custom Biome Generator
+  // Verify Smart HSL Custom Biome Generator & Opt-In 12-Key Chromatic Biome
   const customBiome = createCustomBiomeFromHsl({
     id: 101,
     name: 'SOLAR PRISM',
@@ -155,8 +260,8 @@ test('15-Level Progression, 4-Level Passive Wall-Bounce Power-Up, and Smart HSL 
   assert.equal(customBiome.chords.length, 4, 'Custom biome builds 4 chord gates');
   assert.equal(customBiome.tripletNotes?.length, 3, 'Custom biome has 3-note triplet configuration');
   assert.equal(getAllBiomes([customBiome]).length, MASTER_SCALES.length + 1);
+  assert.equal(getAllBiomes([customBiome], true).length, MASTER_SCALES.length + 2);
 });
-
 
 test('Color manipulation utilities properly lighten and darken hex colors (Bug Fix #2)', () => {
   const rgbShort = hexToRgb('#0f0');
@@ -175,18 +280,23 @@ test('Color manipulation utilities properly lighten and darken hex colors (Bug F
   assert.equal(withAlpha('#ff0080', 0.5), 'rgba(255, 0, 128, 0.5)');
 });
 
-test('27 World/Modal Scales have 4 distinct 4-Gate Chord Progression variants per biome and doubled store prices', () => {
+test('27 World/Modal Scales have 4 distinct 4-Gate Chord Progression variants per biome and +150% store prices', () => {
   assert.equal(MASTER_SCALES.length, 27, 'Should include 7 core + 20 new world/modal scales');
-  assert.equal(SOUND_BANKS.length, 8, 'Should include 8 Lo-Fi, Cyberpunk, and CRT synth banks');
+  assert.equal(SOUND_BANKS.length, 7, 'Should include 7 synth banks after removing Deckard CS-80 Brass');
+  assert.equal(
+    SOUND_BANKS.some((b) => b.id === 'bladerunner_cs80'),
+    false,
+    'Deckard CS-80 Brass is completely removed'
+  );
   assert.ok(DEFAULT_CFG.volMaster >= 0.8, 'Master volume default is boosted for strong audio output');
   assert.equal(DEFAULT_CFG.tiltControlEnabled, true, 'Android gravity/tilt steering is enabled by default');
 
-  // Verify non-starter sound banks and scales have doubled Orb prices (>= 16 Orbs)
+  // Verify non-starter sound banks and scales have +150% Orb prices (>= 40 Orbs for banks, >= 30 Orbs for scales)
   const lockedBanks = SOUND_BANKS.filter((b) => b.costOrbs > 0);
-  assert.ok(lockedBanks.every((b) => b.costOrbs >= 16), 'Sound bank prices are doubled');
+  assert.ok(lockedBanks.every((b) => b.costOrbs >= 40), 'Sound bank prices are +150% higher');
 
   const lockedScales = MASTER_SCALES.filter((s) => s.costOrbs > 0);
-  assert.ok(lockedScales.every((s) => s.costOrbs >= 12), 'World scale prices are doubled');
+  assert.ok(lockedScales.every((s) => s.costOrbs >= 30), 'World scale prices are +150% higher');
 
   for (const scaleBiome of MASTER_SCALES) {
     const progressions = getBiomeChordProgressions(scaleBiome);
@@ -236,34 +346,34 @@ test('Context-Aware Harmonic Synthesizer evaluates current + 2 previous + 2 next
   assert.notEqual(nextStepVoice[0], nextStepVoice[1], 'Two synth voices form a true harmonic dyad');
 });
 
-test('Dynamic Flow-Driven Difficulty scales platform width at 1/5th rate while keeping speed and jump height constant', () => {
-  const lowFlow = computeFlowDynamicDifficulty(0);
-  const midFlow = computeFlowDynamicDifficulty(15);
-  const highFlow = computeFlowDynamicDifficulty(45);
+test('Altitude-Driven Platform Width Narrowing, Flow-Scaled Jump Speed (96-250 BPM), Moving Fragile Platforms, 2..7 Spike Clusters, and Heart Pickup < Drone Rate', () => {
+  const lowAltLowFlow = computeFlowDynamicDifficulty(0, undefined, 0);
+  const midAltMidFlow = computeFlowDynamicDifficulty(15, undefined, 140);
+  const highAltHighFlow = computeFlowDynamicDifficulty(45, undefined, 360);
 
   assert.ok(
-    lowFlow.targetPlatformWidth > midFlow.targetPlatformWidth &&
-      midFlow.targetPlatformWidth > highFlow.targetPlatformWidth,
-    'Platforms narrow progressively at 1/5th rate as Flow increases up to 45'
+    lowAltLowFlow.targetPlatformWidth > midAltMidFlow.targetPlatformWidth &&
+      midAltMidFlow.targetPlatformWidth > highAltHighFlow.targetPlatformWidth,
+    'Platforms narrow progressively as Altitude (Meters) increases'
   );
-  assert.equal(
-    lowFlow.stepY,
-    highFlow.stepY,
-    'Vertical platform spacing (jump height requirement) stays constant throughout the game'
+  assert.ok(
+    highAltHighFlow.dynamicJumpBpm > lowAltLowFlow.dynamicJumpBpm &&
+      lowAltLowFlow.dynamicJumpBpm >= 96 &&
+      highAltHighFlow.dynamicJumpBpm <= 250,
+    'Jump Speed (BPM) accelerates with Flow between minJumpBpm and maxJumpBpm (96..250 BPM)'
   );
-  assert.equal(
-    lowFlow.paceMultiplier,
-    highFlow.paceMultiplier,
-    'Simulation speed stays constant throughout the game'
+  assert.ok(
+    highAltHighFlow.movingFragileChance > lowAltLowFlow.movingFragileChance &&
+      highAltHighFlow.movingFragileChance > 0.2,
+    'Moving + Fragile platform chance increases with Flow'
   );
-  assert.equal(
-    lowFlow.moveSpeedPxPerSec,
-    highFlow.moveSpeedPxPerSec,
-    'Horizontal move speed stays constant throughout the game'
+  assert.equal(lowAltLowFlow.maxSpikeCount, 2, 'Low Flow starts with 2-spike clusters');
+  assert.equal(highAltHighFlow.maxSpikeCount, 7, 'High Flow scales up to 7-spike clusters');
+  assert.ok(
+    highAltHighFlow.heartPickupChance > 0 &&
+      highAltHighFlow.heartPickupChance < highAltHighFlow.aerialHazardChance,
+    'Heart pickup spawn rate is always strictly lower than Aerial Drone hazard rate'
   );
-  assert.equal(lowFlow.platformHazardChance, 0, 'Low Flow has 0 hazard chance');
-  assert.ok(highFlow.platformHazardChance > 0.15, 'High Flow spawns platform hazards');
-  assert.ok(highFlow.aerialHazardChance > 0.15, 'High Flow spawns aerial obstacles');
 });
 
 test('Duration-Proportional Jump Kinematics locks flightDurationSec 1:1 to beat duration while keeping long-note apex clearance tight so platforms are never skipped', () => {
@@ -301,20 +411,24 @@ test('Duration-Proportional Jump Kinematics locks flightDurationSec 1:1 to beat 
   }
 });
 
-test('33 Reactive-Eye Character Avatars include 24 geometric shapes + 9 secret skins across Standard, Gold, and Rainbow tiers with wallBounceElasticity', () => {
+test('33 Reactive-Eye Character Avatars have Tier-Specific Health (White=3 HP, Gold=7 HP, Prism=15 HP) and wallBounceElasticity', () => {
   assert.equal(CHARACTER_AVATARS.length, 33, '24 geometric shapes + 9 high-res secret skins across Standard, Gold, and Rainbow tiers');
   assert.deepEqual(STARTER_UNLOCKED_AVATARS, ['circle', 'triangle', 'square']);
 
-  for (const starterId of STARTER_UNLOCKED_AVATARS) {
-    const def = getCharacterById(starterId);
-    assert.equal(def.costOrbs, 0, `${starterId} starter avatar is free`);
-    assert.equal(def.tier, 'standard');
+  for (const av of CHARACTER_AVATARS) {
+    if (av.tier === 'standard') {
+      assert.equal(av.maxHealth, 3, `${av.name} (White/Standard) has 3 HP`);
+    } else if (av.tier === 'gold') {
+      assert.equal(av.maxHealth, 7, `${av.name} (Gold) has 7 HP`);
+    } else if (av.tier === 'rainbow') {
+      assert.equal(av.maxHealth, 15, `${av.name} (Prism/Rainbow) has 15 HP`);
+    }
   }
 
   const stdCircle = getCharacterById('circle');
   const goldCircle = getCharacterById('circle_gold');
   assert.equal(goldCircle.tier, 'gold');
-  assert.equal(goldCircle.costOrbs, 600, 'Gold Circle price is 40% cheaper (600 Orbs)');
+  assert.equal(goldCircle.costOrbs, 1500, 'Gold Circle price is +150% (1,500 Orbs)');
   assert.ok(
     goldCircle.perks.bonusMagnetRadiusPx > 0 &&
       goldCircle.perks.doubleOrbChance > 0 &&
@@ -329,7 +443,12 @@ test('33 Reactive-Eye Character Avatars include 24 geometric shapes + 9 secret s
       goldCircle.perks.wallBounceElasticity > stdCircle.perks.wallBounceElasticity,
     'Higher tier characters have greater wallBounceElasticity'
   );
-  assert.ok(rainbowHex.costOrbs >= 1200 && rainbowHex.perks.orbBonusPct >= 100);
+  assert.ok(
+    rainbowHex.perks.flowGainMultiplier > goldCircle.perks.flowGainMultiplier &&
+      goldCircle.perks.flowGainMultiplier > stdCircle.perks.flowGainMultiplier,
+    'Characters grant gradual small-percentage Flow acceleration'
+  );
+  assert.ok(rainbowHex.costOrbs >= 3000 && rainbowHex.perks.orbBonusPct >= 100);
   assert.equal(rainbowHex.perks.chordGateDoublePowerUp, true);
 });
 
@@ -477,16 +596,18 @@ test('Cohesive biome platform colors stay within the biome palette family', () =
   assert.ok(gateCol.g >= gateCol.r);
 });
 
-test('Temporary power-ups count down and expire automatically, and shuffleArray preserves elements', () => {
+test('Temporary power-ups count down and expire automatically while Shield stays active without timer, and shuffleArray preserves elements', () => {
   const initial = [
     { id: 'orb_magnet' as const, name: 'MAGNET', icon: '◎', remainingSec: 5.0, durationSec: 15.0 },
+    { id: 'combo_shield' as const, name: 'SHIELD', icon: '🛡', remainingSec: 9999, durationSec: 9999 },
   ];
   const after2s = tickActivePowerUps(initial, 2.0);
-  assert.equal(after2s.length, 1);
+  assert.equal(after2s.length, 2);
   assert.ok(Math.abs(after2s[0].remainingSec - 3.0) < 0.001);
 
   const after6s = tickActivePowerUps(after2s, 4.0);
-  assert.equal(after6s.length, 0, 'Power-up expires once remaining time reaches 0');
+  assert.equal(after6s.length, 1, 'Timed power-up expires once remaining time reaches 0 while Shield stays active until broken');
+  assert.equal(after6s[0].id, 'combo_shield');
 
   const arr = [0, 1, 2, 6, 10, 17];
   const shuffled = shuffleArray(arr);

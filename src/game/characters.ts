@@ -29,6 +29,7 @@ export type BaseAvatarShape =
 export type AvatarTier = 'standard' | 'gold' | 'rainbow';
 
 export interface CharacterPerkModifiers {
+  maxHealth: number; // Tier-based HP: Standard = 3 hits, Gold = 7 hits, Prism/Rainbow = 15 hits
   bonusMagnetRadiusPx: number;
   doubleOrbChance: number;
   orbBonusPct: number; // Progressive % extra Orb yield per character to accelerate progression
@@ -54,6 +55,7 @@ export interface CharacterAvatarDef {
   nameFa?: string;
   shape: BaseAvatarShape;
   tier: AvatarTier;
+  maxHealth?: number;
   costOrbs: number;
   isSecret?: boolean;
   unlockLevel?: number;
@@ -64,6 +66,7 @@ export interface CharacterAvatarDef {
 }
 
 const DEFAULT_PERKS: CharacterPerkModifiers = {
+  maxHealth: 3,
   bonusMagnetRadiusPx: 0,
   doubleOrbChance: 0,
   orbBonusPct: 0,
@@ -83,9 +86,9 @@ const DEFAULT_PERKS: CharacterPerkModifiers = {
   permanentAirJump: false,
 };
 
-export const CHARACTER_AVATARS: CharacterAvatarDef[] = [
+const RAW_CHARACTER_AVATARS: CharacterAvatarDef[] = [
   // ============================================================================
-  // TIER 1: STANDARD PIXEL AVATARS (40% cheaper: Free Starters, then 48, 96, 180, 310, 480)
+  // TIER 1: STANDARD PIXEL AVATARS (+150% Prices: Free Starters, then 120, 240, 450, 775, 1200)
   // ============================================================================
   {
     id: 'circle',
@@ -96,7 +99,7 @@ export const CHARACTER_AVATARS: CharacterAvatarDef[] = [
     costOrbs: 0,
     perkTitle: 'Balanced Core',
     perkDesc: 'Classic pixel sphere with dual rectangular eyes.',
-    perks: { ...DEFAULT_PERKS, orbBonusPct: 0, wallBounceElasticity: 1.0 },
+    perks: { ...DEFAULT_PERKS, orbBonusPct: 0, wallBounceElasticity: 1.0, flowGainMultiplier: 1.0 },
   },
   {
     id: 'triangle',
@@ -105,14 +108,15 @@ export const CHARACTER_AVATARS: CharacterAvatarDef[] = [
     shape: 'triangle',
     tier: 'standard',
     costOrbs: 0,
-    perkTitle: '+5% ORB YIELD',
-    perkDesc: 'Stepped pixel delta with +5% Orb attraction.',
+    perkTitle: '+5% ORBS · +1% FLOW',
+    perkDesc: 'Stepped pixel delta with +5% Orb attraction & +1% Flow speed.',
     perks: {
       ...DEFAULT_PERKS,
       orbBonusPct: 5,
       wallBounceElasticity: 1.02,
       bonusMagnetRadiusPx: 8,
       doubleOrbChance: 0.05,
+      flowGainMultiplier: 1.01,
     },
   },
   {
@@ -122,14 +126,15 @@ export const CHARACTER_AVATARS: CharacterAvatarDef[] = [
     shape: 'square',
     tier: 'standard',
     costOrbs: 0,
-    perkTitle: '+8% ORB YIELD',
-    perkDesc: 'Precision pixel cube with +8% Orb attraction.',
+    perkTitle: '+8% ORBS · +2% FLOW',
+    perkDesc: 'Precision pixel cube with +8% Orb attraction & +2% Flow speed.',
     perks: {
       ...DEFAULT_PERKS,
       orbBonusPct: 8,
       wallBounceElasticity: 1.04,
       bonusMagnetRadiusPx: 12,
       doubleOrbChance: 0.08,
+      flowGainMultiplier: 1.02,
     },
   },
   {
@@ -138,9 +143,9 @@ export const CHARACTER_AVATARS: CharacterAvatarDef[] = [
     nameFa: 'ستاره نوا',
     shape: 'star',
     tier: 'standard',
-    costOrbs: 48,
-    perkTitle: '+14% ORBS · +5% PTS',
-    perkDesc: '+14% Orb yield, +18px Magnet & +5% Score.',
+    costOrbs: 120,
+    perkTitle: '+14% ORBS · +3% FLOW',
+    perkDesc: '+14% Orb yield, +3% Flow speed, +18px Magnet & +5% Score.',
     perks: {
       ...DEFAULT_PERKS,
       orbBonusPct: 14,
@@ -148,6 +153,7 @@ export const CHARACTER_AVATARS: CharacterAvatarDef[] = [
       bonusMagnetRadiusPx: 18,
       doubleOrbChance: 0.14,
       scoreMultiplier: 1.05,
+      flowGainMultiplier: 1.03,
     },
   },
   {
@@ -156,9 +162,9 @@ export const CHARACTER_AVATARS: CharacterAvatarDef[] = [
     nameFa: 'هلال ماه',
     shape: 'crescent',
     tier: 'standard',
-    costOrbs: 96,
-    perkTitle: '+20% ORBS · +6PX PAD',
-    perkDesc: '+20% Orb yield, +24px Magnet & wider pads.',
+    costOrbs: 240,
+    perkTitle: '+20% ORBS · +5% FLOW',
+    perkDesc: '+20% Orb yield, +5% Flow speed, +24px Magnet & wider pads.',
     perks: {
       ...DEFAULT_PERKS,
       orbBonusPct: 20,
@@ -166,6 +172,7 @@ export const CHARACTER_AVATARS: CharacterAvatarDef[] = [
       bonusMagnetRadiusPx: 24,
       doubleOrbChance: 0.2,
       platformWidthBonusPx: 6,
+      flowGainMultiplier: 1.05,
     },
   },
   {
@@ -174,15 +181,16 @@ export const CHARACTER_AVATARS: CharacterAvatarDef[] = [
     nameFa: 'الماس اتر',
     shape: 'diamond',
     tier: 'standard',
-    costOrbs: 180,
-    perkTitle: '+26% ORBS · +35PX MAG',
-    perkDesc: '+26% Orb yield & +35px Magnet radius.',
+    costOrbs: 450,
+    perkTitle: '+26% ORBS · +6% FLOW',
+    perkDesc: '+26% Orb yield, +6% Flow speed & +35px Magnet radius.',
     perks: {
       ...DEFAULT_PERKS,
       orbBonusPct: 26,
       wallBounceElasticity: 1.1,
       bonusMagnetRadiusPx: 35,
       doubleOrbChance: 0.26,
+      flowGainMultiplier: 1.06,
     },
   },
   {
@@ -191,9 +199,9 @@ export const CHARACTER_AVATARS: CharacterAvatarDef[] = [
     nameFa: 'هسته شش‌ضلعی',
     shape: 'hexagon',
     tier: 'standard',
-    costOrbs: 310,
+    costOrbs: 775,
     perkTitle: '+32% ORBS · +8% FLOW',
-    perkDesc: '+32% Orb yield, +42px Magnet & +8% Flow.',
+    perkDesc: '+32% Orb yield, +42px Magnet & +8% Flow speed.',
     perks: {
       ...DEFAULT_PERKS,
       orbBonusPct: 32,
@@ -209,9 +217,9 @@ export const CHARACTER_AVATARS: CharacterAvatarDef[] = [
     nameFa: 'سپر پنج‌ضلعی',
     shape: 'pentagon',
     tier: 'standard',
-    costOrbs: 480,
-    perkTitle: '+38% ORBS · ARMOR',
-    perkDesc: '+38% Orb yield, +50px Magnet & -15% Hazard loss.',
+    costOrbs: 1200,
+    perkTitle: '+38% ORBS · +9% FLOW',
+    perkDesc: '+38% Orb yield, +9% Flow speed, +50px Magnet & -15% Hazard loss.',
     perks: {
       ...DEFAULT_PERKS,
       orbBonusPct: 38,
@@ -219,11 +227,12 @@ export const CHARACTER_AVATARS: CharacterAvatarDef[] = [
       bonusMagnetRadiusPx: 50,
       doubleOrbChance: 0.38,
       hazardPenaltyMultiplier: 0.85,
+      flowGainMultiplier: 1.09,
     },
   },
 
   // ============================================================================
-  // TIER 2: RADIANT GOLD EDITION (40% cheaper: 600–960 Orbs)
+  // TIER 2: RADIANT GOLD EDITION (+150% Prices: 1500–2400 Orbs)
   // ============================================================================
   {
     id: 'circle_gold',
@@ -231,9 +240,9 @@ export const CHARACTER_AVATARS: CharacterAvatarDef[] = [
     nameFa: 'گوی طلایی',
     shape: 'circle',
     tier: 'gold',
-    costOrbs: 600,
-    perkTitle: '+48% ORBS · +75PX MAG',
-    perkDesc: '+75px Magnet, +48% Orb yield & +22% Wall Bounce.',
+    costOrbs: 1500,
+    perkTitle: '+48% ORBS · +10% FLOW',
+    perkDesc: '+75px Magnet, +48% Orb yield, +10% Flow & +22% Wall Bounce.',
     perks: {
       ...DEFAULT_PERKS,
       orbBonusPct: 48,
@@ -241,6 +250,7 @@ export const CHARACTER_AVATARS: CharacterAvatarDef[] = [
       bonusMagnetRadiusPx: 75,
       doubleOrbChance: 0.48,
       scoreMultiplier: 1.15,
+      flowGainMultiplier: 1.1,
     },
   },
   {
@@ -249,9 +259,9 @@ export const CHARACTER_AVATARS: CharacterAvatarDef[] = [
     nameFa: 'دلتای خورشیدی',
     shape: 'triangle',
     tier: 'gold',
-    costOrbs: 600,
-    perkTitle: '+52% ORBS · FAST DASH',
-    perkDesc: '+52% Orb yield, 30% faster Dash & +24% Wall Bounce.',
+    costOrbs: 1500,
+    perkTitle: '+52% ORBS · +11% FLOW',
+    perkDesc: '+52% Orb yield, +11% Flow, 30% faster Dash & +24% Wall Bounce.',
     perks: {
       ...DEFAULT_PERKS,
       orbBonusPct: 52,
@@ -260,6 +270,7 @@ export const CHARACTER_AVATARS: CharacterAvatarDef[] = [
       doubleOrbChance: 0.52,
       dashCooldownMultiplier: 0.7,
       scoreMultiplier: 1.2,
+      flowGainMultiplier: 1.11,
     },
   },
   {
@@ -268,9 +279,9 @@ export const CHARACTER_AVATARS: CharacterAvatarDef[] = [
     nameFa: 'دژ طلایی',
     shape: 'square',
     tier: 'gold',
-    costOrbs: 600,
-    perkTitle: '+56% ORBS · SHIELD',
-    perkDesc: '+56% Orb yield, Starts with Shield & +26% Wall Bounce.',
+    costOrbs: 1500,
+    perkTitle: '+56% ORBS · +12% FLOW',
+    perkDesc: '+56% Orb yield, +12% Flow, Starts with Shield & +26% Wall Bounce.',
     perks: {
       ...DEFAULT_PERKS,
       orbBonusPct: 56,
@@ -279,6 +290,7 @@ export const CHARACTER_AVATARS: CharacterAvatarDef[] = [
       doubleOrbChance: 0.56,
       startWithShield: true,
       hazardPenaltyMultiplier: 0.6,
+      flowGainMultiplier: 1.12,
     },
   },
   {
@@ -287,16 +299,16 @@ export const CHARACTER_AVATARS: CharacterAvatarDef[] = [
     nameFa: 'ابرنواختر طلایی',
     shape: 'star',
     tier: 'gold',
-    costOrbs: 720,
-    perkTitle: '+62% ORBS · +30% FLOW',
-    perkDesc: '+62% Orb yield, +30% Flow & +28% Wall Bounce.',
+    costOrbs: 1800,
+    perkTitle: '+62% ORBS · +14% FLOW',
+    perkDesc: '+62% Orb yield, +14% Flow & +28% Wall Bounce.',
     perks: {
       ...DEFAULT_PERKS,
       orbBonusPct: 62,
       wallBounceElasticity: 1.28,
       bonusMagnetRadiusPx: 74,
       doubleOrbChance: 0.62,
-      flowGainMultiplier: 1.3,
+      flowGainMultiplier: 1.14,
       scoreMultiplier: 1.25,
     },
   },
@@ -306,9 +318,9 @@ export const CHARACTER_AVATARS: CharacterAvatarDef[] = [
     nameFa: 'کسوف طلایی',
     shape: 'crescent',
     tier: 'gold',
-    costOrbs: 720,
-    perkTitle: '+68% ORBS · +18PX PAD',
-    perkDesc: '+68% Orb yield, +18px wider pads & +30% Wall Bounce.',
+    costOrbs: 1800,
+    perkTitle: '+68% ORBS · +15% FLOW',
+    perkDesc: '+68% Orb yield, +15% Flow, +18px wider pads & +30% Wall Bounce.',
     perks: {
       ...DEFAULT_PERKS,
       orbBonusPct: 68,
@@ -317,6 +329,7 @@ export const CHARACTER_AVATARS: CharacterAvatarDef[] = [
       doubleOrbChance: 0.68,
       platformWidthBonusPx: 18,
       stallDecayMultiplier: 0.5,
+      flowGainMultiplier: 1.15,
     },
   },
   {
@@ -325,9 +338,9 @@ export const CHARACTER_AVATARS: CharacterAvatarDef[] = [
     nameFa: 'گوهر شاهانه',
     shape: 'diamond',
     tier: 'gold',
-    costOrbs: 810,
-    perkTitle: '+74% ORBS · +40% PTS',
-    perkDesc: '+74% Orb yield, +40% Score & +32% Wall Bounce.',
+    costOrbs: 2025,
+    perkTitle: '+74% ORBS · +16% FLOW',
+    perkDesc: '+74% Orb yield, +16% Flow, +40% Score & +32% Wall Bounce.',
     perks: {
       ...DEFAULT_PERKS,
       orbBonusPct: 74,
@@ -336,6 +349,7 @@ export const CHARACTER_AVATARS: CharacterAvatarDef[] = [
       doubleOrbChance: 0.74,
       scoreMultiplier: 1.4,
       powerUpDurationMultiplier: 1.35,
+      flowGainMultiplier: 1.16,
     },
   },
   {
@@ -344,9 +358,9 @@ export const CHARACTER_AVATARS: CharacterAvatarDef[] = [
     nameFa: 'شش‌ضلعی میداس',
     shape: 'hexagon',
     tier: 'gold',
-    costOrbs: 870,
-    perkTitle: '+80% ORBS · GATE BONUS',
-    perkDesc: '+80% Orb yield, +1 Gate Orb & +34% Wall Bounce.',
+    costOrbs: 2175,
+    perkTitle: '+80% ORBS · +17% FLOW',
+    perkDesc: '+80% Orb yield, +17% Flow, +1 Gate Orb & +34% Wall Bounce.',
     perks: {
       ...DEFAULT_PERKS,
       orbBonusPct: 80,
@@ -354,7 +368,7 @@ export const CHARACTER_AVATARS: CharacterAvatarDef[] = [
       bonusMagnetRadiusPx: 90,
       doubleOrbChance: 0.8,
       chordGateBonusOrbs: 1,
-      flowGainMultiplier: 1.25,
+      flowGainMultiplier: 1.17,
     },
   },
   {
@@ -363,9 +377,9 @@ export const CHARACTER_AVATARS: CharacterAvatarDef[] = [
     nameFa: 'والکیری طلایی',
     shape: 'pentagon',
     tier: 'gold',
-    costOrbs: 960,
-    perkTitle: '+88% ORBS · AIR JUMP',
-    perkDesc: '+88% Orb yield, Air Jump, Shield & +38% Wall Bounce.',
+    costOrbs: 2400,
+    perkTitle: '+88% ORBS · +18% FLOW',
+    perkDesc: '+88% Orb yield, +18% Flow, Air Jump, Shield & +38% Wall Bounce.',
     perks: {
       ...DEFAULT_PERKS,
       orbBonusPct: 88,
@@ -374,11 +388,12 @@ export const CHARACTER_AVATARS: CharacterAvatarDef[] = [
       doubleOrbChance: 0.88,
       permanentAirJump: true,
       startWithShield: true,
+      flowGainMultiplier: 1.18,
     },
   },
 
   // ============================================================================
-  // TIER 3: PRISMATIC 7-COLOR RAINBOW EDITION (40% cheaper: 1200–1560 Orbs)
+  // TIER 3: PRISMATIC 7-COLOR RAINBOW EDITION (+150% Prices: 3000–3900 Orbs)
   // ============================================================================
   {
     id: 'circle_rainbow',
@@ -386,9 +401,9 @@ export const CHARACTER_AVATARS: CharacterAvatarDef[] = [
     nameFa: 'گوی پریزم',
     shape: 'circle',
     tier: 'rainbow',
-    costOrbs: 1200,
-    perkTitle: '+100% ORBS · MEGA MAG',
-    perkDesc: '+135px Magnet, +100% Orb yield & +45% Wall Bounce.',
+    costOrbs: 3000,
+    perkTitle: '+100% ORBS · +19% FLOW',
+    perkDesc: '+135px Magnet, +100% Orb yield, +19% Flow & +45% Wall Bounce.',
     perks: {
       ...DEFAULT_PERKS,
       orbBonusPct: 100,
@@ -396,6 +411,7 @@ export const CHARACTER_AVATARS: CharacterAvatarDef[] = [
       bonusMagnetRadiusPx: 135,
       doubleOrbChance: 0.9,
       scoreMultiplier: 1.4,
+      flowGainMultiplier: 1.19,
     },
   },
   {
@@ -404,9 +420,9 @@ export const CHARACTER_AVATARS: CharacterAvatarDef[] = [
     nameFa: 'دلتای پریزم',
     shape: 'triangle',
     tier: 'rainbow',
-    costOrbs: 1200,
-    perkTitle: '+108% ORBS · HYPER DASH',
-    perkDesc: '+108% Orbs, Air Jump, 45% faster Dash & +48% Wall Bounce.',
+    costOrbs: 3000,
+    perkTitle: '+108% ORBS · +20% FLOW',
+    perkDesc: '+108% Orbs, +20% Flow, Air Jump, 45% faster Dash & +48% Wall Bounce.',
     perks: {
       ...DEFAULT_PERKS,
       orbBonusPct: 108,
@@ -416,6 +432,7 @@ export const CHARACTER_AVATARS: CharacterAvatarDef[] = [
       permanentAirJump: true,
       dashCooldownMultiplier: 0.55,
       scoreMultiplier: 1.4,
+      flowGainMultiplier: 1.2,
     },
   },
   {
@@ -424,9 +441,9 @@ export const CHARACTER_AVATARS: CharacterAvatarDef[] = [
     nameFa: 'مکعب رنگین‌کمان',
     shape: 'square',
     tier: 'rainbow',
-    costOrbs: 1200,
-    perkTitle: '+115% ORBS · AUTO-SHIELD',
-    perkDesc: '+115% Orbs, Auto-Shield (18s) & +50% Wall Bounce.',
+    costOrbs: 3000,
+    perkTitle: '+115% ORBS · +21% FLOW',
+    perkDesc: '+115% Orbs, +21% Flow, Auto-Shield (18s) & +50% Wall Bounce.',
     perks: {
       ...DEFAULT_PERKS,
       orbBonusPct: 115,
@@ -436,6 +453,7 @@ export const CHARACTER_AVATARS: CharacterAvatarDef[] = [
       startWithShield: true,
       autoRegenShieldSec: 18,
       hazardPenaltyMultiplier: 0.4,
+      flowGainMultiplier: 1.21,
     },
   },
   {
@@ -444,14 +462,14 @@ export const CHARACTER_AVATARS: CharacterAvatarDef[] = [
     nameFa: 'نواختر کیهانی',
     shape: 'star',
     tier: 'rainbow',
-    costOrbs: 1320,
-    perkTitle: '+125% ORBS · +55% FLOW',
-    perkDesc: '+125% Orbs, +55% Flow, +50% Score & +54% Wall Bounce.',
+    costOrbs: 3300,
+    perkTitle: '+125% ORBS · +22% FLOW',
+    perkDesc: '+125% Orbs, +22% Flow, +50% Score & +54% Wall Bounce.',
     perks: {
       ...DEFAULT_PERKS,
       orbBonusPct: 125,
       wallBounceElasticity: 1.54,
-      flowGainMultiplier: 1.55,
+      flowGainMultiplier: 1.22,
       scoreMultiplier: 1.5,
       bonusMagnetRadiusPx: 125,
       doubleOrbChance: 1.0,
@@ -463,9 +481,9 @@ export const CHARACTER_AVATARS: CharacterAvatarDef[] = [
     nameFa: 'ماه پریزم',
     shape: 'crescent',
     tier: 'rainbow',
-    costOrbs: 1320,
-    perkTitle: '+132% ORBS · +28PX PAD',
-    perkDesc: '+132% Orbs, +28px wider pads, Air Jump & +56% Wall Bounce.',
+    costOrbs: 3300,
+    perkTitle: '+132% ORBS · +22% FLOW',
+    perkDesc: '+132% Orbs, +22% Flow, +28px wider pads, Air Jump & +56% Wall Bounce.',
     perks: {
       ...DEFAULT_PERKS,
       orbBonusPct: 132,
@@ -475,6 +493,7 @@ export const CHARACTER_AVATARS: CharacterAvatarDef[] = [
       platformWidthBonusPx: 28,
       stallDecayMultiplier: 0.3,
       permanentAirJump: true,
+      flowGainMultiplier: 1.22,
     },
   },
   {
@@ -483,9 +502,9 @@ export const CHARACTER_AVATARS: CharacterAvatarDef[] = [
     nameFa: 'الماس پریزم',
     shape: 'diamond',
     tier: 'rainbow',
-    costOrbs: 1440,
-    perkTitle: '+140% ORBS · +75% PTS',
-    perkDesc: '+140% Orbs, +75% Score & +60% Wall Bounce.',
+    costOrbs: 3600,
+    perkTitle: '+140% ORBS · +23% FLOW',
+    perkDesc: '+140% Orbs, +23% Flow, +75% Score & +60% Wall Bounce.',
     perks: {
       ...DEFAULT_PERKS,
       orbBonusPct: 140,
@@ -494,6 +513,7 @@ export const CHARACTER_AVATARS: CharacterAvatarDef[] = [
       scoreMultiplier: 1.75,
       powerUpDurationMultiplier: 1.6,
       doubleOrbChance: 1.0,
+      flowGainMultiplier: 1.23,
     },
   },
   {
@@ -502,9 +522,9 @@ export const CHARACTER_AVATARS: CharacterAvatarDef[] = [
     nameFa: 'آرکون پریزم',
     shape: 'hexagon',
     tier: 'rainbow',
-    costOrbs: 1500,
-    perkTitle: '+150% ORBS · 2X GATE',
-    perkDesc: '+150% Orbs, +2 Gate Orbs, 2x Gate Buff & +62% Wall Bounce.',
+    costOrbs: 3750,
+    perkTitle: '+150% ORBS · +24% FLOW',
+    perkDesc: '+150% Orbs, +24% Flow, +2 Gate Orbs, 2x Gate Buff & +62% Wall Bounce.',
     perks: {
       ...DEFAULT_PERKS,
       orbBonusPct: 150,
@@ -513,7 +533,7 @@ export const CHARACTER_AVATARS: CharacterAvatarDef[] = [
       doubleOrbChance: 1.0,
       chordGateBonusOrbs: 2,
       chordGateDoublePowerUp: true,
-      flowGainMultiplier: 1.4,
+      flowGainMultiplier: 1.24,
     },
   },
   {
@@ -522,9 +542,9 @@ export const CHARACTER_AVATARS: CharacterAvatarDef[] = [
     nameFa: 'تاج اُمنی',
     shape: 'pentagon',
     tier: 'rainbow',
-    costOrbs: 1560,
-    perkTitle: '+165% ORBS · OMNI GOD',
-    perkDesc: '+165% Orbs, Auto-Shield (16s), Air Jump & +65% Wall Bounce.',
+    costOrbs: 3900,
+    perkTitle: '+165% ORBS · +25% FLOW',
+    perkDesc: '+165% Orbs, +25% Flow, Auto-Shield (16s), Air Jump & +65% Wall Bounce.',
     perks: {
       ...DEFAULT_PERKS,
       orbBonusPct: 165,
@@ -535,6 +555,7 @@ export const CHARACTER_AVATARS: CharacterAvatarDef[] = [
       permanentAirJump: true,
       bonusMagnetRadiusPx: 160,
       scoreMultiplier: 1.65,
+      flowGainMultiplier: 1.25,
     },
   },
 
@@ -552,7 +573,7 @@ export const CHARACTER_AVATARS: CharacterAvatarDef[] = [
     isSecret: true,
     unlockLevel: 5,
     perkTitle: 'SECRET LV.5 · +42% ORBS',
-    perkDesc: 'Secret Level 5 Heart Skin · +42% Orb yield & Start Shield.',
+    perkDesc: 'Secret Level 5 Heart Skin · +42% Orb yield, +8% Flow & Start Shield.',
     perks: {
       ...DEFAULT_PERKS,
       orbBonusPct: 42,
@@ -560,6 +581,7 @@ export const CHARACTER_AVATARS: CharacterAvatarDef[] = [
       bonusMagnetRadiusPx: 55,
       doubleOrbChance: 0.42,
       startWithShield: true,
+      flowGainMultiplier: 1.08,
     },
   },
   {
@@ -572,7 +594,7 @@ export const CHARACTER_AVATARS: CharacterAvatarDef[] = [
     isSecret: true,
     unlockLevel: 5,
     perkTitle: 'SECRET LV.5 · +45% ORBS',
-    perkDesc: 'Secret Level 5 Flower Skin · +45% Orb yield & +14px wider pads.',
+    perkDesc: 'Secret Level 5 Flower Skin · +45% Orb yield, +9% Flow & +14px wider pads.',
     perks: {
       ...DEFAULT_PERKS,
       orbBonusPct: 45,
@@ -580,6 +602,7 @@ export const CHARACTER_AVATARS: CharacterAvatarDef[] = [
       bonusMagnetRadiusPx: 60,
       doubleOrbChance: 0.45,
       platformWidthBonusPx: 14,
+      flowGainMultiplier: 1.09,
     },
   },
   {
@@ -592,7 +615,7 @@ export const CHARACTER_AVATARS: CharacterAvatarDef[] = [
     isSecret: true,
     unlockLevel: 5,
     perkTitle: 'SECRET LV.5 · +48% ORBS',
-    perkDesc: 'Secret Level 5 Fruit Skin · +48% Orb yield & +20% Score.',
+    perkDesc: 'Secret Level 5 Fruit Skin · +48% Orb yield, +10% Flow & +20% Score.',
     perks: {
       ...DEFAULT_PERKS,
       orbBonusPct: 48,
@@ -600,6 +623,7 @@ export const CHARACTER_AVATARS: CharacterAvatarDef[] = [
       bonusMagnetRadiusPx: 64,
       doubleOrbChance: 0.48,
       scoreMultiplier: 1.2,
+      flowGainMultiplier: 1.1,
     },
   },
 
@@ -614,7 +638,7 @@ export const CHARACTER_AVATARS: CharacterAvatarDef[] = [
     isSecret: true,
     unlockLevel: 10,
     perkTitle: 'SECRET LV.10 · +92% ORBS',
-    perkDesc: 'Secret Level 10 Gold Rock Hand · +92% Orbs, Fast Dash & Air Jump.',
+    perkDesc: 'Secret Level 10 Gold Rock Hand · +92% Orbs, +16% Flow, Fast Dash & Air Jump.',
     perks: {
       ...DEFAULT_PERKS,
       orbBonusPct: 92,
@@ -624,6 +648,7 @@ export const CHARACTER_AVATARS: CharacterAvatarDef[] = [
       dashCooldownMultiplier: 0.65,
       permanentAirJump: true,
       scoreMultiplier: 1.45,
+      flowGainMultiplier: 1.16,
     },
   },
   {
@@ -636,14 +661,14 @@ export const CHARACTER_AVATARS: CharacterAvatarDef[] = [
     isSecret: true,
     unlockLevel: 10,
     perkTitle: 'SECRET LV.10 · +95% ORBS',
-    perkDesc: 'Secret Level 10 Gold Leaf · +95% Orbs, +40% Flow & Slow Decay.',
+    perkDesc: 'Secret Level 10 Gold Leaf · +95% Orbs, +18% Flow & Slow Decay.',
     perks: {
       ...DEFAULT_PERKS,
       orbBonusPct: 95,
       wallBounceElasticity: 1.4,
       bonusMagnetRadiusPx: 110,
       doubleOrbChance: 0.92,
-      flowGainMultiplier: 1.4,
+      flowGainMultiplier: 1.18,
       stallDecayMultiplier: 0.4,
       scoreMultiplier: 1.45,
     },
@@ -658,7 +683,7 @@ export const CHARACTER_AVATARS: CharacterAvatarDef[] = [
     isSecret: true,
     unlockLevel: 10,
     perkTitle: 'SECRET LV.10 · +98% ORBS',
-    perkDesc: 'Secret Level 10 Gold Skull · +98% Orbs, Auto-Shield (20s) & Armor.',
+    perkDesc: 'Secret Level 10 Gold Skull · +98% Orbs, +19% Flow, Auto-Shield (20s) & Armor.',
     perks: {
       ...DEFAULT_PERKS,
       orbBonusPct: 98,
@@ -668,6 +693,7 @@ export const CHARACTER_AVATARS: CharacterAvatarDef[] = [
       startWithShield: true,
       autoRegenShieldSec: 20,
       hazardPenaltyMultiplier: 0.45,
+      flowGainMultiplier: 1.19,
     },
   },
 
@@ -683,7 +709,7 @@ export const CHARACTER_AVATARS: CharacterAvatarDef[] = [
     unlockLevel: 15,
     hasSingleCentralIris: true,
     perkTitle: 'SECRET LV.15 · +180% ORBS',
-    perkDesc: 'Prismatic Sclera with live tracking central Cornea · +180% Orbs & Omni Perks!',
+    perkDesc: 'Prismatic Sclera with live tracking central Cornea · +180% Orbs & +25% Flow!',
     perks: {
       ...DEFAULT_PERKS,
       orbBonusPct: 180,
@@ -694,7 +720,7 @@ export const CHARACTER_AVATARS: CharacterAvatarDef[] = [
       autoRegenShieldSec: 14,
       permanentAirJump: true,
       scoreMultiplier: 1.85,
-      flowGainMultiplier: 1.6,
+      flowGainMultiplier: 1.25,
     },
   },
   {
@@ -707,7 +733,7 @@ export const CHARACTER_AVATARS: CharacterAvatarDef[] = [
     isSecret: true,
     unlockLevel: 15,
     perkTitle: 'SECRET LV.15 · +175% ORBS',
-    perkDesc: 'Sacred 6-Pointed Prism Star · +175% Orbs, 2x Gate Buff & +3 Gate Orbs.',
+    perkDesc: 'Sacred 6-Pointed Prism Star · +175% Orbs, +24% Flow, 2x Gate Buff & +3 Gate Orbs.',
     perks: {
       ...DEFAULT_PERKS,
       orbBonusPct: 175,
@@ -718,6 +744,7 @@ export const CHARACTER_AVATARS: CharacterAvatarDef[] = [
       chordGateDoublePowerUp: true,
       permanentAirJump: true,
       scoreMultiplier: 1.8,
+      flowGainMultiplier: 1.24,
     },
   },
   {
@@ -730,7 +757,7 @@ export const CHARACTER_AVATARS: CharacterAvatarDef[] = [
     isSecret: true,
     unlockLevel: 15,
     perkTitle: 'SECRET LV.15 · +185% ORBS',
-    perkDesc: '9-Lives Prismatic Cat · +185% Orbs, Hyper Wall-Bounce & Auto-Shield (14s).',
+    perkDesc: '9-Lives Prismatic Cat · +185% Orbs, +25% Flow, Hyper Wall-Bounce & Auto-Shield (14s).',
     perks: {
       ...DEFAULT_PERKS,
       orbBonusPct: 185,
@@ -742,9 +769,22 @@ export const CHARACTER_AVATARS: CharacterAvatarDef[] = [
       permanentAirJump: true,
       dashCooldownMultiplier: 0.5,
       scoreMultiplier: 1.85,
+      flowGainMultiplier: 1.25,
     },
   },
 ];
+
+export const CHARACTER_AVATARS: CharacterAvatarDef[] = RAW_CHARACTER_AVATARS.map((av) => {
+  const tierMaxHp = av.tier === 'rainbow' ? 15 : av.tier === 'gold' ? 7 : 3;
+  return {
+    ...av,
+    maxHealth: tierMaxHp,
+    perks: {
+      ...av.perks,
+      maxHealth: tierMaxHp,
+    },
+  };
+});
 
 export const SECRET_AVATAR_IDS: string[] = CHARACTER_AVATARS.filter((c) => c.isSecret).map(
   (c) => c.id

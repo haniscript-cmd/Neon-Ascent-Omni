@@ -1,6 +1,6 @@
 {
-  "summary":  "Implementation plan for adding a quick Melody Mode switch (Curated vs. Random) on the Main Menu and a compact top-corner Melody Indicator in the Gameplay HUD showing the active mode and composed melody title.",
-  "updatedAt":  "2026-10-24T16:42:07.664547049Z",
+  "summary":  "طرح جامع ارتقای گیم‌پلی، رفع باگ‌های فیزیک و جت‌پک، بازطراحی سیستم پاورآپ‌ها، یکپارچه‌سازی پیانو رول DAW و ملودی‌ها، و دیالوگ باخت آرکید برای Neon Ascent: Omni.",
+  "updatedAt":  "2026-10-25T17:44:42.372254899Z",
   "requestFeedback":  true,
   "userFacing":  true
 }

@@ -30,6 +30,7 @@ import {
   PlatformEntity,
   PlatformArchetype,
   AerialHazardEntity,
+  HeartPickupEntity,
   HarmonicOrb,
   ParticlePool,
   computeFlowDynamicDifficulty,
@@ -83,6 +84,8 @@ import {
 import {
   CustomStage,
   DEFAULT_BUILT_IN_STAGES,
+  ALL_CURATED_MELODY_STAGES,
+  getUnifiedStageLibrary,
   compileStageForGameplay,
   parseMidiBufferToStage,
 } from './game/stages';
@@ -123,12 +126,12 @@ const NOTE_KEYS = Object.keys(NOTES_MAP);
 const ROMAN_NUMERALS = ['I', 'II', 'III', 'IV'] as const;
 
 const FINE_TUNE_CATEGORIES: Array<{ id: FineTuneCategory; label: string }> = [
-  { id: 'ALL', label: 'ALL (25)' },
+  { id: 'ALL', label: 'ALL (28)' },
   { id: 'FLOW', label: '⚡ FLOW (6)' },
   { id: 'PLATFORMS', label: '🧱 PLATFORMS (6)' },
   { id: 'FRAGILE', label: '💥 FRAGILE (4)' },
-  { id: 'ENEMIES', label: '👾 ENEMIES (5)' },
-  { id: 'PHYSICS', label: '🚀 PHYSICS & DASH (4)' },
+  { id: 'ENEMIES', label: '👾 ENEMIES (6)' },
+  { id: 'PHYSICS', label: '🚀 PHYSICS & DASH (6)' },
 ];
 
 const FINE_TUNE_SLIDERS: Array<{
@@ -165,12 +168,12 @@ const FINE_TUNE_SLIDERS: Array<{
   {
     key: 'difficultyRampSpeed',
     category: 'FLOW',
-    label: 'Difficulty Ramp Speed',
-    min: 0.2,
-    max: 3.0,
+    label: 'Altitude Width Narrowing Speed',
+    min: 0.1,
+    max: 10.0,
     step: 0.1,
     unit: 'x',
-    desc: 'How quickly higher Flow narrows platforms and adds obstacles',
+    desc: 'Wide-range multiplier for how fast platform width narrows as Altitude (M) climbs',
   },
   {
     key: 'biomePlatformDuration',
@@ -358,6 +361,16 @@ const FINE_TUNE_SLIDERS: Array<{
     unit: 'x',
     desc: 'Flow lost when hitting spikes or aerial drones without shield',
   },
+  {
+    key: 'heartSpawnRate',
+    category: 'ENEMIES',
+    label: 'Heart Pickup Spawn Rate',
+    min: 0.0,
+    max: 1.0,
+    step: 0.02,
+    unit: '',
+    desc: 'Rare mid-air Heart health recovery rate (always strictly lower than Aerial Drone rate)',
+  },
 
   // --- PHYSICS & DASH CATEGORY ---
   {
@@ -395,10 +408,30 @@ const FINE_TUNE_SLIDERS: Array<{
     category: 'PHYSICS',
     label: 'Base Jump Tempo (Gravity)',
     min: 65,
-    max: 150,
+    max: 250,
     step: 5,
     unit: ' BPM',
     desc: 'Baseline auto-bounce arc tempo in Standard mode',
+  },
+  {
+    key: 'minJumpBpm',
+    category: 'PHYSICS',
+    label: 'Minimum Jump Speed (Low Flow)',
+    min: 96,
+    max: 250,
+    step: 2,
+    unit: ' BPM',
+    desc: 'Starting Jump Speed (BPM) at Flow x0',
+  },
+  {
+    key: 'maxJumpBpm',
+    category: 'PHYSICS',
+    label: 'Maximum Jump Speed (Peak Flow)',
+    min: 96,
+    max: 250,
+    step: 2,
+    unit: ' BPM',
+    desc: 'Fastest Jump Speed (BPM) as Flow increases toward Peak Flow',
   },
 ];
 
@@ -435,12 +468,19 @@ function RightSidePowerUpSlotsHud({
 
         ctx.clearRect(0, 0, cvs.width, cvs.height);
 
-        const isReady = slot.phase === 'ready' && slot.usesLeft > 0;
-        const isActive = slot.phase === 'active';
-        const isDepleted = slot.phase === 'depleted' || (slot.usesLeft <= 0 && !isActive);
+        const isPassiveSlot = slot.activationMode === 'PASSIVE';
+        const isReady = isPassiveSlot ? true : slot.phase === 'ready' && slot.usesLeft > 0;
+        const isActive = isPassiveSlot ? true : slot.phase === 'active';
+        const isDepleted =
+          !isPassiveSlot && (slot.phase === 'depleted' || (slot.usesLeft <= 0 && !isActive));
 
-        const ratio = isActive
-          ? Math.max(0, Math.min(1, slot.activeRemainingSec / Math.max(0.2, slot.durationSec)))
+        const isShieldNoTimer = slot.id === 'combo_shield';
+        const ratio = isPassiveSlot
+          ? 1
+          : isActive
+          ? isShieldNoTimer
+            ? 1
+            : Math.max(0, Math.min(1, slot.activeRemainingSec / Math.max(0.2, slot.durationSec)))
           : isReady
           ? 1
           : isDepleted
@@ -448,13 +488,17 @@ function RightSidePowerUpSlotsHud({
           : Math.max(0, Math.min(1, slot.chargeProgress));
 
         const baseCol = slot.accentColor || '#00ff88';
-        const fillCol = isActive
+        const fillCol = isPassiveSlot
+          ? withAlpha(baseCol, 0.34 + 0.1 * Math.sin(t * 3.5 + idx))
+          : isActive
           ? withAlpha(lighten(baseCol, 0.25), 0.72)
           : isReady
           ? withAlpha(baseCol, 0.52 + 0.14 * Math.sin(t * 7))
           : withAlpha(baseCol, 0.32);
         const topEdgeCol = isActive ? '#ffffff' : lighten(baseCol, 0.45);
-        const borderCol = isActive
+        const borderCol = isPassiveSlot
+          ? baseCol
+          : isActive
           ? '#ffffff'
           : isReady
           ? baseCol
@@ -464,9 +508,9 @@ function RightSidePowerUpSlotsHud({
 
         drawCircularPixelGauge(
           ctx,
-          22,
-          22,
-          19,
+          32,
+          32,
+          isPassiveSlot ? 14 : 19,
           ratio,
           fillCol,
           topEdgeCol,
@@ -477,23 +521,31 @@ function RightSidePowerUpSlotsHud({
           3
         );
 
-        // Draw Center Icon
+        // Draw Center Icon (smaller for PASSIVE slots so Active vs Passive is immediately distinguishable)
         ctx.save();
         ctx.fillStyle = isDepleted ? 'rgba(148, 163, 184, 0.45)' : '#ffffff';
         ctx.shadowBlur = isReady || isActive ? 6 : 3;
         ctx.shadowColor = isReady || isActive ? baseCol : '#000000';
-        ctx.font = "12px 'Press Start 2P', monospace";
+        ctx.font = isPassiveSlot
+          ? "9px 'Press Start 2P', monospace"
+          : "12px 'Press Start 2P', monospace";
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(slot.icon, 22, 23);
+        ctx.fillText(slot.icon, 32, 33);
         ctx.restore();
 
         const badge = badgeRefs.current[idx];
         if (badge) {
-          badge.textContent = isActive
-            ? `${slot.activeRemainingSec.toFixed(1)}s`
+          badge.textContent = isPassiveSlot
+            ? 'PASS'
+            : isActive
+            ? isShieldNoTimer
+              ? 'ON'
+              : `${slot.activeRemainingSec.toFixed(1)}s`
             : `x${slot.usesLeft}`;
-          badge.style.color = isActive
+          badge.style.color = isPassiveSlot
+            ? '#67e8f9'
+            : isActive
             ? '#ffffff'
             : isReady
             ? '#fde047'
@@ -504,7 +556,7 @@ function RightSidePowerUpSlotsHud({
         }
         const btn = btnRefs.current[idx];
         if (btn) {
-          btn.style.opacity = isDepleted ? '0.45' : '1';
+          btn.style.opacity = isDepleted ? '0.45' : isPassiveSlot ? '0.92' : '1';
         }
       }
     };
@@ -518,10 +570,11 @@ function RightSidePowerUpSlotsHud({
     <div
       id="right-powerup-slots"
       data-testid="right-powerup-slots"
-      className="pointer-events-auto absolute right-2.5 top-1/2 -translate-y-1/2 flex flex-col items-center gap-2.5 z-20"
+      className="pointer-events-auto absolute right-2.5 top-1/2 -translate-y-1/2 flex flex-col items-center gap-2 z-20"
     >
       {Array.from({ length: slotsCount }, (_, idx) => {
         const slot = getSlotRuntime(idx);
+        const isPassive = slot?.activationMode === 'PASSIVE';
         return (
           <button
             key={idx}
@@ -530,38 +583,55 @@ function RightSidePowerUpSlotsHud({
             }}
             type="button"
             data-testid={`powerup-slot-btn-${idx}`}
-            aria-label={slot ? `Activate ${slot.name}` : `Power-Up Slot ${idx + 1}`}
+            data-slot-mode={isPassive ? 'PASSIVE' : 'ACTIVE'}
+            aria-label={
+              slot
+                ? isPassive
+                  ? `Passive ${slot.name}`
+                  : `Activate ${slot.name}`
+                : `Power-Up Slot ${idx + 1}`
+            }
             title={
               slot
-                ? `${slot.name} (Lv.${slot.level}) — Click or press [${idx + 1}] when full`
+                ? isPassive
+                  ? `${slot.name} (Lv.${slot.level} PASSIVE — Always Active)`
+                  : `${slot.name} (Lv.${slot.level}) — Click or press [${idx + 1}] when full`
                 : ''
             }
             onTouchStart={(e) => {
               e.preventDefault();
               e.stopPropagation();
-              onActivateSlot(idx);
+              if (!isPassive) onActivateSlot(idx);
             }}
             onClick={(e) => {
               e.stopPropagation();
-              onActivateSlot(idx);
+              if (!isPassive) onActivateSlot(idx);
             }}
-            className="relative w-11 h-11 rounded-full flex items-center justify-center transition-transform active:scale-90 cursor-pointer"
+            className={`relative rounded-full flex items-center justify-center transition-transform ${
+              isPassive
+                ? 'w-8 h-8 cursor-default opacity-95'
+                : 'w-11 h-11 active:scale-90 cursor-pointer'
+            }`}
           >
             <canvas
               ref={(el) => {
                 canvasRefs.current[idx] = el;
               }}
-              width={44}
-              height={44}
-              className="w-11 h-11 block pointer-events-none"
+              width={64}
+              height={64}
+              className={
+                isPassive
+                  ? 'w-12 h-12 -m-2 block pointer-events-none'
+                  : 'w-16 h-16 -m-2.5 block pointer-events-none'
+              }
             />
             <span
               ref={(el) => {
                 badgeRefs.current[idx] = el;
               }}
-              className="pointer-events-none absolute -bottom-1 -right-0.5 px-1 py-0.2 bg-slate-950/95 border border-slate-700 text-[6px] text-amber-300 leading-none"
+              className="pointer-events-none absolute -bottom-1 -right-0.5 px-1 py-0.2 bg-slate-950/95 border border-slate-700 text-[5px] text-amber-300 leading-none"
             >
-              x{slot?.usesLeft ?? 0}
+              {isPassive ? 'PASS' : `x${slot?.usesLeft ?? 0}`}
             </span>
             <span className="pointer-events-none absolute -top-1 -left-0.5 px-1 py-0.2 bg-slate-950/90 border border-slate-800 text-[5px] text-cyan-300 leading-none">
               L{slot?.level ?? 1}
@@ -629,8 +699,8 @@ function CircularPixelDashButton({
 
       drawCircularPixelGauge(
         ctx,
-        27,
-        27,
+        38,
+        38,
         24,
         ratio,
         fillCol,
@@ -650,7 +720,7 @@ function CircularPixelDashButton({
       ctx.font = "16px 'Press Start 2P', monospace";
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText('⚡', 27, 28);
+      ctx.fillText('⚡', 38, 39);
       ctx.restore();
     };
     animId = requestAnimationFrame(render);
@@ -672,13 +742,13 @@ function CircularPixelDashButton({
         e.stopPropagation();
         onTriggerDash();
       }}
-      className="pointer-events-auto w-[54px] h-[54px] rounded-full flex items-center justify-center transition-transform active:scale-90 cursor-pointer"
+      className="pointer-events-auto w-[54px] h-[54px] rounded-full flex items-center justify-center transition-transform active:scale-90 cursor-pointer overflow-visible"
     >
       <canvas
         ref={cvsRef}
-        width={54}
-        height={54}
-        className="w-[54px] h-[54px] block pointer-events-none"
+        width={76}
+        height={76}
+        className="w-[76px] h-[76px] -m-[11px] block pointer-events-none"
       />
     </button>
   );
@@ -699,6 +769,8 @@ export default function App() {
   const rankBadgeDomRef = useRef<HTMLDivElement | null>(null);
   const biomeTagDomRef = useRef<HTMLDivElement | null>(null);
   const melodyHudDomRef = useRef<HTMLDivElement | null>(null);
+  const hpDomRef = useRef<HTMLSpanElement | null>(null);
+  const hpBarDomRef = useRef<HTMLDivElement | null>(null);
 
   const [screen, setScreen] = useState<ScreenState>('title');
   const [storeTab, setStoreTab] = useState<'powerups' | 'characters' | 'banks' | 'scales'>('powerups');
@@ -710,6 +782,12 @@ export default function App() {
   const [storeOrbInput, setStoreOrbInput] = useState<string>('');
   const [devBundleStatus, setDevBundleStatus] = useState<string>('');
   const [tutorialStep, setTutorialStep] = useState<0 | 1 | 2 | 3>(0);
+  const [showLevelRoadmapModal, setShowLevelRoadmapModal] = useState<boolean>(false);
+  const [gameOverAnimElapsed, setGameOverAnimElapsed] = useState<number>(0);
+  const menuBeatInfoRef = useRef<{ phase: number; beatCount: number }>({
+    phase: 0,
+    beatCount: 0,
+  });
   const [deferredInstallPrompt, setDeferredInstallPrompt] =
     useState<BeforeInstallPromptEvent | null>(null);
 
@@ -816,15 +894,13 @@ export default function App() {
       if (saved) {
         const parsed: CustomStage[] = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          const existingIds = new Set(parsed.map((s) => s.id));
-          const missingDefaults = DEFAULT_BUILT_IN_STAGES.filter((d) => !existingIds.has(d.id));
-          return [...parsed, ...missingDefaults];
+          return getUnifiedStageLibrary(parsed);
         }
       }
     } catch {
       // ignore
     }
-    return DEFAULT_BUILT_IN_STAGES;
+    return getUnifiedStageLibrary(DEFAULT_BUILT_IN_STAGES);
   });
 
   const [activeStageId, setActiveStageId] = useState<string>(
@@ -854,6 +930,7 @@ export default function App() {
     xpGained: number;
     prevLevel: number;
     newLevel: number;
+    prevRatio: number;
     progressRatio: number;
     xpIntoLevel: number;
     xpNeededForNext: number;
@@ -867,11 +944,12 @@ export default function App() {
     orbsCollected: 0,
     rank: 'D',
     xpGained: 0,
-    prevLevel: 1,
-    newLevel: 1,
+    prevLevel: 0,
+    newLevel: 0,
+    prevRatio: 0,
     progressRatio: 0,
     xpIntoLevel: 0,
-    xpNeededForNext: 120,
+    xpNeededForNext: 1500,
     levelRewards: [],
   });
 
@@ -894,16 +972,22 @@ export default function App() {
     activeUntil: 0,
   });
 
+  const lastPreviewedBankIdRef = useRef<string | null>(null);
+
   const touchDragRef = useRef<{
     active: boolean;
     touchId: number;
     anchorX: number;
     lastX: number;
+    lastTimeMs: number;
+    speedBoost: number;
   }>({
     active: false,
     touchId: -1,
     anchorX: 0,
     lastX: 0,
+    lastTimeMs: 0,
+    speedBoost: 1.5,
   });
 
   const simRef = useRef<{
@@ -933,6 +1017,7 @@ export default function App() {
     curatedMelodyStepCursor: number;
     menuMelodyCursor: number;
     menuMelodyTimer: number;
+    menuMelodyBeatCount: number;
     fragileStreakRemaining: number;
     biomeDissolve: BiomeDissolveState;
     dyingSequence: DyingSequenceState;
@@ -965,9 +1050,13 @@ export default function App() {
     jetpackGlitters: GlitterParticle[];
     jetpackNoteTimer: number;
     jetpackStepCounter: number;
+    platformsClimbedCount: number;
     player: PlayerRenderState & {
+      hp: number;
+      maxHp: number;
       airJumpsLeft: number;
       wallDashGraceTimer: number;
+      wallBounceCooldownPenaltyActive: boolean;
     };
     inputs: {
       left: boolean;
@@ -979,6 +1068,7 @@ export default function App() {
     };
     platforms: PlatformEntity[];
     aerialHazards: AerialHazardEntity[];
+    heartPickups: HeartPickupEntity[];
     orbs: HarmonicOrb[];
     particles: ParticlePool;
     texts: FloatingTextItem[];
@@ -1013,6 +1103,7 @@ export default function App() {
     curatedMelodyStepCursor: 0,
     menuMelodyCursor: 0,
     menuMelodyTimer: 0.65,
+    menuMelodyBeatCount: 0,
     fragileStreakRemaining: 0,
     biomeDissolve: {
       active: false,
@@ -1061,6 +1152,7 @@ export default function App() {
     jetpackGlitters: [],
     jetpackNoteTimer: 0,
     jetpackStepCounter: 0,
+    platformsClimbedCount: 0,
     player: {
       x: 288,
       y: 740,
@@ -1082,8 +1174,11 @@ export default function App() {
       hasShield: false,
       doubleJumpReady: false,
       damageGlitchTimer: 0,
+      hp: 3,
+      maxHp: 3,
       airJumpsLeft: 0,
       wallDashGraceTimer: 0,
+      wallBounceCooldownPenaltyActive: false,
       trail: [],
       scarfNodes: Array.from({ length: 6 }, () => ({ x: 300, y: 750 })),
     },
@@ -1097,6 +1192,7 @@ export default function App() {
     },
     platforms: [],
     aerialHazards: [],
+    heartPickups: [],
     orbs: [],
     particles: new ParticlePool(320),
     texts: Array.from({ length: 12 }, () => ({
@@ -1132,6 +1228,25 @@ export default function App() {
     simRef.current.state = screen;
     simRef.current.tutorialActive = tutorialStep > 0;
   }, [screen, tutorialStep]);
+
+  // Choreographed Arcade Game Over Timeline Timer (0.0s -> 2.0s, skippable via click/Enter/Space)
+  useEffect(() => {
+    if (screen !== 'gameover') {
+      setGameOverAnimElapsed(0);
+      return;
+    }
+    let animId = 0;
+    const startTs = performance.now();
+    const tick = (now: number) => {
+      const elapsed = (now - startTs) / 1000;
+      setGameOverAnimElapsed((prev) => (prev >= 9.0 ? prev : elapsed));
+      if (elapsed < 3.0) {
+        animId = requestAnimationFrame(tick);
+      }
+    };
+    animId = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(animId);
+  }, [screen]);
 
   useEffect(() => {
     simRef.current.cfg = cfg;
@@ -1356,9 +1471,6 @@ export default function App() {
       if (picked.id === 'combo_shield') {
         sim.player.hasShield = true;
       }
-      if (picked.id === 'double_jump') {
-        sim.player.airJumpsLeft = Math.max(sim.player.airJumpsLeft, 1);
-      }
       if (!sim.isMuted) {
         audioRef.current.sfxLevelUp(biome, sim.cfg);
       }
@@ -1419,14 +1531,17 @@ export default function App() {
       const sim = simRef.current;
       if (sim.state !== 'playing' || sim.dyingSequence.active) return;
       const slot = sim.equippedSlotRuntimes[slotIdx];
-      if (!slot || slot.phase !== 'ready' || slot.usesLeft <= 0) return;
+      if (!slot || slot.activationMode === 'PASSIVE' || slot.phase !== 'ready' || slot.usesLeft <= 0) return;
 
       const biome = getScaleByIndex(sim.activeBiomeIdx, sim.cfg);
       const charPerks = getCharacterById(sim.cfg.playerShape).perks;
-      const finalDurationSec = Math.max(
-        1.4,
-        Number((slot.durationSec * charPerks.powerUpDurationMultiplier).toFixed(2))
-      );
+      const isShieldNoTimer = slot.id === 'combo_shield';
+      const finalDurationSec = isShieldNoTimer
+        ? 9999
+        : Math.max(
+            1.4,
+            Number((slot.durationSec * charPerks.powerUpDurationMultiplier).toFixed(2))
+          );
 
       slot.usesLeft = Math.max(0, slot.usesLeft - 1);
       slot.phase = 'active';
@@ -1451,9 +1566,27 @@ export default function App() {
       const p = sim.player;
       if (slot.id === 'combo_shield') {
         p.hasShield = true;
-      } else if (slot.id === 'double_jump') {
-        p.airJumpsLeft = Math.max(p.airJumpsLeft, Math.round(slot.powerValue));
-        p.vy = Math.min(p.vy, -580);
+      } else if (slot.id === 'nano_heal') {
+        const healAmt = Math.max(2, Math.round(slot.powerValue));
+        p.hp = Math.min(p.maxHp, p.hp + healAmt);
+        spawnShockwave(p.x + p.w * 0.5, p.y + p.h * 0.5, '#fb7185', 145);
+        sim.particles.burst(p.x + p.w * 0.5, p.y + p.h * 0.5, '#fb7185', 18, 6, 'spark');
+        // Clear nearby aerial drones within 210px on heal pulse!
+        for (let i = 0; i < sim.aerialHazards.length; i++) {
+          const ah = sim.aerialHazards[i];
+          if (ah.active && Math.hypot(ah.x - (p.x + 12), ah.y - (p.y + 12)) <= 210) {
+            ah.active = false;
+            sim.particles.burst(ah.x, ah.y, '#fb7185', 12, 5, 'spark');
+          }
+        }
+        spawnFloatingText(
+          `+${healAmt} HP ♥ (${p.hp}/${p.maxHp})`,
+          300,
+          p.y - 48,
+          '#fb7185',
+          1.05,
+          'VITALITY PULSE'
+        );
       } else if (slot.id === 'orb_magnet') {
         // Immediately magnet-lock all visible orbs + spawn 4 harmonic bonus orbs around the player!
         for (let i = 0; i < sim.orbs.length; i++) {
@@ -1618,17 +1751,56 @@ export default function App() {
           : [];
 
       while (lastY > minY - Math.max(420, sim.viewH * 0.55)) {
-        const diff = computeFlowDynamicDifficulty(sim.flowEnergy, fine);
+        const currentStepAltitudeMeters = Math.floor(Math.abs(Math.min(0, lastY - 782)) / 100);
+        const diff = computeFlowDynamicDifficulty(
+          sim.flowEnergy,
+          fine,
+          currentStepAltitudeMeters
+        );
         sim.platformsGeneratedCount++;
         sim.biomeStepsGenerated++;
 
-        const biomeDurationSteps = Math.max(18, Math.round(fine.biomePlatformDuration ?? 55));
-        const firstSeqTriggerStep = Math.max(6, Math.round(biomeDurationSteps * 0.34));
-        const secondSeqTriggerStep = Math.max(firstSeqTriggerStep + 14, Math.round(biomeDurationSteps * 0.72));
+        const biomeDurationSteps = Math.max(22, Math.round(fine.biomePlatformDuration ?? 55));
+        const cooldownCfgSteps = Math.max(4, Math.round(fine.chordGateCooldownSteps ?? 12));
+        const firstSeqTriggerStep = Math.max(5, Math.round(biomeDurationSteps * 0.26));
+        const minGapSteps = Math.max(14, Math.round(cooldownCfgSteps * 1.25) + 10);
+        const secondSeqTriggerStep = Math.max(
+          firstSeqTriggerStep + minGapSteps,
+          Math.round(biomeDurationSteps * 0.68)
+        );
+
+        let stageStepData = undefined;
+        let stageNoteKin = undefined;
+        let stepYForThisGap = diff.stepY;
+
+        if (isStageMode && sim.activeStage && compiledStageSteps.length > 0) {
+          const prevDurKin = computeNoteDurationKinematics(
+            sim.activeStage.bpm,
+            sim.nextStagePlatformDurRatio || 1.0
+          );
+          stepYForThisGap = prevDurKin.stepY;
+
+          stageStepData =
+            compiledStageSteps[sim.stageStepCursor % compiledStageSteps.length];
+          sim.stageStepCursor++;
+          stageNoteKin = computeNoteDurationKinematics(
+            sim.activeStage.bpm,
+            stageStepData.durationBeats
+          );
+          sim.nextStagePlatformDurRatio = stageNoteKin.beatDurationRatio;
+
+          if (stageStepData.isChordGateTrigger && sim.chordGatePlan.nextGateStepIndex < 0) {
+            sim.chordGatePlan.nextGateStepIndex = sim.platformsGeneratedCount;
+            sim.chordGatePlan.nextGateChordIdx = 0;
+            sim.chordGatePlan.progressionVariant = 0;
+            sim.chordGatePlan.prevGatePlatId = undefined;
+            sim.chordGatePlan.sequenceNumberInBiome = 1;
+          }
+        }
 
         // 2 Chord Gate sequences per biome:
-        // - Sequence 1 spawns around the middle of the biome (~34% of biomePlatformDuration)
-        // - Sequence 2 spawns in the second half (~72% of biomePlatformDuration), and completing its 4th gate shifts to the next biome!
+        // - Sequence 1 spawns around the middle-early part of the biome
+        // - Sequence 2 spawns after `minGapSteps` (synced with `chordGateCooldownSteps`), and completing its 4th gate shifts to the next biome!
         if (!isStageMode && sim.chordGatePlan.nextGateStepIndex < 0) {
           if (
             sim.chordSequencesSpawnedInBiome === 0 &&
@@ -1671,45 +1843,26 @@ export default function App() {
         }
 
         const isChordGateStep =
-          !isStageMode &&
           sim.chordGatePlan.nextGateStepIndex === sim.platformsGeneratedCount;
 
         const widthJitter = isChordGateStep ? 1.08 : 0.92 + Math.random() * 0.16;
         const w = Math.max(
-          52,
+          48,
           Math.round((diff.targetPlatformWidth + charPerks.platformWidthBonusPx) * widthJitter)
         );
 
-        let stepYForThisGap = diff.stepY;
-        let stageStepData = undefined;
-        let stageNoteKin = undefined;
-
-        if (isStageMode && sim.activeStage && compiledStageSteps.length > 0) {
-          const prevDurKin = computeNoteDurationKinematics(
-            sim.activeStage.bpm,
-            sim.nextStagePlatformDurRatio || 1.0
-          );
-          stepYForThisGap = prevDurKin.stepY;
-
-          stageStepData =
-            compiledStageSteps[sim.stageStepCursor % compiledStageSteps.length];
-          sim.stageStepCursor++;
-          stageNoteKin = computeNoteDurationKinematics(
-            sim.activeStage.bpm,
-            stageStepData.durationBeats
-          );
-          sim.nextStagePlatformDurRatio = stageNoteKin.beatDurationRatio;
-        }
+        const prevPlatCenterX = prevCenterX;
+        const prevPlatY = lastY;
 
         const placed = computeScatteredPlatformPlacement(
           prevCenterX,
           lastY,
           stepYForThisGap,
           w,
-          sim.flowEnergy,
+          sim.flowEnergy + (isChordGateStep ? Math.min(10, sim.flowEnergy * 0.35) : 0),
           sim.nextPlatformId,
           fine,
-          isStageMode
+          isStageMode && !isChordGateStep
         );
         const x = placed.x;
         lastY = placed.y;
@@ -1813,16 +1966,27 @@ export default function App() {
           biome.scale[noteScaleIdx % Math.max(1, biome.scale.length)] ||
           261.63;
 
+        // Multi-Spike Clusters at higher Flow (2, 3, 4, 5, 6, up to 7 spikes)
+        const spikeCount =
+          2 + Math.floor(Math.random() * Math.max(1, (diff.maxSpikeCount || 2) - 1));
+        const hazardWidth = spikeCount * 9;
         const hasHazard =
           type === 'normal' &&
-          w >= 104 &&
-          altitudePx > 1100 &&
+          w >= Math.max(64, hazardWidth + 24) &&
+          altitudePx > 900 &&
           Math.random() < diff.platformHazardChance;
 
         const moveSpeedMult = Math.max(0.3, fine.enemyMoveSpeedMult ?? 1.35);
         const moveRangeMult = Math.max(0.3, fine.enemyMoveRangeMult ?? 1.3);
         const movePlatSpeed = Number((1.15 * moveSpeedMult).toFixed(2));
         const movePlatHalfRange = Math.round(70 * moveRangeMult);
+
+        // Moving + Fragile platforms: allow `crumble` (and `disguised_fragile`) platforms to also move horizontally at higher Flow!
+        const isMovingFragile =
+          type === 'crumble' &&
+          altitudePx > 750 &&
+          Math.random() < diff.movingFragileChance;
+        const shouldMoveHorizontally = type === 'moving' || isMovingFragile;
 
         const platId = sim.nextPlatformId++;
         const plat: PlatformEntity = {
@@ -1834,7 +1998,11 @@ export default function App() {
           centerX: prevCenterX,
           h: 14,
           type,
-          vx: type === 'moving' ? (Math.random() > 0.5 ? movePlatSpeed : -movePlatSpeed) : 0,
+          vx: shouldMoveHorizontally
+            ? Math.random() > 0.5
+              ? movePlatSpeed
+              : -movePlatSpeed
+            : 0,
           vy: 0,
           minX: Math.max(14, x - movePlatHalfRange),
           maxX: Math.min(586 - w, x + movePlatHalfRange),
@@ -1848,8 +2016,11 @@ export default function App() {
           respawnTimer: 0,
           phaseSolid: true,
           hasHazard,
-          hazardXOffset: hasHazard ? Math.round(w * 0.38) : 0,
-          hazardWidth: hasHazard ? 20 : 0,
+          hazardXOffset: hasHazard
+            ? Math.max(8, Math.min(w - hazardWidth - 8, Math.round((w - hazardWidth) * (0.28 + Math.random() * 0.44))))
+            : 0,
+          hazardWidth: hasHazard ? hazardWidth : 0,
+          spikeCount: hasHazard ? spikeCount : undefined,
           chordGateIndex,
           chordProgressionVariant,
           chordNameOverride,
@@ -1887,7 +2058,9 @@ export default function App() {
               | 1
               | 2
               | 3;
-            sim.chordGatePlan.nextGateStepIndex = sim.platformsGeneratedCount + 4;
+            // Scatter Chord Gate steps wider apart as Flow increases so gates aren't stacked right after each other
+            const gateStepGap = 4 + Math.min(4, Math.floor(sim.flowEnergy / 7));
+            sim.chordGatePlan.nextGateStepIndex = sim.platformsGeneratedCount + gateStepGap;
           } else {
             sim.chordGatePlan.nextGateStepIndex = -1;
             sim.chordGatePlan.nextGateChordIdx = 0;
@@ -1904,16 +2077,20 @@ export default function App() {
 
         sim.platforms.push(plat);
 
+        // Place Aerial Drone Enemies directly in the player's navigation trajectory between `prevPlatCenterX` and `prevCenterX`!
         if (
           !isChordGateStep &&
-          altitudePx > 950 &&
+          altitudePx > 750 &&
           Math.random() < diff.aerialHazardChance
         ) {
-          const hazardX =
-            prevCenterX < 300
-              ? Math.round(330 + Math.random() * 210)
-              : Math.round(60 + Math.random() * 210);
-          const hazardY = Math.round(lastY - stepYForThisGap * 0.52);
+          const navMidX = (prevPlatCenterX + prevCenterX) * 0.5;
+          const hazardX = Math.max(
+            42,
+            Math.min(558, Math.round(navMidX + (Math.random() - 0.5) * 44))
+          );
+          const hazardY = Math.round(
+            lastY + (prevPlatY - lastY) * (0.36 + Math.random() * 0.26)
+          );
           sim.aerialHazards.push({
             id: sim.nextPlatformId++,
             x: hazardX,
@@ -1927,18 +2104,76 @@ export default function App() {
           });
         }
 
+        // Spawn rare mid-air Heart Health Pickups (`diff.heartPickupChance` is strictly < `diff.aerialHazardChance`)
+        if (
+          !isChordGateStep &&
+          altitudePx > 850 &&
+          Math.random() < diff.heartPickupChance
+        ) {
+          const heartX = Math.max(
+            48,
+            Math.min(
+              552,
+              Math.round((prevPlatCenterX + prevCenterX) * 0.5 + (Math.random() - 0.5) * 140)
+            )
+          );
+          const heartY = Math.round(lastY - 36 - Math.random() * 54);
+          sim.heartPickups.push({
+            id: sim.nextPlatformId++,
+            x: heartX,
+            y: heartY,
+            baseY: heartY,
+            radius: 9,
+            collected: false,
+            healAmount: 1,
+            phase: Math.random() * Math.PI * 2,
+          });
+        }
+
+        // Diverse Aerial, Gap-Arc, and Wall-Bounce Orb Placement at varied heights!
         const orbChance = Math.max(0, Math.min(1, fine.orbSpawnRate));
         if (Math.random() < orbChance) {
           const orbFreq =
             curatedStepOut?.tripletFreqs?.[1] ||
             biome.scale[Math.floor(Math.random() * biome.scale.length)];
           const spread = Math.max(0.1, Math.min(1.0, fine.orbScatterSpread));
-          const offsetRatio = 0.5 + (Math.random() - 0.5) * spread;
+          const placementRoll = Math.random();
+          let orbX = prevCenterX;
+          let orbY = lastY - 40;
+
+          if (placementRoll < 0.36) {
+            // 1) Mid-air jump arc between previous platform and current platform
+            const arcT = 0.32 + Math.random() * 0.38;
+            orbX = Math.max(
+              38,
+              Math.min(
+                562,
+                prevPlatCenterX + (prevCenterX - prevPlatCenterX) * arcT + (Math.random() - 0.5) * 42 * spread
+              )
+            );
+            orbY = Math.round(
+              lastY + (prevPlatY - lastY) * (0.25 + Math.random() * 0.45) - (28 + Math.random() * 44)
+            );
+          } else if (placementRoll < 0.6) {
+            // 2) Far off-platform / Wall-Dash & Wall-Bounce zone near left or right arena wall
+            const nearLeftWall =
+              prevCenterX < 260 ? true : prevCenterX > 340 ? false : Math.random() < 0.5;
+            orbX = nearLeftWall
+              ? Math.round(30 + Math.random() * 34)
+              : Math.round(536 + Math.random() * 34);
+            orbY = Math.round(lastY - 48 - Math.random() * 52);
+          } else {
+            // 3) Varied high/low aerial elevation around platform corridor
+            const offsetRatio = 0.5 + (Math.random() - 0.5) * spread * 1.45;
+            orbX = Math.max(36, Math.min(564, x + w * offsetRatio));
+            orbY = Math.round(lastY - 32 - Math.random() * 68);
+          }
+
           sim.orbs.push({
             id: sim.nextPlatformId++,
-            x: x + w * Math.max(0.12, Math.min(0.88, offsetRatio)),
-            y: lastY - 38 - Math.random() * 12,
-            baseY: lastY - 42,
+            x: orbX,
+            y: orbY,
+            baseY: orbY,
             radius: 6,
             collected: false,
             freq: orbFreq,
@@ -2099,20 +2334,39 @@ export default function App() {
         sequenceNumberInBiome: 1,
       };
 
-      // Initialize Equipped ACTIVE Power-Up Loadout Slots (PASSIVE items apply automatically without needing a button!)
+      // Initialize Equipped Power-Up Loadout Slots (ACTIVE slots + smaller PASSIVE slots in gameplay HUD!)
       const maxSlots = computeUnlockedPowerUpSlots(stats.highScore, sim.cfg.playerLevel);
       const equippedIds = (
         sim.cfg.equippedPowerUps && sim.cfg.equippedPowerUps.length > 0
           ? sim.cfg.equippedPowerUps
-          : (['orb_magnet', 'combo_shield', 'jetpack_white'] as PowerUpItemId[])
+          : (['combo_shield'] as PowerUpItemId[])
       ).slice(0, maxSlots);
 
       sim.equippedSlotRuntimes = equippedIds
         .map((id, idx): EquippedPowerUpSlotRuntime | null => {
           const item = getPowerUpItemById(id);
-          if (!item || item.activationMode === 'PASSIVE') return null;
+          if (!item) return null;
           const lv = Math.max(1, Number(sim.cfg.powerUpLevels?.[id] || 1));
           const st = getPowerUpLevelStats(id, lv);
+          if (item.activationMode === 'PASSIVE') {
+            return {
+              id: item.id,
+              name: item.name,
+              icon: item.icon,
+              accentColor: item.accentColor,
+              activationMode: 'PASSIVE',
+              level: lv,
+              usesLeft: 99,
+              maxUses: 99,
+              phase: 'active',
+              chargeProgress: 1,
+              chargeTimeSec: 0,
+              cooldownSec: 0,
+              durationSec: 9999,
+              activeRemainingSec: 9999,
+              powerValue: st.powerValue,
+            };
+          }
           const initialChargeTime = Math.max(
             2.0,
             Number((st.cooldownSec * 0.34 + idx * 0.5).toFixed(2))
@@ -2140,7 +2394,12 @@ export default function App() {
       sim.jetpackGlitters = [];
       sim.jetpackNoteTimer = 0;
       sim.jetpackStepCounter = 0;
+      sim.platformsClimbedCount = 0;
+      sim.heartPickups = [];
 
+      const totalMaxHp = Math.max(1, (charPerks.maxHealth || 3) + dashMods.bonusMaxHp);
+      sim.player.maxHp = totalMaxHp;
+      sim.player.hp = totalMaxHp;
       sim.player.x = 288;
       sim.player.y = 782 - sim.player.h;
       sim.player.vx = 0;
@@ -2159,6 +2418,7 @@ export default function App() {
       sim.player.damageGlitchTimer = 0;
       sim.player.airJumpsLeft = charPerks.permanentAirJump ? 1 : 0;
       sim.player.wallDashGraceTimer = 0;
+      sim.player.wallBounceCooldownPenaltyActive = false;
       sim.player.trail = [];
       sim.player.scarfNodes = Array.from({ length: 6 }, () => ({ x: 300, y: 760 }));
 
@@ -2229,10 +2489,10 @@ export default function App() {
       sim.platforms = [
         {
           id: 1,
-          x: 180,
+          x: 12,
           y: 770,
-          w: 240,
-          targetW: 240,
+          w: 576,
+          targetW: 576,
           centerX: 300,
           h: 16,
           type: 'normal',
@@ -2338,6 +2598,18 @@ export default function App() {
         return;
       }
 
+      if (sim.state === 'gameover') {
+        if (e.code === 'Enter' || e.code === 'Space') {
+          e.preventDefault();
+          setGameOverAnimElapsed((prev) => {
+            if (prev < 1.85) return 9.9;
+            startNewRun(sim.mode, undefined, true, sim.activeStage);
+            return prev;
+          });
+          return;
+        }
+      }
+
       if (e.code === 'Escape' || e.code === 'KeyP') {
         if (sim.state === 'playing') {
           audioRef.current.stopChoir();
@@ -2419,15 +2691,15 @@ export default function App() {
       // Fast 1-frame responsiveness with minimal anti-jitter blend
       smoothedRawTilt = smoothedRawTilt * 0.2 + rawG * 0.8;
 
-      const deadzoneG = 0.14; // ~0.8 deg micro-deadzone
-      const maxG = 2.15; // Full speed at ~12.5 deg comfortable wrist tilt
+      const deadzoneG = 0.12; // ~0.7 deg micro-deadzone
+      const maxG = 1.95; // Full arena-crossing speed at ~11.5 deg wrist tilt
       if (Math.abs(smoothedRawTilt) <= deadzoneG) {
         sim.inputs.tiltX = 0;
       } else {
         const sign = smoothedRawTilt > 0 ? 1 : -1;
         const linear = Math.min(1, (Math.abs(smoothedRawTilt) - deadzoneG) / (maxG - deadzoneG));
-        // Non-linear curve boosts small-to-medium tilt angles for instant response
-        const curved = Math.pow(linear, 0.72);
+        // Direct proportional response with responsive low-angle curve so maximum tilt reaches full edge-to-edge speed
+        const curved = Math.pow(linear, 0.78);
         sim.inputs.tiltX = Number((sign * curved).toFixed(3));
       }
     };
@@ -2450,14 +2722,14 @@ export default function App() {
       if (angle === 90 && e.beta !== null) rawDeg = e.beta;
       else if (angle === -90 || angle === 270) rawDeg = -(e.beta ?? 0);
 
-      const deadzoneDeg = 0.8;
-      const maxTiltDeg = 12.0;
+      const deadzoneDeg = 0.7;
+      const maxTiltDeg = 11.0;
       if (Math.abs(rawDeg) <= deadzoneDeg) {
         sim.inputs.tiltX = 0;
       } else {
         const sign = rawDeg > 0 ? 1 : -1;
         const linear = Math.min(1, (Math.abs(rawDeg) - deadzoneDeg) / (maxTiltDeg - deadzoneDeg));
-        const curved = Math.pow(linear, 0.72);
+        const curved = Math.pow(linear, 0.78);
         sim.inputs.tiltX = Number((sign * curved).toFixed(3));
       }
     };
@@ -2574,14 +2846,16 @@ export default function App() {
       }
 
       // Continuous Muffled + Lush Reverb Background Melody on Menu, Pause, and Game Over screens!
+      const menuBeatSec = 0.84;
       if (
         sim.state !== 'playing' &&
         sim.state !== 'stage_creator' &&
         sim.state !== 'sequencer'
       ) {
         sim.menuMelodyTimer += dt;
-        if (sim.menuMelodyTimer >= 0.84) {
-          sim.menuMelodyTimer = 0;
+        if (sim.menuMelodyTimer >= menuBeatSec) {
+          sim.menuMelodyTimer -= menuBeatSec;
+          sim.menuMelodyBeatCount = (sim.menuMelodyBeatCount || 0) + 1;
           if (!sim.isMuted && audioRef.current.ctx && audioRef.current.ctx.state === 'running') {
             const activeMel = sim.activeCuratedMelody || ALL_CURATED_MELODIES[0];
             const melBiome =
@@ -2601,9 +2875,13 @@ export default function App() {
             );
           }
         }
+        menuBeatInfoRef.current = {
+          phase: Math.max(0, Math.min(1, sim.menuMelodyTimer / menuBeatSec)),
+          beatCount: sim.menuMelodyBeatCount || 0,
+        };
       }
 
-      // Title / Menu screen or First-Time Tutorial idle animation
+      // Title / Menu screen or First-Time Tutorial idle animation (1:1 synced with menuMelodyTimer!)
       if (
         sim.state === 'title' ||
         sim.state === 'sequencer' ||
@@ -2613,12 +2891,11 @@ export default function App() {
         sim.state === 'stage_creator' ||
         sim.tutorialActive
       ) {
-        const menuBpm = Math.max(65, Math.min(160, fine.baseJumpTempo || 100));
-        const hopHz = (menuBpm / 60) * Math.PI;
+        const beatPhase = Math.max(0, Math.min(1, sim.menuMelodyTimer / menuBeatSec));
+        const bouncePhase = Math.sin(beatPhase * Math.PI);
         sim.player.x = 288 + Math.sin(sim.gameTime * 1.4) * 45;
-        const bouncePhase = Math.abs(Math.sin(sim.gameTime * hopHz));
         sim.player.y = 758 - bouncePhase * 55;
-        if (bouncePhase < 0.08) {
+        if (beatPhase < 0.1 || beatPhase > 0.92) {
           sim.player.scaleX = 1.32;
           sim.player.scaleY = 0.72;
         } else {
@@ -2821,6 +3098,7 @@ export default function App() {
                 xpGained,
                 prevLevel: prevLvInfo.level,
                 newLevel: nextLvInfo.level,
+                prevRatio: prevLvInfo.progressRatio,
                 progressRatio: nextLvInfo.progressRatio,
                 xpIntoLevel: nextLvInfo.xpIntoLevel,
                 xpNeededForNext: nextLvInfo.xpNeededForNext,
@@ -2829,6 +3107,10 @@ export default function App() {
               return next;
             });
 
+            if (nextLvInfo.level > prevLvInfo.level && !sim.isMuted) {
+              audioRef.current.sfxLevelUp(biome, c);
+            }
+            setGameOverAnimElapsed(0);
             sim.dyingSequence.active = false;
             setScreen('gameover');
           }
@@ -2909,6 +3191,7 @@ export default function App() {
       let jetpackJustFinished = false;
       for (let s = 0; s < sim.equippedSlotRuntimes.length; s++) {
         const slot = sim.equippedSlotRuntimes[s];
+        if (slot.activationMode === 'PASSIVE') continue;
         if (slot.phase === 'charging') {
           slot.chargeProgress = Math.min(
             1,
@@ -2919,25 +3202,40 @@ export default function App() {
             slot.phase = 'ready';
           }
         } else if (slot.phase === 'active') {
-          const isJetpack =
-            slot.id === 'jetpack_white' ||
-            slot.id === 'jetpack_gold' ||
-            slot.id === 'jetpack_prism';
-          slot.activeRemainingSec = Math.max(0, slot.activeRemainingSec - dt);
-          if (isJetpack && slot.activeRemainingSec > 0) {
-            activeJetpackSlot = slot;
-          }
-          if (slot.activeRemainingSec <= 0) {
-            if (isJetpack) {
-              jetpackJustFinished = true;
+          if (slot.id === 'combo_shield') {
+            // Shield has NO expiration timer! It remains active until broken by a hazard or fall rescue,
+            // and only then enters cooldown to recharge the next shield!
+            if (!p.hasShield) {
+              if (slot.usesLeft > 0) {
+                slot.phase = 'cooldown';
+                slot.chargeProgress = 0;
+                slot.chargeTimeSec = slot.cooldownSec;
+              } else {
+                slot.phase = 'depleted';
+                slot.chargeProgress = 0;
+              }
             }
-            if (slot.usesLeft > 0) {
-              slot.phase = 'cooldown';
-              slot.chargeProgress = 0;
-              slot.chargeTimeSec = slot.cooldownSec;
-            } else {
-              slot.phase = 'depleted';
-              slot.chargeProgress = 0;
+          } else {
+            const isJetpack =
+              slot.id === 'jetpack_white' ||
+              slot.id === 'jetpack_gold' ||
+              slot.id === 'jetpack_prism';
+            slot.activeRemainingSec = Math.max(0, slot.activeRemainingSec - dt);
+            if (isJetpack && slot.activeRemainingSec > 0) {
+              activeJetpackSlot = slot;
+            }
+            if (slot.activeRemainingSec <= 0) {
+              if (isJetpack) {
+                jetpackJustFinished = true;
+              }
+              if (slot.usesLeft > 0) {
+                slot.phase = 'cooldown';
+                slot.chargeProgress = 0;
+                slot.chargeTimeSec = slot.cooldownSec;
+              } else {
+                slot.phase = 'depleted';
+                slot.chargeProgress = 0;
+              }
             }
           }
         } else if (slot.phase === 'cooldown') {
@@ -2970,11 +3268,16 @@ export default function App() {
 
       generateWorldUpTo(Math.min(sim.camY, p.y - 600));
 
-      const flowDiff = computeFlowDynamicDifficulty(sim.flowEnergy, fine);
+      const currentRunAltMeters = Math.floor(Math.abs(Math.min(0, p.y - 782)) / 100);
+      const flowDiff = computeFlowDynamicDifficulty(
+        sim.flowEnergy,
+        fine,
+        currentRunAltMeters
+      );
       const baseBpm =
         sim.mode === 'STAGE' && sim.activeStage
           ? sim.activeStage.bpm
-          : fine.baseJumpTempo || 100;
+          : flowDiff.dynamicJumpBpm || fine.baseJumpTempo || 100;
       const kin = computeBpmLockedKinematics(baseBpm, 1.0);
       const activeBank = getActiveSoundBank(c);
       const dashMods = computePassiveDashUpgrades(c.powerUpLevels, c.equippedPowerUps);
@@ -2982,7 +3285,8 @@ export default function App() {
       if (jetpackJustFinished) {
         p.vy = kin.bouncePadVelocityPxPerSec * 0.92;
         sim.activeJumpGravity = kin.gravityPxPerSec2;
-        // Spawn a safety platform right beneath the player's apex so Jetpack end is always smooth
+        // Spawn a safety platform right beneath the player's apex AND keep `sim.platforms` sorted by descending `y`
+        // so `sim.platforms[sim.platforms.length - 1]` ALWAYS points to the highest generated platform!
         const safeW = Math.max(120, flowDiff.targetPlatformWidth + 24);
         const safeX = Math.max(24, Math.min(576 - safeW, p.x + p.w * 0.5 - safeW * 0.5));
         sim.platforms.push({
@@ -3008,14 +3312,17 @@ export default function App() {
           respawnTimer: 0,
           phaseSolid: true,
         });
+        sim.platforms.sort((a, b) => b.y - a.y);
       }
 
-      // Dynamically adapt upper platform widths when Flow rises or drops
+      // Dynamically adapt upper platform widths based on each platform's Altitude (M)
       for (let i = 0; i < sim.platforms.length; i++) {
         const plat = sim.platforms[i];
         if (plat.id === 1) continue;
         if (!plat.hit && plat.y < p.y - 20) {
-          const baseTargetW = flowDiff.targetPlatformWidth + charPerks.platformWidthBonusPx;
+          const platAltM = Math.floor(Math.abs(Math.min(0, plat.y - 782)) / 100);
+          const platDiff = computeFlowDynamicDifficulty(sim.flowEnergy, fine, platAltM);
+          const baseTargetW = platDiff.targetPlatformWidth + charPerks.platformWidthBonusPx;
           const desiredW =
             plat.type === 'chord_gate'
               ? Math.round(baseTargetW * 1.08)
@@ -3024,7 +3331,7 @@ export default function App() {
         }
         if (Math.abs(plat.w - plat.targetW) > 0.4) {
           plat.w += (plat.targetW - plat.w) * Math.min(1, dt * 6.5);
-          if (plat.type !== 'moving') {
+          if (Math.abs(plat.vx) === 0) {
             plat.x = plat.centerX - plat.w * 0.5;
           }
         } else {
@@ -3052,7 +3359,15 @@ export default function App() {
         charPerks.dashCooldownMultiplier *
         dashMods.cooldownMultiplier;
       p.dashMaxCool = maxDashCool;
-      if (p.dashCool > 0) p.dashCool = Math.max(0, p.dashCool - dt);
+      if (p.dashCool > 0) {
+        const rechargeRate = p.wallBounceCooldownPenaltyActive
+          ? dashMods.wallBounceRechargeRateFactor
+          : 1.0;
+        p.dashCool = Math.max(0, p.dashCool - dt * rechargeRate);
+        if (p.dashCool <= 0) {
+          p.wallBounceCooldownPenaltyActive = false;
+        }
+      }
       if (p.wallDashGraceTimer > 0) {
         p.wallDashGraceTimer = Math.max(0, p.wallDashGraceTimer - dt);
       }
@@ -3066,6 +3381,7 @@ export default function App() {
           activeTurbineMult;
         p.dashAct = 0.25;
         p.wallDashGraceTimer = 0.34;
+        p.wallBounceCooldownPenaltyActive = false;
         p.dashCool = maxDashCool;
         const touchDir =
           Math.abs(inp.touchSteerX) > 0.08 ? (inp.touchSteerX > 0 ? 1 : -1) : 0;
@@ -3116,14 +3432,10 @@ export default function App() {
       }
       inp.dashJustPressed = false;
 
-      // Optional Aero Thruster Mid-Air Boost
+      // Optional Character Innate Air Jump (for avatars with permanentAirJump)
       if (inp.upJustPressed) {
         inp.upJustPressed = false;
-        if (
-          (hasPowerUp('double_jump') || charPerks.permanentAirJump) &&
-          p.airJumpsLeft > 0 &&
-          p.vy > -100
-        ) {
+        if (charPerks.permanentAirJump && p.airJumpsLeft > 0 && p.vy > -100) {
           p.airJumpsLeft--;
           p.vy = kin.jumpVelocityPxPerSec * 0.95;
           sim.activeJumpGravity = kin.gravityPxPerSec2;
@@ -3252,14 +3564,26 @@ export default function App() {
             keyAxis !== 0 ? keyAxis : isTouchActive ? touchAxis : tiltAxis
           )
         );
-        const speedBoost = isTouchActive ? 1.32 : isTiltActive ? 1.38 : 1.0;
+        // Direct velocity scaling with touch drag distance/velocity and phone tilt angle:
+        // At maximum input (|combinedAxis| -> 1.0), horizontal speed reaches ~1050 px/s so the player can traverse
+        // the entire 600px arena from edge to edge within a single jump!
+        const touchDynBoost = Math.max(
+          1.45,
+          Math.min(2.65, (touchDragRef.current.speedBoost || 1.5) + Math.abs(touchAxis) * 0.85)
+        );
+        const tiltDynBoost = 1.45 + Math.abs(tiltAxis) * 0.95;
+        const speedBoost = isTouchActive
+          ? touchDynBoost
+          : isTiltActive
+          ? tiltDynBoost
+          : 1.0;
         const targetVx = combinedAxis * flowDiff.moveSpeedPxPerSec * speedBoost;
         const isReversing = p.vx * targetVx < 0;
         const steerRate =
           isTouchActive || isTiltActive
             ? isReversing
-              ? 54
-              : 42
+              ? 64
+              : 48
             : Math.abs(combinedAxis) > 0.05
             ? 16
             : 11;
@@ -3320,7 +3644,8 @@ export default function App() {
           p.facing = 1;
           p.scaleX = 0.62;
           p.scaleY = 1.44;
-          p.dashCool = Math.min(p.dashCool, p.dashMaxCool * 0.45);
+          p.dashCool = p.dashMaxCool;
+          p.wallBounceCooldownPenaltyActive = true;
           p.airJumpsLeft = Math.max(p.airJumpsLeft, 1);
           sim.timeSinceLastClimb = 0;
           sim.flowEnergy = Math.min(
@@ -3340,7 +3665,7 @@ export default function App() {
             p.y - 24,
             '#38bdf8',
             0.95,
-            '38° REBOUND'
+            `38° REBOUND · ${Math.round(dashMods.wallBounceRechargeRateFactor * 100)}% CD RATE`
           );
         } else {
           p.vx = Math.abs(p.vx) * 0.75 + 140;
@@ -3362,7 +3687,8 @@ export default function App() {
           p.facing = -1;
           p.scaleX = 0.62;
           p.scaleY = 1.44;
-          p.dashCool = Math.min(p.dashCool, p.dashMaxCool * 0.45);
+          p.dashCool = p.dashMaxCool;
+          p.wallBounceCooldownPenaltyActive = true;
           p.airJumpsLeft = Math.max(p.airJumpsLeft, 1);
           sim.timeSinceLastClimb = 0;
           sim.flowEnergy = Math.min(
@@ -3382,7 +3708,7 @@ export default function App() {
             p.y - 24,
             '#38bdf8',
             0.95,
-            '38° REBOUND'
+            `38° REBOUND · ${Math.round(dashMods.wallBounceRechargeRateFactor * 100)}% CD RATE`
           );
         } else {
           p.vx = -Math.abs(p.vx) * 0.75 - 140;
@@ -3405,6 +3731,57 @@ export default function App() {
         ? 0.45
         : 1.0;
 
+      // Immediate Player Explosion Helper when Skin Health (`p.hp`) reaches 0
+      const triggerImmediatePlayerExplosion = (hitBiome: ScaleBiome) => {
+        audioRef.current.stopChoir();
+        if (!sim.isMuted) {
+          audioRef.current.sfxPlayerShatter(hitBiome, c);
+        }
+        const centerX = p.x + p.w * 0.5;
+        const centerY = p.y + p.h * 0.5;
+        sim.shake = 14;
+        sim.aberration = 1.0;
+        spawnShockwave(centerX, centerY, '#ffffff', 160);
+        spawnShockwave(centerX, centerY, hitBiome.fg, 220);
+        spawnShockwave(centerX, centerY, '#fb7185', 120);
+        spawnFloatingText('💥 0 HP · SHATTERED!', 300, p.y - 32, '#fb7185', 1.1);
+
+        const glitterColors = [
+          '#ffffff',
+          hitBiome.fg,
+          hitBiome.horizonColor,
+          '#fde047',
+          '#f472b6',
+          '#38bdf8',
+          '#a855f7',
+          '#fb7185',
+        ];
+        const glitters: GlitterParticle[] = [];
+        for (let g = 0; g < 96; g++) {
+          const angle = (Math.PI * 2 * g) / 96 + (Math.random() - 0.5) * 0.25;
+          const speed = 70 + Math.random() * 420;
+          const maxLife = 0.55 + Math.random() * 0.45;
+          glitters.push({
+            x: centerX + (Math.random() - 0.5) * 10,
+            y: centerY + (Math.random() - 0.5) * 10,
+            vx: Math.cos(angle) * speed,
+            vy: Math.sin(angle) * speed - 60,
+            size: 3 + Math.floor(Math.random() * 5),
+            color: glitterColors[g % glitterColors.length],
+            life: maxLife,
+            maxLife,
+            twinklePhase: Math.random() * Math.PI * 2,
+          });
+        }
+        sim.dyingSequence = {
+          active: true,
+          phase: 'exploding',
+          timer: 0,
+          dissolveProgress: 0,
+          glitters,
+        };
+      };
+
       // Update Mid-Air Obstacles & Check Collision
       for (let i = 0; i < sim.aerialHazards.length; i++) {
         const ah = sim.aerialHazards[i];
@@ -3415,7 +3792,7 @@ export default function App() {
           ah.x = Math.max(ah.minX, Math.min(ah.maxX, ah.x));
         }
 
-        if (p.dashAct <= 0 && !activeJetpackSlot) {
+        if (p.dashAct <= 0 && !activeJetpackSlot && !sim.dyingSequence.active) {
           const dx = p.x + p.w * 0.5 - ah.x;
           const dy = p.y + p.h * 0.5 - ah.y;
           if (Math.hypot(dx, dy) < p.w * 0.5 + ah.radius - 2) {
@@ -3427,6 +3804,7 @@ export default function App() {
               spawnFloatingText('🛡 BLOCKED', 300, p.y - 24, biome.horizonColor, 1.0);
             } else {
               if (!sim.isMuted) audioRef.current.sfxHazardDamage(biome, c);
+              p.hp = Math.max(0, p.hp - 1);
               const droneLoss = Number(
                 (1.2 * fine.hazardFlowPenalty * charPerks.hazardPenaltyMultiplier).toFixed(1)
               );
@@ -3437,7 +3815,18 @@ export default function App() {
               sim.shake = 5;
               sim.aberration = 0.75;
               sim.particles.burst(ah.x, ah.y, '#fb7185', 12, 5, 'spark');
-              spawnFloatingText(`-${droneLoss} FLOW`, 300, p.y - 24, '#fb7185', 1.0);
+              if (p.hp <= 0) {
+                triggerImmediatePlayerExplosion(biome);
+                return ambientPulse;
+              }
+              spawnFloatingText(
+                `-1 HP (♥ ${p.hp}/${p.maxHp})`,
+                300,
+                p.y - 24,
+                '#fb7185',
+                1.0,
+                `-${droneLoss} FLOW`
+              );
             }
           }
         }
@@ -3449,7 +3838,7 @@ export default function App() {
       for (let i = 0; i < sim.platforms.length; i++) {
         const plat = sim.platforms[i];
 
-        if (plat.type === 'moving') {
+        if (Math.abs(plat.vx) > 0 && !plat.broken) {
           plat.x += plat.vx * frameScale * hazardTimeScale;
           if (plat.x < plat.minX || plat.x > plat.maxX) {
             plat.vx *= -1;
@@ -3538,6 +3927,7 @@ export default function App() {
                   spawnFloatingText('🛡 BLOCKED', 300, p.y - 24, activePlatBiome.horizonColor, 1.0);
                 } else {
                   if (!sim.isMuted) audioRef.current.sfxHazardDamage(activePlatBiome, c);
+                  p.hp = Math.max(0, p.hp - 1);
                   const spikeLoss = Number(
                     (1.0 * fine.hazardFlowPenalty * charPerks.hazardPenaltyMultiplier).toFixed(1)
                   );
@@ -3547,7 +3937,18 @@ export default function App() {
                   p.damageGlitchTimer = 0.55;
                   sim.shake = 4.5;
                   sim.aberration = 0.65;
-                  spawnFloatingText(`-${spikeLoss} FLOW`, 300, p.y - 24, '#fb7185', 1.0);
+                  if (p.hp <= 0) {
+                    triggerImmediatePlayerExplosion(activePlatBiome);
+                    return ambientPulse;
+                  }
+                  spawnFloatingText(
+                    `-1 HP (♥ ${p.hp}/${p.maxHp})`,
+                    300,
+                    p.y - 24,
+                    '#fb7185',
+                    1.0,
+                    `-${spikeLoss} FLOW`
+                  );
                 }
               }
             }
@@ -3555,14 +3956,7 @@ export default function App() {
             // AUTO-BOUNCE + Elastic Impact Squash-and-Stretch
             p.y = plat.y - p.h;
             p.impactSquashTimer = 0.095;
-            const djSlot = sim.equippedSlotRuntimes.find(
-              (s) => s.id === 'double_jump' && s.phase === 'active'
-            );
-            p.airJumpsLeft = djSlot
-              ? Math.round(djSlot.powerValue)
-              : hasPowerUp('double_jump') || charPerks.permanentAirJump
-              ? 1
-              : 0;
+            p.airJumpsLeft = charPerks.permanentAirJump ? 1 : 0;
 
             if (plat.type === 'crumble' && plat.crumbleTimer <= 0) {
               plat.crumbleTimer = 0.15;
@@ -3604,7 +3998,10 @@ export default function App() {
               sim.flowEnergy = Math.min(
                 45,
                 sim.flowEnergy +
-                  (gateIdx === 3 ? 0.65 : 0.25) * fine.flowGainRate * charPerks.flowGainMultiplier
+                  (gateIdx === 3 ? 0.65 : 0.25) *
+                    fine.flowGainRate *
+                    charPerks.flowGainMultiplier *
+                    dashMods.flowAccelMultiplier
               );
               syncFlowStateFromEnergy(sim);
               const didGateLevelUp = sim.combo > prevComboGate && sim.combo >= 1;
@@ -3653,9 +4050,26 @@ export default function App() {
 
               if (gateIdx === 3) {
                 sim.chordSequencesCompletedInBiome++;
-                if (charPerks.chordGateBonusOrbs > 0) {
-                  sim.orbsThisRun += charPerks.chordGateBonusOrbs;
-                }
+                // Chord Sequence Completion Restores 35% of Max HP!
+                const chordHeal = Math.max(1, Math.ceil(p.maxHp * 0.35));
+                const actualHealed = Math.min(p.maxHp - p.hp, chordHeal);
+                p.hp = Math.min(p.maxHp, p.hp + chordHeal);
+                // Instant 5x Base Orb Rate Reward * Character Bonus * Passive Overdrive Multiplier!
+                const charBonusFactor = 1 + (charPerks.orbBonusPct || 0) / 100;
+                const instantChordOrbs = Math.max(
+                  5,
+                  Math.round(5 * charBonusFactor * dashMods.passiveOverdriveMult)
+                );
+                sim.orbsThisRun += instantChordOrbs + (charPerks.chordGateBonusOrbs || 0);
+                sim.particles.burst(plat.x + plat.w * 0.5, plat.y, '#fde047', 18, 6.5, 'spark');
+                spawnFloatingText(
+                  `+${instantChordOrbs} ORBS${actualHealed > 0 ? ` · +${actualHealed} HP ♥` : ' (5x CADENCE!)'}`,
+                  300,
+                  plat.y - 54,
+                  '#fde047',
+                  1.05,
+                  `♥ ${p.hp}/${p.maxHp} HP`
+                );
                 // If this was the 2nd Chord Gate sequence of the biome, completing it shifts immediately to the next biome!
                 if (
                   sim.mode !== 'STAGE' &&
@@ -3673,6 +4087,10 @@ export default function App() {
                   );
                 }
               } else {
+                // Mid-sequence Gate II (`gateIdx === 1`) restores +1 HP if damaged
+                if (gateIdx === 1 && p.hp < p.maxHp) {
+                  p.hp = Math.min(p.maxHp, p.hp + 1);
+                }
                 spawnShockwave(plat.x + plat.w * 0.5, plat.y, activePlatBiome.horizonColor, 115);
                 sim.particles.burst(plat.x + plat.w * 0.5, plat.y, activePlatBiome.fg, 14, 5.5, 'spark');
                 spawnFloatingText(
@@ -3760,13 +4178,30 @@ export default function App() {
 
               if (isClimbingUp) {
                 sim.timeSinceLastClimb = 0;
+                sim.platformsClimbedCount = (sim.platformsClimbedCount || 0) + 1;
+                if (
+                  dashMods.regenPlatformsInterval > 0 &&
+                  sim.platformsClimbedCount % dashMods.regenPlatformsInterval === 0 &&
+                  p.hp < p.maxHp
+                ) {
+                  p.hp = Math.min(p.maxHp, p.hp + 1);
+                  spawnShockwave(p.x + p.w * 0.5, p.y + p.h * 0.5, '#f43f5e', 75);
+                  spawnFloatingText(
+                    `💖 +1 HP REGEN (${p.hp}/${p.maxHp})`,
+                    300,
+                    plat.y - 44,
+                    '#f43f5e',
+                    0.95
+                  );
+                }
                 const prevCombo = sim.combo;
                 const stepGain =
                   (plat.type === 'bounce' ? 2 : 1) *
                   fine.flowGainRate *
-                  charPerks.flowGainMultiplier;
+                  charPerks.flowGainMultiplier *
+                  dashMods.flowAccelMultiplier;
                 sim.flowEnergy = Math.min(
-                  20,
+                  45,
                   sim.flowEnergy + stepGain / FLOW_PLATFORMS_PER_STEP
                 );
                 syncFlowStateFromEnergy(sim);
@@ -3776,14 +4211,8 @@ export default function App() {
                 if (sim.combo > sim.maxFlowThisRun) sim.maxFlowThisRun = sim.combo;
                 sim.styleMeter = Math.min(100, sim.styleMeter + 3 * stepGain);
 
-                const auraSlot = sim.equippedSlotRuntimes.find(
-                  (s) => s.id === 'rhythm_aura' && s.phase === 'active'
-                );
-                const auraMult = auraSlot
-                  ? auraSlot.powerValue
-                  : hasPowerUp('rhythm_aura')
-                  ? 1.5
-                  : 1.0;
+                const auraMult =
+                  dashMods.passiveOverdriveMult * (hasPowerUp('rhythm_aura') ? 1.35 : 1.0);
                 const styleInfo = calculateStyleRank(sim.combo, sim.styleMeter);
                 const rawStepPoints =
                   (0.7 + Math.min(1.5, sim.combo * 0.12)) *
@@ -4010,23 +4439,48 @@ export default function App() {
         }
       }
 
-      // Collectible Harmonic Orbs & Guaranteed High-Speed Magnet Homing + Progressive Character Orb Yield Bonus!
-      const magnetSlot = sim.equippedSlotRuntimes.find(
-        (s) => s.id === 'orb_magnet' && s.phase === 'active'
-      );
+      // Collectible Mid-Air Heart Health Pickups (`♥`)
+      for (let i = 0; i < sim.heartPickups.length; i++) {
+        const hpItem = sim.heartPickups[i];
+        if (hpItem.collected) continue;
+        const pCenterX = p.x + p.w * 0.5;
+        const pCenterY = p.y + p.h * 0.5;
+        const dist = Math.hypot(pCenterX - hpItem.x, pCenterY - hpItem.y);
+        if (dist < p.w * 0.9 + hpItem.radius + 6) {
+          hpItem.collected = true;
+          const prevHp = p.hp;
+          p.hp = Math.min(p.maxHp, p.hp + hpItem.healAmount);
+          const healed = p.hp - prevHp;
+          sim.score += Math.round(15 * charPerks.scoreMultiplier);
+          if (!sim.isMuted) audioRef.current.sfxOrbCollect(biome, c);
+          spawnShockwave(hpItem.x, hpItem.y, '#fb7185', 85);
+          sim.particles.burst(hpItem.x, hpItem.y, '#fb7185', 14, 5, 'spark');
+          spawnFloatingText(
+            healed > 0 ? `+${healed} HP ♥ (${p.hp}/${p.maxHp})` : `♥ MAX HP (${p.hp}/${p.maxHp})`,
+            300,
+            hpItem.y - 24,
+            '#fb7185',
+            1.0
+          );
+        }
+      }
+
+      // Collectible Harmonic Orbs & Passive Harmonic Magnet + Passive Resonance Overdrive + Character Orb Yield Bonus!
+      const isActiveMagnetBurst = hasPowerUp('orb_magnet') || Boolean(activeJetpackSlot);
       const magnetRadius =
-        (magnetSlot ? magnetSlot.powerValue : hasPowerUp('orb_magnet') ? 175 : 42) +
+        Math.max(38, dashMods.passiveMagnetRadiusPx, hasPowerUp('orb_magnet') ? 185 : 38) +
         charPerks.bonusMagnetRadiusPx +
         (activeJetpackSlot ? 135 : 0);
+      // At Level 1, Harmonic Magnet only pulls orbs when the player is practically on the same platform (`|dy| <= 40px`)
+      // and never yanks orbs down from upper platforms! As Magnet upgrades from Lv.1 -> Lv.5, vertical reach scales up smoothly.
+      const maxMagnetVerticalSpan = isActiveMagnetBurst
+        ? 260
+        : dashMods.passiveMagnetLevel <= 1
+        ? 40
+        : 40 + (dashMods.passiveMagnetLevel - 1) * 32;
 
-      const auraSlotForOrbs = sim.equippedSlotRuntimes.find(
-        (s) => s.id === 'rhythm_aura' && s.phase === 'active'
-      );
-      const auraOrbMult = auraSlotForOrbs
-        ? auraSlotForOrbs.powerValue
-        : hasPowerUp('rhythm_aura')
-        ? 1.35
-        : 1.0;
+      const auraOrbMult =
+        dashMods.passiveOverdriveMult * (hasPowerUp('rhythm_aura') ? 1.35 : 1.0);
 
       for (let i = 0; i < sim.orbs.length; i++) {
         const orb = sim.orbs[i];
@@ -4037,20 +4491,24 @@ export default function App() {
         const dy = pCenterY - orb.y;
         const dist = Math.hypot(dx, dy);
 
-        if (dist < magnetRadius) {
+        if (dist < magnetRadius && Math.abs(dy) <= maxMagnetVerticalSpan) {
           orb.magnetLocked = true;
         }
 
         if (orb.magnetLocked && dist > 0.5) {
           const playerSpeed = Math.hypot(p.vx, p.vy);
-          const pullSpeed = Math.max(660, playerSpeed * 1.5 + 460);
+          // Gentle pull at Level 1, scaling stronger across Levels 1..5
+          const magnetLvFactor = isActiveMagnetBurst
+            ? 1.0
+            : 0.34 + Math.max(0, dashMods.passiveMagnetLevel - 1) * 0.165;
+          const pullSpeed = Math.max(220, (playerSpeed * 1.15 + 380) * magnetLvFactor);
           const stepMove = pullSpeed * dt;
           if (stepMove >= dist) {
             orb.x = pCenterX;
             orb.y = pCenterY;
           } else {
-            orb.x += (dx / dist) * stepMove + p.vx * dt * 0.35;
-            orb.y += (dy / dist) * stepMove + p.vy * dt * 0.35;
+            orb.x += (dx / dist) * stepMove + p.vx * dt * 0.25 * magnetLvFactor;
+            orb.y += (dy / dist) * stepMove + p.vy * dt * 0.25 * magnetLvFactor;
           }
         }
 
@@ -4071,7 +4529,11 @@ export default function App() {
           sim.orbsThisRun += orbGain;
           sim.flowEnergy = Math.min(
             45,
-            sim.flowEnergy + 0.14 * fine.flowGainRate * charPerks.flowGainMultiplier
+            sim.flowEnergy +
+              0.14 *
+                fine.flowGainRate *
+                charPerks.flowGainMultiplier *
+                dashMods.flowAccelMultiplier
           );
           syncFlowStateFromEnergy(sim);
           if (sim.combo > sim.maxFlowThisRun) sim.maxFlowThisRun = sim.combo;
@@ -4117,6 +4579,9 @@ export default function App() {
       if (sim.aerialHazards.length > 16) {
         sim.aerialHazards = sim.aerialHazards.filter((ah) => ah.active && ah.y < cullBottomY);
       }
+      if (sim.heartPickups.length > 12) {
+        sim.heartPickups = sim.heartPickups.filter((hp) => !hp.collected && hp.y < cullBottomY);
+      }
       if (sim.orbs.length > 24) {
         sim.orbs = sim.orbs.filter((o) => !o.collected && o.y < cullBottomY);
       }
@@ -4160,9 +4625,8 @@ export default function App() {
         };
       }
 
-      // Direct DOM HUD updates (Minimal Icon-Driven Format)
+      // Direct DOM HUD updates (Minimal Icon-Driven Format — Rank System Removed)
       const milestoneInfo = getFlowMilestoneInfo(sim.combo, sim.flowSubSteps);
-      const rankObj = calculateStyleRank(sim.combo, sim.styleMeter);
 
       if (scoreDomRef.current) {
         scoreDomRef.current.textContent = String(Math.round(sim.score)).padStart(4, '0');
@@ -4172,6 +4636,13 @@ export default function App() {
       }
       if (orbsDomRef.current) {
         orbsDomRef.current.textContent = `${sim.orbsThisRun}`;
+      }
+      if (hpDomRef.current) {
+        hpDomRef.current.textContent = `${p.hp}/${p.maxHp}`;
+      }
+      if (hpBarDomRef.current) {
+        const hpRatio = Math.max(0, Math.min(1, p.hp / Math.max(1, p.maxHp)));
+        hpBarDomRef.current.style.width = `${(hpRatio * 100).toFixed(1)}%`;
       }
       if (comboTextDomRef.current) {
         comboTextDomRef.current.textContent = `FLOW x${sim.combo}`;
@@ -4184,11 +4655,6 @@ export default function App() {
         comboBarDomRef.current.style.width = `${milestoneInfo.progressPct.toFixed(1)}%`;
         comboBarDomRef.current.style.backgroundColor = biome.fg;
       }
-      if (rankBadgeDomRef.current) {
-        rankBadgeDomRef.current.textContent = rankObj.rank;
-        rankBadgeDomRef.current.style.color = biome.fg;
-        rankBadgeDomRef.current.style.borderColor = biome.fg;
-      }
       if (biomeTagDomRef.current) {
         biomeTagDomRef.current.textContent = c.useBiomes
           ? `${biome.name} · ${biome.subtitle}`
@@ -4199,15 +4665,12 @@ export default function App() {
         if (sim.mode === 'STAGE' && sim.activeStage) {
           melodyHudDomRef.current.textContent = `🎹 STAGE · ${sim.activeStage.name}`;
           melodyHudDomRef.current.style.color = '#f472b6';
-        } else if ((c.melodyMode || 'curated') === 'curated') {
+        } else {
           const activeMel = sim.activeCuratedMelody;
           melodyHudDomRef.current.textContent = activeMel
-            ? `🎼 CURATED · ${activeMel.title}`
+            ? `🎼 MELODY · ${activeMel.title}`
             : '🎼 CURATED MELODY';
           melodyHudDomRef.current.style.color = c.useBiomes ? biome.fg : '#00ff88';
-        } else {
-          melodyHudDomRef.current.textContent = '🎲 RANDOM · GENERATIVE';
-          melodyHudDomRef.current.style.color = '#38bdf8';
         }
       }
 
@@ -4257,7 +4720,8 @@ export default function App() {
         sim.aerialHazards,
         sim.chordComboHud,
         sim.dyingSequence,
-        sim.jetpackGlitters
+        sim.jetpackGlitters,
+        sim.heartPickups
       );
     };
 
@@ -4347,9 +4811,77 @@ export default function App() {
     }
   };
 
+  // Commit current run's score, orbs, and XP when exiting mid-run via Pause -> Menu
+  const commitMidRunProgressOnExit = () => {
+    const sim = simRef.current;
+    const c = sim.cfg;
+    const finalAlt = Math.floor(Math.abs(Math.min(0, sim.player.y - 782)) / 100);
+    const runScore = Math.max(sim.score, finalAlt);
+    if (runScore <= 0 && sim.orbsThisRun <= 0 && sim.maxFlowThisRun <= 0) {
+      return;
+    }
+    const xpGained = Math.max(
+      25,
+      Math.round(runScore * 1.2 + sim.orbsThisRun * 8 + sim.maxFlowThisRun * 6)
+    );
+    const prevXp = Math.max(0, Math.floor(c.playerXp ?? 0));
+    const prevLvInfo = computePlayerLevelInfo(prevXp);
+    const nextXp = prevXp + xpGained;
+    const nextLvInfo = computePlayerLevelInfo(nextXp);
+    const levelRewards = getLevelUpRewardsBetween(prevLvInfo.level, nextLvInfo.level);
+    const cumUnlocks = getCumulativeUnlocksForLevel(nextLvInfo.level);
+
+    setCfg((prev) => ({
+      ...prev,
+      playerXp: nextXp,
+      playerLevel: nextLvInfo.level,
+      unlockedScales: Array.from(
+        new Set([...prev.unlockedScales, ...cumUnlocks.unlockedScales])
+      ),
+      enabledScales: Array.from(
+        new Set([
+          ...prev.enabledScales,
+          ...levelRewards
+            .map((r) => r.scaleId)
+            .filter((id): id is number => id !== undefined),
+        ])
+      ),
+      unlockedSoundBanks: Array.from(
+        new Set([...prev.unlockedSoundBanks, ...cumUnlocks.unlockedSoundBanks])
+      ),
+      enabledSoundBanks: Array.from(
+        new Set([
+          ...prev.enabledSoundBanks,
+          ...levelRewards
+            .map((r) => r.soundBankId)
+            .filter((id): id is string => id !== undefined),
+        ])
+      ),
+      unlockedAvatars: Array.from(
+        new Set([
+          ...prev.unlockedAvatars,
+          ...cumUnlocks.unlockedSecretAvatars,
+        ])
+      ),
+    }));
+
+    setStats((prev) => ({
+      highScore: Math.max(prev.highScore, Math.round(runScore)),
+      maxCombo: Math.max(prev.maxCombo, sim.maxFlowThisRun),
+      totalOrbs: prev.totalOrbs + sim.orbsThisRun,
+      runsPlayed: prev.runsPlayed + 1,
+    }));
+
+    // Zero out run counters so it cannot be double-committed
+    sim.score = 0;
+    sim.orbsThisRun = 0;
+    sim.maxFlowThisRun = 0;
+  };
+
   // Unlock (Lv.0 -> Lv.1) or Upgrade (Lv.1 -> maxLevel) a Power-Up Store Item
-  const handleBuyOrUpgradePowerUp = (item: PowerUpStoreItemDef) => {
-    const maxLv = item.maxLevel || 10;
+  // When `forceAutoEquip` is true (e.g., purchased from the Game Over dialog), automatically equip it so it's active immediately!
+  const handleBuyOrUpgradePowerUp = (item: PowerUpStoreItemDef, forceAutoEquip = false) => {
+    const maxLv = item.maxLevel || 5;
     const currentLv = Math.max(0, Math.min(maxLv, Math.floor(cfg.powerUpLevels?.[item.id] ?? 0)));
     if (currentLv >= maxLv) return;
     const cost = getPowerUpUpgradeCost(item, currentLv);
@@ -4359,18 +4891,31 @@ export default function App() {
     const maxSlots = computeUnlockedPowerUpSlots(stats.highScore, cfg.playerLevel);
     setStats((prev) => ({ ...prev, totalOrbs: prev.totalOrbs - cost }));
     setCfg((prev) => {
-      const prevEquipped = prev.equippedPowerUps || ['orb_magnet', 'combo_shield', 'jetpack_white'];
-      const shouldAutoEquip =
-        currentLv === 0 &&
-        !prevEquipped.includes(item.id) &&
-        prevEquipped.length < maxSlots;
+      const prevEquipped = prev.equippedPowerUps || ['combo_shield'];
+      let nextEquipped = prevEquipped;
+      if (!prevEquipped.includes(item.id)) {
+        if (prevEquipped.length < maxSlots) {
+          nextEquipped = [...prevEquipped, item.id];
+        } else if (forceAutoEquip || currentLv === 0) {
+          // Replace the first equipped slot of the same activationMode (or the oldest slot) so the newly bought power-up is immediately active
+          const sameModeIdx = prevEquipped.findIndex(
+            (eqId) => getPowerUpItemById(eqId)?.activationMode === item.activationMode
+          );
+          if (sameModeIdx >= 0) {
+            nextEquipped = [...prevEquipped];
+            nextEquipped[sameModeIdx] = item.id;
+          } else {
+            nextEquipped = [...prevEquipped.slice(1), item.id];
+          }
+        }
+      }
       return {
         ...prev,
         powerUpLevels: {
           ...(prev.powerUpLevels || {}),
           [item.id]: nextLv,
         },
-        equippedPowerUps: shouldAutoEquip ? [...prevEquipped, item.id] : prevEquipped,
+        equippedPowerUps: nextEquipped,
       };
     });
     if (!isMuted) {
@@ -4412,7 +4957,7 @@ export default function App() {
     setStats((prev) => ({ ...prev, totalOrbs: Math.max(0, Math.round(orbs)) }));
   };
 
-  // Beta Reset All Save / Stats / Progression back to Level 1 & fresh tutorial
+  // Beta Reset All Save / Stats / Progression back to Level 0 & fresh tutorial
   const handleResetAllSaveData = () => {
     try {
       localStorage.removeItem('omni_cfg_v8');
@@ -4425,13 +4970,13 @@ export default function App() {
       ...DEFAULT_CFG,
       fineTune: { ...DEFAULT_FINE_TUNE },
       playerXp: 0,
-      playerLevel: 1,
+      playerLevel: 0,
       betaUnlockSecretSkins: false,
       tutorialSeen: false,
       customBiomes: [],
     });
     setTutorialStep(0);
-    setDevBundleStatus('ALL SAVE DATA & STATS RESET TO LEVEL 1!');
+    setDevBundleStatus('ALL SAVE DATA & STATS RESET TO LEVEL 0!');
   };
 
   const toggleSeqCell = (stepIdx: number, noteKey: string) => {
@@ -4690,6 +5235,8 @@ export default function App() {
             touchId: touch.identifier,
             anchorX: touch.clientX,
             lastX: touch.clientX,
+            lastTimeMs: performance.now(),
+            speedBoost: 1.5,
           };
           sim.inputs.touchSteerX = 0;
         }}
@@ -4709,26 +5256,41 @@ export default function App() {
           }
           if (!matchedTouch) return;
 
+          const nowMs = performance.now();
+          const dtSec = Math.max(0.004, Math.min(0.1, (nowMs - (td.lastTimeMs || nowMs - 16)) / 1000));
           const curX = matchedTouch.clientX;
           const stepDx = curX - td.lastX;
           const totalDx = curX - td.anchorX;
+          const swipeVelPxPerSec = stepDx / dtSec;
 
           // Dynamic floating anchor: if finger reverses direction, slide anchor closer so direction change is instant!
-          if ((totalDx > 16 && stepDx < -1.5) || (totalDx < -16 && stepDx > 1.5)) {
-            td.anchorX = curX - stepDx * 5;
-          } else if (Math.abs(totalDx) > 64) {
-            td.anchorX = curX - Math.sign(totalDx) * 64;
+          if ((totalDx > 12 && stepDx < -1.2) || (totalDx < -12 && stepDx > 1.2)) {
+            td.anchorX = curX - stepDx * 4;
+          } else if (Math.abs(totalDx) > 56) {
+            td.anchorX = curX - Math.sign(totalDx) * 56;
           }
           td.lastX = curX;
+          td.lastTimeMs = nowMs;
 
-          const rawNorm = (curX - td.anchorX) / 48;
-          const deadzone = 0.05;
+          // Combine displacement from anchor AND instantaneous finger swipe speed so fast or wide drags
+          // scale player velocity directly up to full arena-crossing speed!
+          const dispNorm = (curX - td.anchorX) / 40;
+          const velNorm = swipeVelPxPerSec / 650;
+          const rawNorm =
+            Math.sign(dispNorm !== 0 ? dispNorm : velNorm) *
+            Math.min(1, Math.max(Math.abs(dispNorm), Math.abs(dispNorm) * 0.65 + Math.abs(velNorm) * 0.55));
+          td.speedBoost = Math.max(
+            1.45,
+            Math.min(2.65, 1.45 + Math.min(1, Math.abs(swipeVelPxPerSec) / 800) * 0.75 + Math.min(1, Math.abs(dispNorm)) * 0.45)
+          );
+
+          const deadzone = 0.035;
           if (Math.abs(rawNorm) <= deadzone) {
             sim.inputs.touchSteerX = 0;
           } else {
             const sign = rawNorm > 0 ? 1 : -1;
             const mag = Math.min(1, (Math.abs(rawNorm) - deadzone) / (1 - deadzone));
-            sim.inputs.touchSteerX = Number((sign * Math.pow(mag, 0.8)).toFixed(3));
+            sim.inputs.touchSteerX = Number((sign * Math.pow(mag, 0.78)).toFixed(3));
           }
         }}
         onTouchEnd={(e) => {
@@ -4789,7 +5351,22 @@ export default function App() {
                 <span className="text-amber-400">
                   *<span ref={orbsDomRef}>0</span>
                 </span>
+                <span
+                  data-testid="hud-hp-badge"
+                  className="text-rose-400 inline-flex items-center gap-0.5"
+                >
+                  ♥<span ref={hpDomRef}>3/3</span>
+                </span>
               </div>
+            </div>
+
+            <div className="relative w-36 h-1 bg-slate-900/90 border border-rose-500/50 overflow-hidden">
+              <div
+                ref={hpBarDomRef}
+                id="hp-bar-fill"
+                className="relative h-full bg-rose-500 transition-none"
+                style={{ width: '100%' }}
+              />
             </div>
 
             <div className="flex items-center gap-2">
@@ -4814,29 +5391,19 @@ export default function App() {
               />
             </div>
 
-            {/* Compact Top-Corner Active Melody Mode & Title Indicator */}
+            {/* Compact Top-Corner Active Melody Title Indicator */}
             <div
               ref={melodyHudDomRef}
               id="melody-hud-indicator"
               data-testid="melody-hud-indicator"
               className="text-[8px] tracking-wider uppercase text-emerald-300 drop-shadow-[0_1px_0_#000] whitespace-nowrap mt-0.5"
             >
-              {(cfg.melodyMode || 'curated') === 'curated'
-                ? `🎼 CURATED · ${simRef.current.activeCuratedMelody?.title || 'Neon Cyber Odyssey'}`
-                : '🎲 RANDOM · GENERATIVE'}
+              🎼 MELODY · {simRef.current.activeCuratedMelody?.title || 'Neon Cyber Odyssey'}
             </div>
           </div>
 
-          {/* Compact Top-Right Grade Badge & System Icon Buttons */}
+          {/* Compact Top-Right System Icon Buttons (Rank Badge Removed) */}
           <div className="absolute top-3.5 right-4 flex items-center gap-1.5">
-            <div
-              ref={rankBadgeDomRef}
-              className="text-sm px-2 py-1 border-2 border-slate-600 bg-slate-950/90 text-slate-300"
-              title="Style Grade"
-            >
-              D
-            </div>
-
             <div className="pointer-events-auto flex items-center gap-1">
               <button
                 type="button"
@@ -4914,8 +5481,8 @@ export default function App() {
             NEON GRID · C Minor Nine
           </div>
 
-          {/* Mobile Touch Controls: Full-Screen Hold & Drag Steer Hint + Circular Pixel-Cooldown Dash Button */}
-          <div className="md:hidden absolute bottom-9 inset-x-4 flex items-center justify-between">
+          {/* Mobile Touch Controls: Full-Screen Hold & Drag Steer Hint + Raised Circular Pixel-Cooldown Dash Button */}
+          <div className="md:hidden absolute bottom-28 inset-x-4 flex items-center justify-between">
             <div className="pointer-events-none px-2.5 py-1.5 bg-slate-950/65 border border-slate-800/80 text-[7px] text-slate-400 uppercase">
               ⇄ TOUCH &amp; DRAG TO STEER
             </div>
@@ -5135,16 +5702,21 @@ export default function App() {
             id="start-screen"
             className="absolute inset-0 z-30 bg-[#04050a]/84 flex flex-col items-center justify-between py-5 px-5 text-center"
           >
-            {/* Top Minimal Icon Bar + Level Badge + Radiant Orb Icon + Mute & Language Buttons */}
+            {/* Top Minimal Icon Bar + Clickable Level Badge + Radiant Orb Icon + Mute & Language Buttons */}
             <div className="w-full flex flex-wrap items-center justify-between gap-2 text-[8px] text-slate-300 border-b border-slate-800/80 pb-2.5">
               <div className="flex items-center gap-2.5">
-                <span
+                <button
+                  type="button"
                   data-testid="title-level-badge"
-                  className="px-1.5 py-0.5 bg-emerald-500/20 border border-emerald-400 text-emerald-300"
-                  title="Player Level"
+                  onClick={() => {
+                    if (!isMuted) audioRef.current.sfxUiClick(MASTER_SCALES[0], cfg);
+                    setShowLevelRoadmapModal(true);
+                  }}
+                  className="px-2 py-0.5 bg-emerald-500/20 hover:bg-emerald-500/35 border border-emerald-400 text-emerald-300 cursor-pointer transition-colors"
+                  title="Click to view 15-Level Progression Roadmap & Detailed Stats"
                 >
-                  LV.{playerLvInfo.level}
-                </span>
+                  ⭐ LV.{playerLvInfo.level} ▾
+                </button>
                 <span title="High Score">
                   {isFa ? 'رکورد' : 'BEST'}{' '}
                   <strong className="text-amber-400">{stats.highScore}</strong>
@@ -5258,43 +5830,6 @@ export default function App() {
                   {isFa ? '▶ شروع بازی (PLAY)' : '> PLAY'}
                 </button>
 
-                {/* Quick Melody Mode Switch (Curated vs. Random) on Main Menu */}
-                <div
-                  data-testid="title-melody-mode-switch"
-                  className="grid grid-cols-2 gap-1.5 w-full bg-slate-950/90 p-1 border border-slate-800"
-                >
-                  <button
-                    type="button"
-                    data-testid="title-mode-curated-btn"
-                    onClick={() => {
-                      if (!isMuted) audioRef.current.sfxUiClick(MASTER_SCALES[0], cfg);
-                      setCfg((prev) => ({ ...prev, melodyMode: 'curated' }));
-                    }}
-                    className={`py-2 px-2 text-[8px] uppercase whitespace-nowrap transition-colors cursor-pointer border ${
-                      (cfg.melodyMode || 'curated') === 'curated'
-                        ? 'bg-emerald-500/20 border-emerald-400 text-emerald-300 shadow-[0_0_12px_rgba(0,255,136,0.2)]'
-                        : 'bg-slate-900/70 border-slate-800 text-slate-400 hover:text-slate-200'
-                    }`}
-                  >
-                    🎼 {isFa ? 'ملودی منتخب' : 'CURATED'}
-                  </button>
-                  <button
-                    type="button"
-                    data-testid="title-mode-random-btn"
-                    onClick={() => {
-                      if (!isMuted) audioRef.current.sfxUiClick(MASTER_SCALES[0], cfg);
-                      setCfg((prev) => ({ ...prev, melodyMode: 'random' }));
-                    }}
-                    className={`py-2 px-2 text-[8px] uppercase whitespace-nowrap transition-colors cursor-pointer border ${
-                      cfg.melodyMode === 'random'
-                        ? 'bg-cyan-500/20 border-cyan-400 text-cyan-300 shadow-[0_0_12px_rgba(0,212,255,0.2)]'
-                        : 'bg-slate-900/70 border-slate-800 text-slate-400 hover:text-slate-200'
-                    }`}
-                  >
-                    🎲 {isFa ? 'ملودی تصادفی' : 'RANDOM'}
-                  </button>
-                </div>
-
                 {/* Compact Selected Character Button -> Opens Store with AVATARS tab active so all Shop tabs remain at top! */}
                 <button
                   type="button"
@@ -5325,8 +5860,8 @@ export default function App() {
                   <span className="text-[9px] text-cyan-300 shrink-0">&gt;</span>
                 </button>
 
-                {/* Minimal 2x2 Icon Grid for Stage DAW, Store, 16-Seq & MIDI */}
-                <div className="grid grid-cols-2 gap-2 w-full">
+                {/* Minimal 3-Column Icon Row for Stage DAW, Store & Level Roadmap (16-SEQ Removed) */}
+                <div className="grid grid-cols-3 gap-2 w-full">
                   <button
                     type="button"
                     id="open-stage-creator-btn"
@@ -5335,9 +5870,9 @@ export default function App() {
                       if (!isMuted) audioRef.current.sfxUiClick(MASTER_SCALES[0], cfg);
                       setScreen('stage_creator');
                     }}
-                    className="py-2.5 px-3 bg-slate-900/95 hover:bg-slate-800 border border-emerald-400/80 hover:border-emerald-300 text-emerald-300 text-[9px] uppercase transition-colors cursor-pointer flex items-center justify-between"
+                    className="py-2.5 px-2 bg-slate-900/95 hover:bg-slate-800 border border-emerald-400/80 hover:border-emerald-300 text-emerald-300 text-[9px] uppercase transition-colors cursor-pointer flex items-center justify-between"
                   >
-                    <span>🎹 {isFa ? 'ساخت مرحله' : 'DAW'}</span>
+                    <span>🎹 {isFa ? 'ساخت' : 'DAW'}</span>
                     <span className="text-[8px] text-slate-400">{customStages.length}</span>
                   </button>
 
@@ -5349,39 +5884,26 @@ export default function App() {
                       if (!isMuted) audioRef.current.sfxUiClick(MASTER_SCALES[0], cfg);
                       setScreen('store');
                     }}
-                    className="py-2.5 px-3 bg-slate-900/95 hover:bg-slate-800 border border-amber-400/80 hover:border-amber-300 text-amber-300 text-[9px] uppercase transition-colors cursor-pointer flex items-center justify-between"
+                    className="py-2.5 px-2 bg-slate-900/95 hover:bg-slate-800 border border-amber-400/80 hover:border-amber-300 text-amber-300 text-[9px] uppercase transition-colors cursor-pointer flex items-center justify-between"
                   >
-                    <span>🛒 {isFa ? 'فروشگاه' : 'SHOP'}</span>
-                    <span className="inline-flex items-center gap-1 text-[8px] text-amber-300">
-                      <RadiantOrbIcon size={12} />
+                    <span>🛒 {isFa ? 'شاپ' : 'SHOP'}</span>
+                    <span className="inline-flex items-center gap-0.5 text-[8px] text-amber-300">
+                      <RadiantOrbIcon size={11} />
                       {stats.totalOrbs}
                     </span>
                   </button>
 
                   <button
                     type="button"
+                    data-testid="open-level-roadmap-btn"
                     onClick={() => {
                       if (!isMuted) audioRef.current.sfxUiClick(MASTER_SCALES[0], cfg);
-                      setScreen('sequencer');
+                      setShowLevelRoadmapModal(true);
                     }}
-                    className="py-2.5 px-3 bg-slate-900/90 hover:bg-slate-800 border border-slate-600 hover:border-cyan-400 text-cyan-300 text-[9px] uppercase transition-colors cursor-pointer"
+                    className="py-2.5 px-2 bg-slate-900/90 hover:bg-slate-800 border border-slate-600 hover:border-pink-400 text-pink-300 text-[9px] uppercase transition-colors cursor-pointer text-center"
                   >
-                    🎛 16-SEQ
+                    ⭐ {isFa ? `لول ${playerLvInfo.level}/15` : `LV.${playerLvInfo.level} STATS`}
                   </button>
-
-                  <label
-                    htmlFor="midi-upload-input"
-                    className="py-2.5 px-3 bg-slate-900/90 hover:bg-slate-800 border border-slate-600 hover:border-pink-400 text-pink-300 text-[9px] uppercase transition-colors cursor-pointer text-center"
-                  >
-                    📂 +MIDI
-                  </label>
-                  <input
-                    id="midi-upload-input"
-                    type="file"
-                    accept=".mid,.midi"
-                    onChange={handleMidiUpload}
-                    className="hidden"
-                  />
                 </div>
 
                 {/* Config / Export / Beta Reset / Install Row */}
@@ -5458,6 +5980,7 @@ export default function App() {
             primaryColor="#00ff88"
             horizonColor="#00d4ff"
             bpm={cfg.fineTune?.baseJumpTempo || 100}
+            menuBeatInfoRef={menuBeatInfoRef}
             onSelectAvatar={handleSelectAvatar}
             onUnlockAvatar={handleUnlockAvatar}
             onSetOrbs={handleSetExactOrbs}
@@ -5527,9 +6050,15 @@ export default function App() {
                   <h2 className="text-xs text-white tracking-wider uppercase">
                     {isFa ? 'فروشگاه نئونی' : 'SHOP'}
                   </h2>
-                  <span className="px-1.5 py-0.5 bg-emerald-500/20 border border-emerald-400 text-[7px] text-emerald-300">
-                    LV.{playerLvInfo.level}/15
-                  </span>
+                  <button
+                    type="button"
+                    data-testid="store-level-badge"
+                    onClick={() => setShowLevelRoadmapModal(true)}
+                    className="px-1.5 py-0.5 bg-emerald-500/20 hover:bg-emerald-500/35 border border-emerald-400 text-[7px] text-emerald-300 cursor-pointer"
+                    title="View 15-Level Roadmap & Stats"
+                  >
+                    ⭐ LV.{playerLvInfo.level}/15 ▾
+                  </button>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="px-2.5 py-1 bg-slate-900 border border-amber-400/60 text-[9px] text-amber-300 flex items-center gap-1.5">
@@ -5627,66 +6156,142 @@ export default function App() {
 
               {storeTab === 'powerups' ? (
                 <div className="flex-1 flex flex-col overflow-hidden">
-                  {/* Loadout Slots Header (3 Base Slots + Unlocks via Level-Up LV.3/6/9/12 or Best Score) */}
+                  {/* Loadout Slots Manager — Separated into ACTIVE (HUD Buttons) and PASSIVE (Innate Perks) */}
                   <div
                     data-testid="powerup-loadout-bar"
-                    className="mb-2 p-2 bg-slate-900/90 border border-pink-400/50 flex flex-col gap-1.5 shrink-0"
+                    className="mb-2 p-2.5 bg-slate-900/95 border border-pink-400/50 flex flex-col gap-2 shrink-0"
                   >
-                    <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center justify-between gap-2 border-b border-slate-800 pb-1.5">
                       <span className="text-[8px] text-pink-300 uppercase">
-                        LOADOUT SLOTS ({equippedList.length}/{unlockedSlots} EQUIPPED)
+                        LOADOUT CAPACITY ({equippedList.length}/{unlockedSlots} SLOTS USED)
                       </span>
                       <span className="text-[7px] text-slate-400">
                         {unlockedSlots < 7
-                          ? `UNLOCK MORE SLOTS VIA LEVEL-UP (LV.3/6/9/12) OR ${nextSlotMilestone} SCORE`
+                          ? `NEXT SLOT AT LV.${unlockedSlots === 3 ? 3 : unlockedSlots === 4 ? 6 : unlockedSlots === 5 ? 9 : 12} OR ${nextSlotMilestone} PTS`
                           : 'ALL 7 SLOTS UNLOCKED'}
                       </span>
                     </div>
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      {Array.from({ length: 7 }, (_, slotIdx) => {
-                        const isSlotUnlocked = slotIdx < unlockedSlots;
-                        const eqId = equippedList[slotIdx];
-                        const eqItem = eqId ? getPowerUpItemById(eqId) : undefined;
-                        const reqLv = slotIdx === 3 ? 3 : slotIdx === 4 ? 6 : slotIdx === 5 ? 9 : 12;
-                        return (
-                          <button
-                            key={slotIdx}
-                            type="button"
-                            disabled={!isSlotUnlocked || !eqItem}
-                            onClick={() => {
-                              if (eqItem) handleToggleEquipPowerUp(eqItem.id);
-                            }}
-                            title={
-                              !isSlotUnlocked
-                                ? `Locked Slot (Reach Player Level ${reqLv})`
-                                : eqItem
-                                ? `${eqItem.name} (${eqItem.activationMode}) — Click to unequip`
-                                : 'Empty Slot — Equip an Active or Passive Power-Up below'
-                            }
-                            className={`h-8 px-2 border flex items-center gap-1 text-[8px] transition-colors ${
-                              !isSlotUnlocked
-                                ? 'bg-slate-950/50 border-slate-800/70 text-slate-600 cursor-not-allowed'
-                                : eqItem
-                                ? 'bg-slate-950 border-emerald-400 text-white cursor-pointer hover:border-rose-400'
-                                : 'bg-slate-950/90 border-dashed border-slate-700 text-slate-500'
-                            }`}
+
+                    {(() => {
+                      const equippedItems = equippedList
+                        .map((id) => getPowerUpItemById(id))
+                        .filter((it): it is PowerUpStoreItemDef => it !== undefined);
+                      const activeEquipped = equippedItems.filter(
+                        (it) => it.activationMode === 'ACTIVE'
+                      );
+                      const passiveEquipped = equippedItems.filter(
+                        (it) => it.activationMode === 'PASSIVE'
+                      );
+                      const freeSlotsCount = Math.max(0, unlockedSlots - equippedItems.length);
+                      const lockedSlotsCount = Math.max(0, 7 - unlockedSlots);
+
+                      return (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          {/* ACTIVE HUD SLOTS SECTION */}
+                          <div
+                            data-testid="loadout-active-section"
+                            className="p-2 bg-slate-950/90 border border-emerald-500/40 flex flex-col gap-1.5"
                           >
-                            {!isSlotUnlocked ? (
-                              <span>🔒LV.{reqLv}</span>
-                            ) : eqItem ? (
-                              <>
-                                <span>{eqItem.icon}</span>
-                                <span className="text-[7px] text-emerald-300">
-                                  L{cfg.powerUpLevels?.[eqItem.id] || 1}
+                            <div className="flex items-center justify-between text-[7px]">
+                              <span className="text-emerald-300 uppercase">
+                                ⚡ ACTIVE HUD SLOTS ({activeEquipped.length})
+                              </span>
+                              <span className="text-slate-400">IN-GAME BUTTONS</span>
+                            </div>
+                            <div className="flex items-center gap-1.5 flex-wrap min-h-[28px]">
+                              {activeEquipped.map((eqItem) => (
+                                <button
+                                  key={eqItem.id}
+                                  type="button"
+                                  onClick={() => handleToggleEquipPowerUp(eqItem.id)}
+                                  title={`${eqItem.name} (ACTIVE) — Click to unequip`}
+                                  className="h-7 px-2 bg-emerald-950/60 border border-emerald-400 hover:border-rose-400 text-white flex items-center gap-1 text-[8px] cursor-pointer"
+                                >
+                                  <span>{eqItem.icon}</span>
+                                  <span className="text-[7px] text-emerald-200 truncate max-w-[72px]">
+                                    {eqItem.name.split(' ')[0]}
+                                  </span>
+                                  <span className="text-[6px] text-amber-300">
+                                    L{cfg.powerUpLevels?.[eqItem.id] || 1}
+                                  </span>
+                                  <span className="text-[7px] text-rose-300 ml-0.5">✕</span>
+                                </button>
+                              ))}
+                              {activeEquipped.length === 0 && (
+                                <span className="text-[7px] text-slate-500 italic">
+                                  No Active HUD Power-Ups equipped
                                 </span>
-                              </>
-                            ) : (
-                              <span>#{slotIdx + 1} EMPTY</span>
-                            )}
-                          </button>
-                        );
-                      })}
-                    </div>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* PASSIVE INNATE SLOTS SECTION */}
+                          <div
+                            data-testid="loadout-passive-section"
+                            className="p-2 bg-slate-950/90 border border-cyan-500/40 flex flex-col gap-1.5"
+                          >
+                            <div className="flex items-center justify-between text-[7px]">
+                              <span className="text-cyan-300 uppercase">
+                                🧬 PASSIVE INNATE SLOTS ({passiveEquipped.length})
+                              </span>
+                              <span className="text-slate-400">ALWAYS ON IN RUN</span>
+                            </div>
+                            <div className="flex items-center gap-1.5 flex-wrap min-h-[28px]">
+                              {passiveEquipped.map((eqItem) => (
+                                <button
+                                  key={eqItem.id}
+                                  type="button"
+                                  onClick={() => handleToggleEquipPowerUp(eqItem.id)}
+                                  title={`${eqItem.name} (PASSIVE) — Click to unequip`}
+                                  className="h-7 px-2 bg-cyan-950/60 border border-cyan-400 hover:border-rose-400 text-white flex items-center gap-1 text-[8px] cursor-pointer"
+                                >
+                                  <span>{eqItem.icon}</span>
+                                  <span className="text-[7px] text-cyan-200 truncate max-w-[72px]">
+                                    {eqItem.name.split(' ')[0]}
+                                  </span>
+                                  <span className="text-[6px] text-amber-300">
+                                    L{cfg.powerUpLevels?.[eqItem.id] || 1}
+                                  </span>
+                                  <span className="text-[7px] text-rose-300 ml-0.5">✕</span>
+                                </button>
+                              ))}
+                              {passiveEquipped.length === 0 && (
+                                <span className="text-[7px] text-slate-500 italic">
+                                  No Passive Innate Perks equipped
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* FREE & LOCKED CAPACITY PILLS */}
+                          {(freeSlotsCount > 0 || lockedSlotsCount > 0) && (
+                            <div className="sm:col-span-2 flex items-center gap-1.5 flex-wrap pt-0.5">
+                              {Array.from({ length: freeSlotsCount }, (_, idx) => (
+                                <span
+                                  key={`free_${idx}`}
+                                  className="px-2 py-0.5 bg-slate-950 border border-dashed border-emerald-400/50 text-[7px] text-emerald-300"
+                                >
+                                  + OPEN SLOT READY
+                                </span>
+                              ))}
+                              {Array.from({ length: lockedSlotsCount }, (_, idx) => {
+                                const slotIdx = unlockedSlots + idx;
+                                const reqLv =
+                                  slotIdx === 3 ? 3 : slotIdx === 4 ? 6 : slotIdx === 5 ? 9 : 12;
+                                return (
+                                  <span
+                                    key={`lock_${idx}`}
+                                    className="px-2 py-0.5 bg-slate-950/50 border border-slate-800 text-[7px] text-slate-500"
+                                  >
+                                    🔒 SLOT #{slotIdx + 1} (LV.{reqLv})
+                                  </span>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </div>
 
                   {/* Two Power-Up Category Filter Buttons: ACTIVE (Button-Triggered) vs. PASSIVE (Innate Character Ability) */}
@@ -5713,7 +6318,7 @@ export default function App() {
                           : 'bg-slate-900 border-slate-700 text-slate-400'
                       }`}
                     >
-                      ⚡ ACTIVE · IN-GAME BUTTON (10)
+                      ⚡ ACTIVE · HUD BUTTON (7)
                     </button>
                     <button
                       type="button"
@@ -5725,7 +6330,7 @@ export default function App() {
                           : 'bg-slate-900 border-slate-700 text-slate-400'
                       }`}
                     >
-                      🧬 PASSIVE · INNATE ABILITY (3)
+                      🧬 PASSIVE · INNATE ABILITY (5)
                     </button>
                   </div>
 
@@ -5790,7 +6395,7 @@ export default function App() {
                             </div>
 
                             {item.activationMode === 'PASSIVE' ? (
-                              <div className="flex items-center gap-3 text-[7px] text-cyan-300 mt-1">
+                              <div className="flex items-center gap-3 text-[7px] text-cyan-300 mt-1 flex-wrap">
                                 <span>
                                   INNATE POWER:{' '}
                                   <strong className="text-white">
@@ -5800,12 +6405,12 @@ export default function App() {
                                     ? ` → ${(nextStats.powerValue * 100).toFixed(0)}%`
                                     : ''}
                                 </span>
-                                <span className="text-slate-400">
-                                  Always active while equipped in a Loadout Slot
+                                <span className="text-emerald-300">
+                                  +{previewStats.flowBonusPct}% FLOW SPEED
                                 </span>
                               </div>
                             ) : (
-                              <div className="flex items-center gap-3 text-[7px] text-slate-400 mt-1">
+                              <div className="flex items-center gap-3 text-[7px] text-slate-400 mt-1 flex-wrap">
                                 <span>
                                   USES:{' '}
                                   <strong className="text-white">
@@ -5815,18 +6420,30 @@ export default function App() {
                                     ? ` → ${nextStats.usesPerRun}x`
                                     : ''}
                                 </span>
-                                <span>
-                                  DUR:{' '}
-                                  <strong className="text-emerald-300">
-                                    {previewStats.durationSec}s
-                                  </strong>
-                                  {!isMax ? ` → ${nextStats.durationSec}s` : ''}
-                                </span>
+                                {item.id === 'combo_shield' ? (
+                                  <span>
+                                    DUR: <strong className="text-emerald-300">NO TIMER (UNTIL HIT)</strong>
+                                  </span>
+                                ) : (
+                                  <span>
+                                    DUR:{' '}
+                                    <strong className="text-emerald-300">
+                                      {previewStats.durationSec}s
+                                    </strong>
+                                    {!isMax ? ` → ${nextStats.durationSec}s` : ''}
+                                  </span>
+                                )}
                                 <span>
                                   CD:{' '}
                                   <strong className="text-cyan-300">
                                     {previewStats.cooldownSec}s
                                   </strong>
+                                  {!isMax && nextStats.cooldownSec < previewStats.cooldownSec
+                                    ? ` → ${nextStats.cooldownSec}s`
+                                    : ''}
+                                </span>
+                                <span className="text-emerald-300">
+                                  +{previewStats.flowBonusPct}% FLOW
                                 </span>
                               </div>
                             )}
@@ -5887,6 +6504,7 @@ export default function App() {
                     primaryColor="#00ff88"
                     horizonColor="#00d4ff"
                     bpm={cfg.fineTune?.baseJumpTempo || 100}
+                    menuBeatInfoRef={menuBeatInfoRef}
                     onSelectAvatar={handleSelectAvatar}
                     onUnlockAvatar={handleUnlockAvatar}
                     onSetOrbs={handleSetExactOrbs}
@@ -5924,7 +6542,10 @@ export default function App() {
                         <div className="flex items-center gap-1.5 shrink-0">
                           <button
                             type="button"
-                            onClick={() => audioRef.current.previewNote(329.63, cfg, bank)}
+                            onClick={() => {
+                              lastPreviewedBankIdRef.current = bank.id;
+                              audioRef.current.previewNote(329.63, cfg, bank);
+                            }}
                             className="px-2 py-1 bg-slate-800 hover:bg-slate-700 border border-slate-600 text-[8px] text-slate-200 cursor-pointer"
                             title="Listen"
                           >
@@ -6000,9 +6621,17 @@ export default function App() {
                           <div className="flex items-center gap-1.5 shrink-0">
                             <button
                               type="button"
-                              onClick={() =>
-                                audioRef.current.playChordGate(sc, 0, cfg, getActiveSoundBank(cfg))
-                              }
+                              onClick={() => {
+                                const previewBank =
+                                  SOUND_BANKS.find(
+                                    (b) => b.id === lastPreviewedBankIdRef.current
+                                  ) || getActiveSoundBank(cfg);
+                                audioRef.current.previewScaleAscendingDescending(
+                                  sc,
+                                  cfg,
+                                  previewBank
+                                );
+                              }}
                               className="px-2 py-1 bg-slate-800 hover:bg-slate-700 border border-slate-600 text-[8px] text-slate-200 cursor-pointer"
                             >
                               ▶
@@ -6034,113 +6663,7 @@ export default function App() {
           );
         })()}
 
-        {/* --- 16-STEP VISUAL PIANO ROLL SEQUENCER MODAL --- */}
-        {screen === 'sequencer' && (
-          <div
-            id="piano-screen"
-            className="absolute inset-0 z-30 bg-[#060810]/96 flex flex-col justify-between p-4 overflow-y-auto text-[9px]"
-          >
-            <div className="flex items-center justify-between border-b border-slate-800 pb-2.5">
-              <h2 className="text-xs text-white tracking-wider uppercase">
-                🎛 16-STEP SEQ
-              </h2>
-              <button
-                type="button"
-                onClick={() => setScreen('title')}
-                className="px-3 py-1.5 border border-slate-700 hover:border-white text-[9px] text-slate-300 cursor-pointer"
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className="my-2 flex flex-wrap items-center gap-1.5">
-              {Object.entries(SEQUENCER_PRESETS).map(([key, pr]) => (
-                <button
-                  key={key}
-                  type="button"
-                  onClick={() => applyPreset(key)}
-                  className={`px-2 py-1 text-[8px] border transition-colors cursor-pointer whitespace-nowrap ${
-                    activePreset === key
-                      ? 'bg-cyan-500/20 border-cyan-400 text-cyan-200'
-                      : 'bg-slate-900 border-slate-700 text-slate-400 hover:text-white'
-                  }`}
-                >
-                  {pr.name}
-                </button>
-              ))}
-            </div>
-
-            <div className="flex-1 overflow-x-auto border border-slate-800 bg-slate-950/90 p-2">
-              <div className="min-w-[510px]">
-                <div className="grid grid-cols-[44px_repeat(16,1fr)] gap-1 mb-1 text-[8px] text-slate-500 text-center">
-                  <div>♪</div>
-                  {Array.from({ length: 16 }, (_, s) => (
-                    <div key={s} className={s % 4 === 0 ? 'text-emerald-400' : ''}>
-                      {s + 1}
-                    </div>
-                  ))}
-                </div>
-
-                {[...NOTE_KEYS].reverse().map((noteKey) => (
-                  <div
-                    key={noteKey}
-                    className="grid grid-cols-[44px_repeat(16,1fr)] gap-1 mb-1 items-center"
-                  >
-                    <button
-                      type="button"
-                      onClick={() =>
-                        audioRef.current.previewNote(
-                          NOTES_MAP[noteKey],
-                          cfg,
-                          getActiveSoundBank(cfg)
-                        )
-                      }
-                      className="text-[8px] text-left px-1 py-0.5 bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 cursor-pointer"
-                    >
-                      {noteKey}
-                    </button>
-                    {Array.from({ length: 16 }, (_, stepIdx) => {
-                      const isActive = seqGrid[stepIdx]?.includes(noteKey);
-                      return (
-                        <button
-                          key={stepIdx}
-                          type="button"
-                          aria-label={`Step ${stepIdx + 1} Note ${noteKey}`}
-                          onClick={() => toggleSeqCell(stepIdx, noteKey)}
-                          className={`h-5 border transition-colors cursor-pointer ${
-                            isActive
-                              ? 'bg-emerald-400 border-white shadow-[0_0_8px_#00ff88]'
-                              : stepIdx % 4 === 0
-                              ? 'bg-slate-900/90 border-slate-800 hover:border-slate-600'
-                              : 'bg-slate-950 border-slate-900 hover:border-slate-700'
-                          }`}
-                        />
-                      );
-                    })}
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between pt-2.5 mt-2 border-t border-slate-800">
-              <button
-                type="button"
-                onClick={() => setSeqGrid(Array.from({ length: 16 }, () => []))}
-                className="px-3 py-2 border border-rose-500/70 hover:bg-rose-500/10 text-rose-400 text-[9px] uppercase cursor-pointer"
-              >
-                🗑 CLEAR
-              </button>
-
-              <button
-                type="button"
-                onClick={startSequencerRun}
-                className="px-5 py-2 bg-emerald-400 hover:bg-emerald-300 text-slate-950 text-[9px] uppercase cursor-pointer shadow-[0_0_20px_rgba(0,255,136,0.3)]"
-              >
-                ▶ PLAY SEQ
-              </button>
-            </div>
-          </div>
-        )}
+        {/* 16-SEQ removed per user request — all melody & stage editing is unified in the DAW Stage Creator */}
 
         {/* --- SYSTEM CONFIG, CURATED MELODY LIBRARY & CATEGORIZED FINE-TUNE SLIDERS --- */}
         {screen === 'settings' && (
@@ -6209,38 +6732,19 @@ export default function App() {
                 )}
               </div>
 
-              {/* 02. Gameplay Melody Mode & Curated Biome Melody Library (81 Melodies · 3 Per Biome) */}
+              {/* 02. Unified Curated Biome Melody Library (81 Melodies · 3 Per Biome, Editable in DAW!) */}
               <div className="bg-slate-900/70 border border-cyan-500/50 p-3 space-y-2.5">
                 <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 pb-1.5">
                   <span className="text-cyan-300 uppercase">
-                    02. Gameplay Melody Engine &amp; Library ({keptMelodiesCount}/81 Kept)
+                    02. Curated &amp; DAW Melody Library ({keptMelodiesCount}/81 Active)
                   </span>
-                  <div className="flex items-center gap-1">
-                    <button
-                      type="button"
-                      data-testid="melody-mode-curated-btn"
-                      onClick={() => setCfg((prev) => ({ ...prev, melodyMode: 'curated' }))}
-                      className={`px-2 py-1 text-[8px] border cursor-pointer ${
-                        (cfg.melodyMode ?? 'curated') === 'curated'
-                          ? 'bg-emerald-400 text-slate-950 border-emerald-300'
-                          : 'bg-slate-950 text-slate-400 border-slate-700 hover:text-white'
-                      }`}
-                    >
-                      🎼 CURATED
-                    </button>
-                    <button
-                      type="button"
-                      data-testid="melody-mode-random-btn"
-                      onClick={() => setCfg((prev) => ({ ...prev, melodyMode: 'random' }))}
-                      className={`px-2 py-1 text-[8px] border cursor-pointer ${
-                        cfg.melodyMode === 'random'
-                          ? 'bg-amber-400 text-slate-950 border-amber-300'
-                          : 'bg-slate-950 text-slate-400 border-slate-700 hover:text-white'
-                      }`}
-                    >
-                      🎲 RANDOM
-                    </button>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setScreen('stage_creator')}
+                    className="px-2 py-1 bg-emerald-400 text-slate-950 text-[8px] uppercase cursor-pointer"
+                  >
+                    🎹 EDIT IN DAW ({ALL_CURATED_MELODY_STAGES.length})
+                  </button>
                 </div>
 
                 <div className="text-[7px] text-slate-400 leading-relaxed">
@@ -6631,6 +7135,7 @@ export default function App() {
                 <button
                   type="button"
                   onClick={() => {
+                    commitMidRunProgressOnExit();
                     audioRef.current.stopChoir();
                     setScreen('title');
                   }}
@@ -6643,7 +7148,128 @@ export default function App() {
           </div>
         )}
 
-        {/* --- MINIMAL GAME OVER MODAL WITH ANIMATED LEVEL XP BAR, LEVEL-UP BANNER & SHOP RECOMMENDATION --- */}
+        {/* --- 15-LEVEL PROGRESSION ROADMAP & DETAILED PLAYER STATS MODAL --- */}
+        {showLevelRoadmapModal && (
+          <div
+            id="level-roadmap-modal"
+            data-testid="level-roadmap-modal"
+            onClick={() => setShowLevelRoadmapModal(false)}
+            className="absolute inset-0 z-50 bg-[#04050a]/92 flex items-center justify-center p-4"
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-md max-h-[88vh] bg-slate-950 border-2 border-emerald-400 shadow-[0_0_40px_rgba(0,255,136,0.25)] p-4 flex flex-col gap-3 text-[8px]"
+            >
+              <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                <div>
+                  <div className="text-[10px] text-emerald-300 uppercase">
+                    ⭐ {isFa ? `کارنامه و مسیر ارتقای لول (${playerLvInfo.level}/15)` : `PLAYER LEVEL ${playerLvInfo.level}/15 & ROADMAP`}
+                  </div>
+                  <div className="text-[7px] text-slate-400 mt-0.5">
+                    TOTAL XP: <strong className="text-white">{playerLvInfo.totalXp}</strong> · NEXT LEVEL:{' '}
+                    <strong className="text-cyan-300">
+                      {playerLvInfo.xpIntoLevel}/{playerLvInfo.xpNeededForNext} XP
+                    </strong>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowLevelRoadmapModal(false)}
+                  className="px-2.5 py-1 bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 cursor-pointer"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* XP Progress Bar + Lifetime Stats Summary */}
+              <div className="p-2.5 bg-slate-900/90 border border-slate-800 space-y-2">
+                <div className="w-full h-2.5 bg-slate-950 border border-slate-700 overflow-hidden">
+                  <div
+                    className="h-full bg-gradient-to-r from-emerald-400 via-cyan-400 to-pink-400"
+                    style={{
+                      width: `${Math.max(5, Math.round(playerLvInfo.progressRatio * 100))}%`,
+                    }}
+                  />
+                </div>
+                <div className="grid grid-cols-4 gap-1.5 text-center pt-1">
+                  <div className="p-1.5 bg-slate-950 border border-slate-800">
+                    <div className="text-[6px] text-slate-400">BEST SCORE</div>
+                    <div className="text-[9px] text-amber-300 mt-0.5">{stats.highScore}</div>
+                  </div>
+                  <div className="p-1.5 bg-slate-950 border border-slate-800">
+                    <div className="text-[6px] text-slate-400">MAX FLOW</div>
+                    <div className="text-[9px] text-emerald-300 mt-0.5">x{stats.maxCombo}</div>
+                  </div>
+                  <div className="p-1.5 bg-slate-950 border border-slate-800">
+                    <div className="text-[6px] text-slate-400">RUNS</div>
+                    <div className="text-[9px] text-cyan-300 mt-0.5">{stats.runsPlayed}</div>
+                  </div>
+                  <div className="p-1.5 bg-slate-950 border border-slate-800">
+                    <div className="text-[6px] text-slate-400">LOADOUT SLOTS</div>
+                    <div className="text-[9px] text-pink-300 mt-0.5">
+                      {computeUnlockedPowerUpSlots(stats.highScore, playerLvInfo.level)}/7
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Scrollable 15-Level Rewards List */}
+              <div className="flex-1 overflow-y-auto space-y-1.5 pr-1">
+                {LEVEL_PROGRESSION_TABLE.map((lvRow) => {
+                  const unlocked = playerLvInfo.level >= lvRow.level;
+                  const isCurrent = playerLvInfo.level === lvRow.level;
+                  const rowRewards = getLevelUpRewardsBetween(lvRow.level - 1, lvRow.level);
+                  return (
+                    <div
+                      key={lvRow.level}
+                      className={`p-2 border flex items-start justify-between gap-2 ${
+                        isCurrent
+                          ? 'bg-emerald-950/35 border-emerald-400'
+                          : unlocked
+                          ? 'bg-slate-900/80 border-slate-700'
+                          : 'bg-slate-950/75 border-slate-800/70 opacity-65'
+                      }`}
+                    >
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span
+                            className={`px-1.5 py-0.5 text-[7px] border ${
+                              unlocked
+                                ? 'bg-emerald-500/20 border-emerald-400 text-emerald-300'
+                                : 'bg-slate-900 border-slate-700 text-slate-400'
+                            }`}
+                          >
+                            {unlocked ? '✓' : '🔒'} LV.{lvRow.level}
+                          </span>
+                          <span className="text-[7px] text-white">
+                            {isFa ? lvRow.titleFa : lvRow.titleEn}
+                          </span>
+                          <span className="text-[7px] text-slate-400">{lvRow.minXp} XP</span>
+                        </div>
+                        {rowRewards.length > 0 && (
+                          <div className="space-y-0.5">
+                            {rowRewards.map((rw, idx) => (
+                              <div key={idx} className="text-[7px] text-slate-200">
+                                • {isFa ? rw.nameFa : rw.nameEn}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      {isCurrent && (
+                        <span className="px-1.5 py-0.5 bg-amber-400 text-slate-950 text-[6px] uppercase shrink-0">
+                          CURRENT
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* --- CHOREOGRAPHED ARCADE GAME OVER MODAL (0.0s–0.7s 3 Cards -> 0.7s–1.4s XP Bar -> 1.4s+ Level-Up OR Shop Rec -> Buttons) --- */}
         {screen === 'gameover' && (() => {
           const recItem = computePostDefeatShopRecommendation(
             stats.totalOrbs,
@@ -6652,25 +7278,138 @@ export default function App() {
           );
           const didLevelUp = endSnapshot.newLevel > endSnapshot.prevLevel;
 
+          // Choreographed timing milestones (fast & skippable on click/Space/Enter)
+          const showCard1 = gameOverAnimElapsed >= 0.02;
+          const showCard2 = gameOverAnimElapsed >= 0.24;
+          const showCard3 = gameOverAnimElapsed >= 0.46;
+          const showXpPanel = gameOverAnimElapsed >= 0.7;
+          const xpBarFillRatio =
+            gameOverAnimElapsed < 0.82
+              ? didLevelUp
+                ? endSnapshot.prevRatio
+                : endSnapshot.prevRatio
+              : endSnapshot.progressRatio;
+          const showPostXpSection = gameOverAnimElapsed >= 1.4;
+          const showButtons = gameOverAnimElapsed >= 1.75;
+
+          const getRewardIcon = (kind: LevelUpRewardDef['kind']) => {
+            if (kind === 'biome') return '♫';
+            if (kind === 'sound_bank') return '🔊';
+            if (kind === 'slot') return '⚡';
+            return '👑';
+          };
+
+          const getConciseRewardLabel = (rw: LevelUpRewardDef) => {
+            const raw = isFa ? rw.nameFa : rw.nameEn;
+            return raw.replace(/^Unlocked\s+/i, '').replace(/^باز شدن\s+/i, '');
+          };
+
           return (
             <div
               id="game-over-screen"
               data-testid="game-over-screen"
+              onClick={() => {
+                if (gameOverAnimElapsed < 1.85) {
+                  setGameOverAnimElapsed(9.9);
+                }
+              }}
               className="pixel-dissolve-enter absolute inset-0 z-30 bg-[#04050a]/92 flex flex-col items-center justify-center p-4 text-center overflow-y-auto"
             >
-              <div className="w-full max-w-sm border-2 border-slate-700 bg-slate-950 p-4">
+              <div
+                onClick={(e) => {
+                  if (gameOverAnimElapsed < 1.85) {
+                    setGameOverAnimElapsed(9.9);
+                  } else {
+                    e.stopPropagation();
+                  }
+                }}
+                className="w-full max-w-sm border-2 border-slate-700 bg-slate-950 p-4 transition-all duration-300 ease-out my-auto shadow-[0_0_50px_rgba(0,0,0,0.85)]"
+              >
+                {/* Animated Jumping Legendary Skins Showcase at Top of Game Over Dialog Frame when reaching Level 5, 10, or 15! */}
+                {(() => {
+                  const unlockedSecretIds = Array.from(
+                    new Set(
+                      endSnapshot.levelRewards
+                        .filter((r) => r.kind === 'secret_skin' && Boolean(r.avatarId))
+                        .map((r) => r.avatarId as CharacterAvatarDef['id'])
+                    )
+                  );
+                  if (!didLevelUp || unlockedSecretIds.length === 0) return null;
+                  return (
+                    <div
+                      data-testid="gameover-legendary-skins-showcase"
+                      className="mb-3 p-2.5 bg-gradient-to-b from-amber-500/20 via-pink-500/15 to-slate-950 border-2 border-amber-400 shadow-[0_0_28px_rgba(251,191,36,0.35)]"
+                    >
+                      <style>{`
+                        @keyframes legendarySkinJump {
+                          0%, 100% { transform: translateY(0px) scale(1.12, 0.88); }
+                          45% { transform: translateY(-14px) scale(0.92, 1.14); }
+                          55% { transform: translateY(-15px) scale(0.95, 1.1); }
+                        }
+                      `}</style>
+                      <div className="text-[7px] text-amber-300 uppercase tracking-wider mb-2">
+                        👑 LEGENDARY SECRET SKINS UNLOCKED!
+                      </div>
+                      <div className="flex items-center justify-around gap-2 py-1">
+                        {unlockedSecretIds.map((skinId, idx) => {
+                          const skinDef = getCharacterById(skinId);
+                          return (
+                            <div
+                              key={skinId}
+                              data-testid={`legendary-showcase-skin-${skinId}`}
+                              className="flex flex-col items-center gap-1"
+                            >
+                              <div
+                                style={{
+                                  animation: `legendarySkinJump 0.85s ease-in-out ${idx * 0.16}s infinite`,
+                                }}
+                                className="p-1.5 rounded-full bg-slate-900/90 border border-amber-300/80 shadow-[0_0_14px_rgba(251,191,36,0.4)]"
+                              >
+                                <SelectedAvatarMiniBadge
+                                  avatarId={skinId}
+                                  primaryColor="#fde047"
+                                  horizonColor="#f472b6"
+                                />
+                              </div>
+                              <span className="text-[6px] text-white uppercase truncate max-w-[82px]">
+                                {skinDef.name}
+                              </span>
+                              <span className="text-[6px] text-rose-300">
+                                ♥ {skinDef.maxHealth} HP
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })()}
+
                 <h2
                   id="go-msg"
                   className={`text-base mb-3 ${
-                    endSnapshot.isNewRecord ? 'text-amber-400' : 'text-rose-500'
+                    didLevelUp
+                      ? 'text-amber-300 animate-bounce'
+                      : endSnapshot.isNewRecord
+                      ? 'text-amber-400'
+                      : 'text-rose-500'
                   }`}
                 >
-                  {endSnapshot.isNewRecord ? '* NEW RECORD!' : '* SHATTERED *'}
+                  {didLevelUp
+                    ? `🎉 LEVEL UP! LV.${endSnapshot.newLevel}`
+                    : endSnapshot.isNewRecord
+                    ? '* NEW RECORD!'
+                    : '* SHATTERED *'}
                 </h2>
 
+                {/* PHASE 1 (0.0s -> 0.7s): 3 Left-to-Right Arcade Stat Cards (SCORE, FLOW, HEIGHT (M)) — Rank Removed */}
                 <div className="grid grid-cols-3 gap-2 mb-3 text-[9px]">
-                  <div className="bg-slate-900 border border-slate-800 p-2">
-                    <div className="text-[7px] text-slate-400">SCORE</div>
+                  <div
+                    className={`bg-slate-900 border border-slate-800 p-2 transition-all duration-200 ${
+                      showCard1 ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-2 scale-95'
+                    }`}
+                  >
+                    <div className="text-[7px] text-slate-400">{isFa ? 'امتیاز' : 'SCORE'}</div>
                     <div id="go-score" className="text-sm text-white mt-1">
                       {endSnapshot.score}
                     </div>
@@ -6678,151 +7417,200 @@ export default function App() {
                       BEST {endSnapshot.best}
                     </div>
                   </div>
-                  <div className="bg-slate-900 border border-slate-800 p-2">
-                    <div className="text-[7px] text-slate-400">FLOW</div>
+
+                  <div
+                    className={`bg-slate-900 border border-slate-800 p-2 transition-all duration-200 ${
+                      showCard2 ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-2 scale-95'
+                    }`}
+                  >
+                    <div className="text-[7px] text-slate-400">{isFa ? 'فلو' : 'FLOW'}</div>
                     <div className="text-sm text-emerald-400 mt-1">
                       x{endSnapshot.maxFlow}
                     </div>
                     <div className="text-[7px] text-slate-400 mt-1">
-                      +{endSnapshot.altitude}M
+                      MAX COMBO
                     </div>
-                  </div>
-                  <div className="bg-slate-900 border border-slate-800 p-2">
-                    <div className="text-[7px] text-slate-400">RANK</div>
-                    <div className="text-sm text-cyan-400 mt-1">
-                      {endSnapshot.rank}
-                    </div>
-                    <div className="text-[7px] text-amber-300 mt-1 inline-flex items-center justify-center gap-1">
-                      <RadiantOrbIcon size={10} />
-                      <span>+{endSnapshot.orbsCollected}</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Animated Post-Defeat 15-Level XP Bar + Level-Up Congratulations Banner */}
-                <div
-                  data-testid="gameover-xp-panel"
-                  className="mb-3 p-2.5 bg-slate-900/95 border border-cyan-400/60 text-left"
-                >
-                  <div className="flex items-center justify-between text-[8px] mb-1.5">
-                    <span className="text-cyan-300 uppercase">
-                      ⭐ PLAYER LV.{endSnapshot.newLevel}/15
-                    </span>
-                    <span className="text-emerald-300">
-                      +{endSnapshot.xpGained} XP ({endSnapshot.xpIntoLevel}/{endSnapshot.xpNeededForNext})
-                    </span>
-                  </div>
-                  <div className="w-full h-2.5 bg-slate-950 border border-slate-700 overflow-hidden">
-                    <div
-                      className="h-full bg-gradient-to-r from-emerald-400 via-cyan-400 to-pink-400 transition-all duration-700"
-                      style={{
-                        width: `${Math.max(6, Math.round(endSnapshot.progressRatio * 100))}%`,
-                      }}
-                    />
                   </div>
 
-                  {didLevelUp && endSnapshot.levelRewards.length > 0 && (
-                    <div
-                      data-testid="level-up-congrats-banner"
-                      className="mt-2 p-2 bg-amber-500/15 border border-amber-400 text-[7px] text-amber-200 space-y-1"
-                    >
-                      <div className="text-[8px] text-amber-300 uppercase">
-                        🎉 LEVEL UP! LV.{endSnapshot.prevLevel} → LV.{endSnapshot.newLevel}
-                      </div>
-                      {endSnapshot.levelRewards.map((rw, rIdx) => (
-                        <div key={`${rw.level}_${rIdx}`} className="text-white">
-                          • <strong>LV.{rw.level}:</strong>{' '}
-                          {cfg.language === 'fa' ? rw.nameFa : rw.nameEn}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {/* Smart Post-Defeat Item Purchase Recommendation (Shows Character Shape if Character!) */}
-                {recItem && (
                   <div
-                    data-testid="post-defeat-recommendation"
-                    className={`mb-3 p-2.5 border text-left flex items-center justify-between gap-2.5 ${
-                      recItem.canAfford
-                        ? 'bg-emerald-950/35 border-emerald-400/80 shadow-[0_0_16px_rgba(0,255,136,0.18)]'
-                        : 'bg-slate-900/90 border-amber-400/50'
+                    data-testid="gameover-orbs-card"
+                    className={`bg-slate-900 border border-slate-800 p-2 transition-all duration-200 ${
+                      showCard3 ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-2 scale-95'
                     }`}
                   >
-                    {recItem.kind === 'character' && (
-                      <SelectedAvatarMiniBadge
-                        avatarId={recItem.id as CharacterAvatarDef['id']}
-                        primaryColor="#00ff88"
-                        horizonColor="#00d4ff"
-                      />
-                    )}
+                    <div className="text-[7px] text-slate-400">{isFa ? 'ارب‌ها' : 'ORBS'}</div>
+                    <div
+                      id="go-orbs"
+                      className="text-sm text-amber-300 mt-1 inline-flex items-center justify-center gap-1"
+                    >
+                      <RadiantOrbIcon size={12} />
+                      <span>+{endSnapshot.orbsCollected}</span>
+                    </div>
+                    <div className="text-[7px] text-cyan-300 mt-1">
+                      TOTAL {stats.totalOrbs}
+                    </div>
+                  </div>
+                </div>
 
-                    <div className="min-w-0 flex-1">
-                      <div className="text-[7px] uppercase tracking-wider text-amber-300 inline-flex items-center gap-1">
-                        {recItem.canAfford ? (
-                          <>
-                            <span>✨ UNLOCK NOW</span>
-                            <RadiantOrbIcon size={10} />
-                            <span>{stats.totalOrbs}</span>
-                          </>
-                        ) : (
-                          <>
-                            <span>🎯 +{recItem.orbsNeeded}</span>
-                            <RadiantOrbIcon size={10} />
-                            <span>TO UNLOCK</span>
-                          </>
-                        )}
-                      </div>
-                      <div className="text-[9px] text-white uppercase truncate mt-1">
-                        {recItem.kind === 'character' ? '◈ ' : '⚡ '}
-                        {recItem.name}
-                      </div>
+                {/* PHASE 2 (0.7s -> 1.4s): Smooth Downward Expansion for Animated XP Bar (Starts at Pre-Run Ratio -> Fills to New Ratio) */}
+                <div
+                  className={`overflow-hidden transition-all duration-300 ease-out ${
+                    showXpPanel ? 'max-h-40 opacity-100 mb-3' : 'max-h-0 opacity-0 mb-0'
+                  }`}
+                >
+                  <div
+                    data-testid="gameover-xp-panel"
+                    className="p-2.5 bg-slate-900/95 border border-cyan-400/60 text-left"
+                  >
+                    <div className="flex items-center justify-between text-[8px] mb-1.5">
+                      <span className="text-cyan-300 uppercase">
+                        ⭐ PLAYER LV.{endSnapshot.newLevel}/15
+                      </span>
+                      <span className="text-emerald-300">
+                        +{endSnapshot.xpGained} XP ({endSnapshot.xpIntoLevel}/{endSnapshot.xpNeededForNext})
+                      </span>
+                    </div>
+                    <div className="w-full h-2.5 bg-slate-950 border border-slate-700 overflow-hidden">
                       <div
-                        className="text-[7px] truncate mt-0.5"
-                        style={{ color: recItem.accentColor }}
-                      >
-                        * {recItem.shortBenefit}
+                        className="h-full bg-gradient-to-r from-emerald-400 via-cyan-400 to-pink-400 transition-all duration-500 ease-out"
+                        style={{
+                          width: `${Math.max(5, Math.round(xpBarFillRatio * 100))}%`,
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* PHASE 3A (1.4s+ IF LEVEL-UP): Vertical Unlocked Rewards List with Icon + Concise Label (Skips Shop Recommendation!) */}
+                {didLevelUp && endSnapshot.levelRewards.length > 0 && (
+                  <div
+                    className={`overflow-hidden transition-all duration-300 ease-out ${
+                      showPostXpSection ? 'max-h-64 opacity-100 mb-3' : 'max-h-0 opacity-0 mb-0'
+                    }`}
+                  >
+                    <div
+                      data-testid="level-up-congrats-banner"
+                      className="p-2.5 bg-amber-500/15 border-2 border-amber-400 text-left space-y-1.5 shadow-[0_0_24px_rgba(251,191,36,0.22)]"
+                    >
+                      <div className="flex items-center justify-between text-[8px] text-amber-300 uppercase border-b border-amber-400/30 pb-1">
+                        <span>✨ LEVEL {endSnapshot.prevLevel} → {endSnapshot.newLevel} UNLOCKS</span>
+                        <span>+{endSnapshot.levelRewards.length} NEW</span>
+                      </div>
+                      <div className="flex flex-col gap-1.5 pt-0.5">
+                        {endSnapshot.levelRewards.map((rw, rIdx) => (
+                          <div
+                            key={`${rw.level}_${rIdx}`}
+                            className="px-2 py-1.5 bg-slate-950/90 border border-amber-400/50 flex items-center gap-2 text-[8px] text-white"
+                          >
+                            <span className="w-5 h-5 flex items-center justify-center bg-amber-400/20 border border-amber-300 text-amber-300 shrink-0">
+                              {getRewardIcon(rw.kind)}
+                            </span>
+                            <span className="truncate flex-1">{getConciseRewardLabel(rw)}</span>
+                            <span className="text-[6px] text-amber-300 uppercase shrink-0">
+                              LV.{rw.level}
+                            </span>
+                          </div>
+                        ))}
                       </div>
                     </div>
-
-                    {recItem.canAfford ? (
-                      <button
-                        type="button"
-                        data-testid="buy-recommended-item-btn"
-                        onClick={() => {
-                          if (recItem.kind === 'character') {
-                            const av = CHARACTER_AVATARS.find((a) => a.id === recItem.id);
-                            if (av) handleUnlockAvatar(av);
-                          } else if (recItem.kind === 'power_up') {
-                            const pu = POWERUP_STORE_ITEMS.find((p) => p.id === recItem.id);
-                            if (pu) handleBuyOrUpgradePowerUp(pu);
-                          }
-                        }}
-                        className="px-2.5 py-2 bg-amber-400 hover:bg-amber-300 text-slate-950 text-[8px] uppercase whitespace-nowrap shrink-0 cursor-pointer inline-flex items-center gap-1"
-                      >
-                        <span>BUY</span>
-                        <RadiantOrbIcon size={10} />
-                        <span>{recItem.costOrbs}</span>
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setStoreTab(
-                            recItem.kind === 'character' ? 'characters' : 'powerups'
-                          );
-                          setScreen('store');
-                        }}
-                        className="px-2.5 py-2 bg-slate-800 hover:bg-slate-700 border border-amber-400/60 text-amber-300 text-[8px] uppercase whitespace-nowrap shrink-0 cursor-pointer inline-flex items-center gap-1"
-                      >
-                        <RadiantOrbIcon size={10} />
-                        <span>{recItem.costOrbs} SHOP</span>
-                      </button>
-                    )}
                   </div>
                 )}
 
-                <div className="flex flex-col gap-2">
+                {/* PHASE 3B (1.4s+ IF NO LEVEL-UP): Smart Post-Defeat Shop Purchase Recommendation */}
+                {!didLevelUp && recItem && (
+                  <div
+                    className={`overflow-hidden transition-all duration-300 ease-out ${
+                      showPostXpSection ? 'max-h-36 opacity-100 mb-3' : 'max-h-0 opacity-0 mb-0'
+                    }`}
+                  >
+                    <div
+                      data-testid="post-defeat-recommendation"
+                      className={`p-2.5 border text-left flex items-center justify-between gap-2.5 ${
+                        recItem.canAfford
+                          ? 'bg-emerald-950/35 border-emerald-400/80 shadow-[0_0_16px_rgba(0,255,136,0.18)]'
+                          : 'bg-slate-900/90 border-amber-400/50'
+                      }`}
+                    >
+                      {recItem.kind === 'character' && (
+                        <SelectedAvatarMiniBadge
+                          avatarId={recItem.id as CharacterAvatarDef['id']}
+                          primaryColor="#00ff88"
+                          horizonColor="#00d4ff"
+                        />
+                      )}
+
+                      <div className="min-w-0 flex-1">
+                        <div className="text-[7px] uppercase tracking-wider text-amber-300 inline-flex items-center gap-1">
+                          {recItem.canAfford ? (
+                            <>
+                              <span>✨ UNLOCK NOW</span>
+                              <RadiantOrbIcon size={10} />
+                              <span>{stats.totalOrbs}</span>
+                            </>
+                          ) : (
+                            <>
+                              <span>🎯 +{recItem.orbsNeeded}</span>
+                              <RadiantOrbIcon size={10} />
+                              <span>TO UNLOCK</span>
+                            </>
+                          )}
+                        </div>
+                        <div className="text-[9px] text-white uppercase truncate mt-1">
+                          {recItem.kind === 'character' ? '◈ ' : '⚡ '}
+                          {recItem.name}
+                        </div>
+                        <div
+                          className="text-[7px] truncate mt-0.5"
+                          style={{ color: recItem.accentColor }}
+                        >
+                          * {recItem.shortBenefit}
+                        </div>
+                      </div>
+
+                      {recItem.canAfford ? (
+                        <button
+                          type="button"
+                          data-testid="buy-recommended-item-btn"
+                          onClick={() => {
+                            if (recItem.kind === 'character') {
+                              const av = CHARACTER_AVATARS.find((a) => a.id === recItem.id);
+                              if (av) handleUnlockAvatar(av);
+                            } else if (recItem.kind === 'power_up') {
+                              const pu = POWERUP_STORE_ITEMS.find((p) => p.id === recItem.id);
+                              if (pu) handleBuyOrUpgradePowerUp(pu, true);
+                            }
+                          }}
+                          className="px-2.5 py-2 bg-amber-400 hover:bg-amber-300 text-slate-950 text-[8px] uppercase whitespace-nowrap shrink-0 cursor-pointer inline-flex items-center gap-1"
+                        >
+                          <span>BUY & EQUIP</span>
+                          <RadiantOrbIcon size={10} />
+                          <span>{recItem.costOrbs}</span>
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setStoreTab(
+                              recItem.kind === 'character' ? 'characters' : 'powerups'
+                            );
+                            setScreen('store');
+                          }}
+                          className="px-2.5 py-2 bg-slate-800 hover:bg-slate-700 border border-amber-400/60 text-amber-300 text-[8px] uppercase whitespace-nowrap shrink-0 cursor-pointer inline-flex items-center gap-1"
+                        >
+                          <RadiantOrbIcon size={10} />
+                          <span>{recItem.costOrbs} SHOP</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* PHASE 4 (1.75s+): Action Buttons */}
+                <div
+                  className={`flex flex-col gap-2 transition-all duration-200 ${
+                    showButtons ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2 pointer-events-none'
+                  }`}
+                >
                   <button
                     type="button"
                     data-start="true"

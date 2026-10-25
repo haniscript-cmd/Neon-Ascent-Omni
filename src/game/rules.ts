@@ -6,58 +6,64 @@
  */
 
 export interface FineTuneConfig {
-  flowGainRate: number;           // Multiplier for Flow gained per platform/orb (default 1.0)
-  flowDecayRate: number;          // Multiplier for Flow decay when stalling (default 1.0)
-  difficultyRampSpeed: number;    // Speed at which platform width narrows with Flow (default 1.0)
-  minPlatformWidth: number;       // Minimum platform width at max Flow (default 86px)
-  maxPlatformWidth: number;       // Starting platform width at Flow 0 (default 180px)
-  horizontalScatterMult: number;  // Horizontal distance multiplier between platforms (default 1.0)
-  wideLeapSpawnRate: number;      // Multiplier for max-distance opposite-direction platform leaps as Flow rises (default 1.0)
-  fragileSpawnRate: number;       // Multiplier for fragile (crumble) platform probability as Flow rises (default 1.2)
-  fragileStreakChance: number;    // Probability (0..1) of spawning consecutive fragile platform streaks (default 0.38)
-  fragileStreakMaxLen: number;    // Maximum consecutive fragile platforms in a streak (default 4)
-  disguisedFragileChance: number; // Probability (0..1) that a fragile platform is disguised as a normal platform (default 0.16)
-  biomePlatformDuration: number;  // Number of platforms before shifting to the next Biome (default 55)
-  biomeShiftSpeed: number;        // Speed multiplier for visual/musical biome transition dissolve (default 1.2)
-  orbSpawnRate: number;           // Probability of spawning an Orb on a platform (default 0.32)
+  flowGainRate: number;           // Multiplier for Flow gained per platform/orb (default 1.2)
+  flowDecayRate: number;          // Multiplier for Flow decay when stalling (default 0.7)
+  difficultyRampSpeed: number;    // Speed at which platform width narrows with Altitude (M) (0.1..10.0, default 3.0)
+  minPlatformWidth: number;       // Minimum platform width at high Altitude (default 64px)
+  maxPlatformWidth: number;       // Starting platform width at 0M Altitude (default 174px)
+  horizontalScatterMult: number;  // Horizontal distance multiplier between platforms (default 1.4)
+  wideLeapSpawnRate: number;      // Multiplier for max-distance opposite-direction platform leaps as Flow rises (default 2.1)
+  fragileSpawnRate: number;       // Multiplier for fragile (crumble) platform probability as Flow rises (default 1.5)
+  fragileStreakChance: number;    // Probability multiplier of spawning consecutive fragile platform streaks (default 1.5)
+  fragileStreakMaxLen: number;    // Maximum consecutive fragile platforms in a streak (default 5)
+  disguisedFragileChance: number; // Probability (0..1) that a fragile platform is disguised as a normal platform (default 0.22)
+  biomePlatformDuration: number;  // Number of platforms before shifting to the next Biome (default 60)
+  biomeShiftSpeed: number;        // Speed multiplier for visual/musical biome transition dissolve (default 0.9)
+  orbSpawnRate: number;           // Probability of spawning an Orb on/between platforms (default 0.35)
   orbScatterSpread: number;       // Vertical/horizontal spread of Orbs (default 1.0)
-  spikeHazardRate: number;        // Multiplier for on-platform spike probability (default 1.0)
-  aerialDroneRate: number;        // Multiplier for mid-air drone probability (default 1.0)
-  enemyMoveSpeedMult: number;     // Multiplier for enemy movement speed (default 1.4)
-  enemyMoveRangeMult: number;     // Multiplier for enemy horizontal patrol displacement range (default 1.5)
+  spikeHazardRate: number;        // Multiplier for on-platform spike probability (default 1.6)
+  aerialDroneRate: number;        // Multiplier for mid-air drone probability (default 1.7)
+  enemyMoveSpeedMult: number;     // Multiplier for enemy movement speed (default 2.7)
+  enemyMoveRangeMult: number;     // Multiplier for enemy horizontal patrol displacement range (default 2.1)
   hazardFlowPenalty: number;      // Multiplier for Flow lost on hazard collision (default 1.0)
   powerUpDurationSec: number;     // Base duration of temporary power-ups in seconds (default 15)
-  chordGateCooldownSteps: number; // Platforms between 4-Gate Chord chains (default 16)
-  baseMoveSpeed: number;          // Horizontal steering speed in px/s (default 345)
+  chordGateCooldownSteps: number; // Platforms between 4-Gate Chord chains (default 20)
+  baseMoveSpeed: number;          // Horizontal steering speed in px/s (default 370)
   baseJumpTempo: number;          // Base auto-bounce tempo in BPM equivalent (default 100)
+  minJumpBpm: number;             // Minimum Jump Speed (BPM) at Flow 0 (96..250, default 100)
+  maxJumpBpm: number;             // Maximum Jump Speed (BPM) at High Flow (96..250, default 165)
+  heartSpawnRate: number;         // Spawn rate for mid-air Heart Health Pickups, capped strictly below drone rate (default 0.18)
   dashBoostPowerMult: number;     // Multiplier for Dash horizontal velocity & upward lift boost (default 1.25)
 }
 
 export const DEFAULT_FINE_TUNE: FineTuneConfig = {
-  flowGainRate: 1.0,
-  flowDecayRate: 1.0,
-  difficultyRampSpeed: 1.0,
-  minPlatformWidth: 86,
-  maxPlatformWidth: 180,
-  horizontalScatterMult: 1.0,
-  wideLeapSpawnRate: 1.0,
-  fragileSpawnRate: 1.2,
-  fragileStreakChance: 0.38,
-  fragileStreakMaxLen: 4,
-  disguisedFragileChance: 0.16,
-  biomePlatformDuration: 55,
-  biomeShiftSpeed: 1.2,
-  orbSpawnRate: 0.32,
+  flowGainRate: 1.2,
+  flowDecayRate: 0.7,
+  difficultyRampSpeed: 3.0,
+  minPlatformWidth: 64,
+  maxPlatformWidth: 174,
+  horizontalScatterMult: 1.4,
+  wideLeapSpawnRate: 2.1,
+  fragileSpawnRate: 1.5,
+  fragileStreakChance: 1.5,
+  fragileStreakMaxLen: 5,
+  disguisedFragileChance: 0.22,
+  biomePlatformDuration: 60,
+  biomeShiftSpeed: 0.9,
+  orbSpawnRate: 0.35,
   orbScatterSpread: 1.0,
-  spikeHazardRate: 1.0,
-  aerialDroneRate: 1.0,
-  enemyMoveSpeedMult: 1.4,
-  enemyMoveRangeMult: 1.5,
+  spikeHazardRate: 1.6,
+  aerialDroneRate: 1.7,
+  enemyMoveSpeedMult: 2.7,
+  enemyMoveRangeMult: 2.1,
   hazardFlowPenalty: 1.0,
   powerUpDurationSec: 15,
-  chordGateCooldownSteps: 16,
-  baseMoveSpeed: 345,
+  chordGateCooldownSteps: 20,
+  baseMoveSpeed: 370,
   baseJumpTempo: 100,
+  minJumpBpm: 100,
+  maxJumpBpm: 165,
+  heartSpawnRate: 0.18,
   dashBoostPowerMult: 1.25,
 };
 
@@ -137,7 +143,7 @@ export const SOUND_BANKS: SoundBankDef[] = [
     name: 'Lo-Fi Cassette Keys',
     category: 'LO-FI',
     desc: 'Dusty vintage cassette keys with analog wow/flutter and warm lowpass',
-    costOrbs: 16,
+    costOrbs: 40,
     baseWave: 'sine',
     subWave: 'triangle',
     detuneCents: 14,
@@ -150,28 +156,11 @@ export const SOUND_BANKS: SoundBankDef[] = [
     tapeFlutter: 0.0045,
   },
   {
-    id: 'bladerunner_cs80',
-    name: 'Deckard CS-80 Brass',
-    category: 'CYBERPUNK',
-    desc: 'Lush dual-sawtooth cyberpunk lead with expressive resonant filter sweep',
-    costOrbs: 24,
-    baseWave: 'sawtooth',
-    subWave: 'sawtooth',
-    detuneCents: 11,
-    filterCutoffMult: 1.25,
-    filterQ: 3.2,
-    attackSec: 0.032,
-    decaySec: 1.42,
-    fmModRatio: 1.5,
-    fmModDepth: 0,
-    tapeFlutter: 0.002,
-  },
-  {
     id: 'akira_fm',
     name: 'Neo-Tokyo FM Bell',
     category: 'CYBERPUNK',
     desc: 'Crystalline 2-operator FM synthesis bell with metallic harmonic overtones',
-    costOrbs: 30,
+    costOrbs: 75,
     baseWave: 'sine',
     subWave: 'sine',
     detuneCents: 4,
@@ -188,7 +177,7 @@ export const SOUND_BANKS: SoundBankDef[] = [
     name: 'VHS Dreamwave Pad-Pluck',
     category: 'LO-FI',
     desc: 'Wide chorus-detuned late-night VHS synth with dreamy sustain',
-    costOrbs: 36,
+    costOrbs: 90,
     baseWave: 'triangle',
     subWave: 'sawtooth',
     detuneCents: 18,
@@ -205,7 +194,7 @@ export const SOUND_BANKS: SoundBankDef[] = [
     name: '1986 Arcade CRT Pulse',
     category: 'CRT RETRO',
     desc: 'Punchy hollow square-wave chip lead with sub-triangle bass body',
-    costOrbs: 40,
+    costOrbs: 100,
     baseWave: 'square',
     subWave: 'triangle',
     detuneCents: 7,
@@ -222,7 +211,7 @@ export const SOUND_BANKS: SoundBankDef[] = [
     name: 'Shibuya Rain Lo-Fi Harp',
     category: 'LO-FI',
     desc: 'Delicate plucked jazz-harp harmonics with warm vinyl filter contour',
-    costOrbs: 48,
+    costOrbs: 120,
     baseWave: 'triangle',
     subWave: 'sine',
     detuneCents: 9,
@@ -239,7 +228,7 @@ export const SOUND_BANKS: SoundBankDef[] = [
     name: 'Neuromancer Sub-Pluck',
     category: 'CYBERPUNK',
     desc: 'Deep resonant darksynth pluck with high-contrast harmonic bite',
-    costOrbs: 56,
+    costOrbs: 140,
     baseWave: 'sawtooth',
     subWave: 'triangle',
     detuneCents: 8,
@@ -255,16 +244,16 @@ export const SOUND_BANKS: SoundBankDef[] = [
 
 export const DEFAULT_CFG: GameConfig = {
   volMaster: 0.85,
-  volNotes: 1.15,
-  volIntervals: 1.05,
-  volChords: 1.18,
-  volBass: 0.95,
+  volNotes: 1.4,
+  volIntervals: 0.8,
+  volChords: 0.7,
+  volBass: 0.8,
   volDrums: 0.0,
-  volChoir: 1.22,
+  volChoir: 0.5,
   volSfx: 0.95,
   useBiomes: true,
   fixedColor: '#00ff88',
-  playerShape: 'circle',
+  playerShape: 'triangle',
   unlockedAvatars: ['circle', 'triangle', 'square'],
   trailStyle: 'ribbon',
   crtScanlines: true,
@@ -277,16 +266,14 @@ export const DEFAULT_CFG: GameConfig = {
   tiltControlEnabled: true,
   language: 'en',
   playerXp: 0,
-  playerLevel: 1,
+  playerLevel: 0,
   betaUnlockSecretSkins: false,
   tutorialSeen: false,
   customBiomes: [],
   powerUpLevels: {
-    orb_magnet: 1,
     combo_shield: 1,
-    dash_capacitor: 1,
   },
-  equippedPowerUps: ['orb_magnet', 'combo_shield', 'dash_capacitor'],
+  equippedPowerUps: ['combo_shield'],
   fineTune: { ...DEFAULT_FINE_TUNE },
 };
 
@@ -500,7 +487,7 @@ export const MASTER_SCALES: ScaleBiome[] = [
     name: 'SOLAR DAWN',
     subtitle: 'A Major Add9',
     tradition: 'SYNTHWAVE',
-    costOrbs: 12,
+    costOrbs: 30,
     fg: '#ffb800',
     bgAccent: '#422100',
     horizonColor: '#fde047',
@@ -517,7 +504,7 @@ export const MASTER_SCALES: ScaleBiome[] = [
     name: 'CRIMSON PROTOCOL',
     subtitle: 'C Phrygian Dominant',
     tradition: 'DARKSYNTH',
-    costOrbs: 16,
+    costOrbs: 40,
     fg: '#ff3344',
     bgAccent: '#420009',
     horizonColor: '#fda4af',
@@ -534,7 +521,7 @@ export const MASTER_SCALES: ScaleBiome[] = [
     name: 'ASTRAL VOID',
     subtitle: 'E Aeolian Ethereal',
     tradition: 'SPACE AMBIENT',
-    costOrbs: 16,
+    costOrbs: 40,
     fg: '#e2e8f0',
     bgAccent: '#1e293b',
     horizonColor: '#cbd5e1',
@@ -564,13 +551,13 @@ export const MASTER_SCALES: ScaleBiome[] = [
     ),
   },
 
-  // --- 20 PURCHASABLE WORLD, BLUES, ARABIC, JAPANESE, NORSE & EXOTIC SCALES (DOUBLED PRICES) ---
+  // --- 20 PURCHASABLE WORLD, BLUES, ARABIC, JAPANESE, NORSE & EXOTIC SCALES (+150% PRICES) ---
   {
     id: 7,
     name: 'MIDNIGHT BLUES',
     subtitle: 'C Hexatonic Blues',
     tradition: 'BLUES LO-FI',
-    costOrbs: 20,
+    costOrbs: 50,
     fg: '#38bdf8',
     bgAccent: '#082f49',
     horizonColor: '#bae6fd',
@@ -587,7 +574,7 @@ export const MASTER_SCALES: ScaleBiome[] = [
     name: 'VELVET DELTA',
     subtitle: 'A Minor Blues Nine',
     tradition: 'BLUES LO-FI',
-    costOrbs: 24,
+    costOrbs: 60,
     fg: '#60a5fa',
     bgAccent: '#172554',
     horizonColor: '#93c5fd',
@@ -604,7 +591,7 @@ export const MASTER_SCALES: ScaleBiome[] = [
     name: 'BOURBON CRT',
     subtitle: 'E Mixolydian Soul Blues',
     tradition: 'BLUES LO-FI',
-    costOrbs: 28,
+    costOrbs: 70,
     fg: '#f59e0b',
     bgAccent: '#451a03',
     horizonColor: '#fcd34d',
@@ -621,7 +608,7 @@ export const MASTER_SCALES: ScaleBiome[] = [
     name: 'MIRAGE HIJAZ',
     subtitle: 'D Hijaz Kar Maqam',
     tradition: 'ARABIC',
-    costOrbs: 24,
+    costOrbs: 60,
     fg: '#fb923c',
     bgAccent: '#431407',
     horizonColor: '#fdba74',
@@ -638,7 +625,7 @@ export const MASTER_SCALES: ScaleBiome[] = [
     name: 'DUNES OF BAYATI',
     subtitle: 'G Bayati Resonance',
     tradition: 'ARABIC',
-    costOrbs: 28,
+    costOrbs: 70,
     fg: '#facc15',
     bgAccent: '#3f2e00',
     horizonColor: '#fef08a',
@@ -655,7 +642,7 @@ export const MASTER_SCALES: ScaleBiome[] = [
     name: 'BABYLON NAHAWAND',
     subtitle: 'C Nahawand Harmonic',
     tradition: 'ARABIC',
-    costOrbs: 32,
+    costOrbs: 80,
     fg: '#e879f9',
     bgAccent: '#3b0764',
     horizonColor: '#f5d0fe',
@@ -672,7 +659,7 @@ export const MASTER_SCALES: ScaleBiome[] = [
     name: 'SAMURAI IN-SEN',
     subtitle: 'D In-Sen Shakuhachi',
     tradition: 'JAPANESE',
-    costOrbs: 24,
+    costOrbs: 60,
     fg: '#f43f5e',
     bgAccent: '#4c0519',
     horizonColor: '#fda4af',
@@ -689,7 +676,7 @@ export const MASTER_SCALES: ScaleBiome[] = [
     name: 'SAKURA YO-SCALE',
     subtitle: 'G Yo Festival Koto',
     tradition: 'JAPANESE',
-    costOrbs: 28,
+    costOrbs: 70,
     fg: '#fb7185',
     bgAccent: '#500724',
     horizonColor: '#fecdd3',
@@ -706,7 +693,7 @@ export const MASTER_SCALES: ScaleBiome[] = [
     name: 'KYOTO IWATO',
     subtitle: 'B Iwato Shrine Bell',
     tradition: 'JAPANESE',
-    costOrbs: 32,
+    costOrbs: 80,
     fg: '#c084fc',
     bgAccent: '#2e1065',
     horizonColor: '#e9d5ff',
@@ -723,7 +710,7 @@ export const MASTER_SCALES: ScaleBiome[] = [
     name: 'OKINAWA RYUKYU',
     subtitle: 'C Ryukyu Ocean Sanshin',
     tradition: 'JAPANESE',
-    costOrbs: 32,
+    costOrbs: 80,
     fg: '#2dd4bf',
     bgAccent: '#042f2e',
     horizonColor: '#99f6e4',
@@ -740,7 +727,7 @@ export const MASTER_SCALES: ScaleBiome[] = [
     name: 'VALHALLA GJALLARHORN',
     subtitle: 'D Nordic Folk Dorian #4',
     tradition: 'NORSE MYTH',
-    costOrbs: 30,
+    costOrbs: 75,
     fg: '#34d399',
     bgAccent: '#064e3b',
     horizonColor: '#a7f3d0',
@@ -757,7 +744,7 @@ export const MASTER_SCALES: ScaleBiome[] = [
     name: 'YGGDRASIL ROOTS',
     subtitle: 'A Viking Tagelharpa Drone',
     tradition: 'NORSE MYTH',
-    costOrbs: 36,
+    costOrbs: 90,
     fg: '#84cc16',
     bgAccent: '#1a2e05',
     horizonColor: '#bef264',
@@ -774,7 +761,7 @@ export const MASTER_SCALES: ScaleBiome[] = [
     name: 'AURORA BIFROST',
     subtitle: 'F# Scandinavian Lydian Dominant',
     tradition: 'SCANDINAVIAN',
-    costOrbs: 36,
+    costOrbs: 90,
     fg: '#22d3ee',
     bgAccent: '#083344',
     horizonColor: '#a5f3fc',
@@ -791,7 +778,7 @@ export const MASTER_SCALES: ScaleBiome[] = [
     name: 'FENRIR FROST',
     subtitle: 'E Locrian Natural 2',
     tradition: 'NORSE MYTH',
-    costOrbs: 40,
+    costOrbs: 100,
     fg: '#94a3b8',
     bgAccent: '#0f172a',
     horizonColor: '#e2e8f0',
@@ -808,7 +795,7 @@ export const MASTER_SCALES: ScaleBiome[] = [
     name: 'ANDALUSIAN NIGHT',
     subtitle: 'E Flamenco Phrygian Cadence',
     tradition: 'MEDITERRANEAN',
-    costOrbs: 32,
+    costOrbs: 80,
     fg: '#f97316',
     bgAccent: '#431407',
     horizonColor: '#fdba74',
@@ -825,7 +812,7 @@ export const MASTER_SCALES: ScaleBiome[] = [
     name: 'BALKAN NOMAD',
     subtitle: 'G Hungarian Minor',
     tradition: 'EASTERN EUROPE',
-    costOrbs: 36,
+    costOrbs: 90,
     fg: '#ec4899',
     bgAccent: '#500724',
     horizonColor: '#f9a8d4',
@@ -842,7 +829,7 @@ export const MASTER_SCALES: ScaleBiome[] = [
     name: 'CELTIC TIR NA NOG',
     subtitle: 'D Mixolydian Harp',
     tradition: 'CELTIC MYTH',
-    costOrbs: 32,
+    costOrbs: 80,
     fg: '#10b981',
     bgAccent: '#022c22',
     horizonColor: '#6ee7b7',
@@ -859,7 +846,7 @@ export const MASTER_SCALES: ScaleBiome[] = [
     name: 'MUMBAI RAGA BHAIRAV',
     subtitle: 'C Double Harmonic Dawn',
     tradition: 'INDIAN RAGA',
-    costOrbs: 40,
+    costOrbs: 100,
     fg: '#fbbf24',
     bgAccent: '#451a03',
     horizonColor: '#fde68a',
@@ -876,7 +863,7 @@ export const MASTER_SCALES: ScaleBiome[] = [
     name: 'BALI GAMELAN PELOG',
     subtitle: 'E Pelog Selisir Bronze',
     tradition: 'INDONESIAN',
-    costOrbs: 44,
+    costOrbs: 110,
     fg: '#a3e635',
     bgAccent: '#1a2e05',
     horizonColor: '#d9f99d',
@@ -893,7 +880,7 @@ export const MASTER_SCALES: ScaleBiome[] = [
     name: 'CHRONO WHOLE-TONE',
     subtitle: 'C Sci-Fi Whole-Tone Prism',
     tradition: 'CYBER AVANT',
-    costOrbs: 48,
+    costOrbs: 120,
     fg: '#818cf8',
     bgAccent: '#1e1b4b',
     horizonColor: '#c7d2fe',
@@ -1179,9 +1166,132 @@ export function createCustomBiomeFromHsl(input: CustomBiomeCreatorInput): ScaleB
   };
 }
 
-export function getAllBiomes(customBiomes?: ScaleBiome[]): ScaleBiome[] {
-  if (!customBiomes || customBiomes.length === 0) return MASTER_SCALES;
-  return [...MASTER_SCALES, ...customBiomes];
+export type ProChordQuality = 'Major' | 'Minor' | 'Dim' | 'Aug' | 'Sus2' | 'Sus4';
+export type ProChordExtension = 'None' | '7th' | 'maj7' | '9th' | '11th' | '13th';
+
+export function buildProChordFromSpec(
+  rootIdx: number,
+  quality: ProChordQuality,
+  extension: ProChordExtension
+): {
+  chordName: string;
+  chromaticIndices: [number, number, number, number];
+  freqs: [number, number, number, number];
+} {
+  const r = ((Math.round(rootIdx) % 12) + 12) % 12;
+  const rootName = CHROMATIC_12_NOTES[r]?.shortName || 'C';
+
+  // Triad intervals in semitones from root
+  let third = 4;
+  let fifth = 7;
+  let qualSuffix = '';
+  switch (quality) {
+    case 'Major':
+      third = 4;
+      fifth = 7;
+      qualSuffix = '';
+      break;
+    case 'Minor':
+      third = 3;
+      fifth = 7;
+      qualSuffix = 'm';
+      break;
+    case 'Dim':
+      third = 3;
+      fifth = 6;
+      qualSuffix = 'dim';
+      break;
+    case 'Aug':
+      third = 4;
+      fifth = 8;
+      qualSuffix = 'aug';
+      break;
+    case 'Sus2':
+      third = 2;
+      fifth = 7;
+      qualSuffix = 'sus2';
+      break;
+    case 'Sus4':
+      third = 5;
+      fifth = 7;
+      qualSuffix = 'sus4';
+      break;
+  }
+
+  let extInterval = 12; // Default octave doubling if 'None'
+  let extSuffix = '';
+  switch (extension) {
+    case 'None':
+      extInterval = 12;
+      extSuffix = '';
+      break;
+    case '7th':
+      extInterval = quality === 'Dim' ? 9 : 10;
+      extSuffix = '7';
+      break;
+    case 'maj7':
+      extInterval = 11;
+      extSuffix = quality === 'Minor' || quality === 'Dim' ? '(maj7)' : 'maj7';
+      break;
+    case '9th':
+      extInterval = 14;
+      extSuffix = quality === 'Major' ? 'add9' : '9';
+      break;
+    case '11th':
+      extInterval = 17;
+      extSuffix = '11';
+      break;
+    case '13th':
+      extInterval = 21;
+      extSuffix = '13';
+      break;
+  }
+
+  const i0 = r;
+  const i1 = (r + third) % 12;
+  const i2 = (r + fifth) % 12;
+  const i3 = (r + extInterval) % 12;
+
+  const f0 = Number((CHROMATIC_12_NOTES[i0].freq * 0.5).toFixed(2));
+  const f1 = Number(CHROMATIC_12_NOTES[i1].freq.toFixed(2));
+  const f2 = Number(CHROMATIC_12_NOTES[i2].freq.toFixed(2));
+  const f3 = Number((CHROMATIC_12_NOTES[i3].freq * (extInterval >= 12 ? 2.0 : 1.0)).toFixed(2));
+
+  const chordName =
+    (quality === 'Sus2' || quality === 'Sus4') && extension !== 'None'
+      ? `${rootName}${extSuffix}${qualSuffix}`
+      : `${rootName}${qualSuffix}${extSuffix}`;
+
+  return {
+    chordName,
+    chromaticIndices: [i0, i1, i2, i3],
+    freqs: [f0, f1, f2, f3],
+  };
+}
+
+export const FREE_12_KEY_BIOME: ScaleBiome = createCustomBiomeFromHsl({
+  id: 99,
+  name: 'CHROMATIC FREE (12-KEY)',
+  subtitle: 'All 12 Chromatic Notes · Unclamped MIDI & DAW',
+  hue: 192,
+  saturation: 92,
+  lightness: 58,
+  activeChromaticKeys: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
+  chordNames: ['Cm9', 'Abmaj7', 'Fm9', 'G7sus4'],
+  chordKeyIndices: [
+    [0, 3, 7, 10],
+    [8, 0, 3, 7],
+    [5, 8, 0, 3],
+    [7, 0, 2, 5],
+  ],
+  tripletKeyIndices: [0, 4, 7],
+});
+
+export function getAllBiomes(customBiomes?: ScaleBiome[], includeChromaticFree = false): ScaleBiome[] {
+  const base = includeChromaticFree ? [...MASTER_SCALES, FREE_12_KEY_BIOME] : MASTER_SCALES;
+  if (!customBiomes || customBiomes.length === 0) return base;
+  const filtered = customBiomes.filter((b) => b.id !== 99);
+  return [...base, ...filtered];
 }
 
 export type PlatformArchetype =
@@ -1233,6 +1343,7 @@ export function getPlatformThemeColor(
  */
 export interface FlowDynamicDifficulty {
   flowFactor: number; // 0.0 -> 1.0
+  altitudeFactor: number; // 0.0 -> 1.0 based on Altitude (M) and difficultyRampSpeed
   targetPlatformWidth: number;
   stepY: number;
   minHorizDist: number;
@@ -1242,65 +1353,119 @@ export interface FlowDynamicDifficulty {
   fragileStreakChance: number;
   fragileStreakMaxLen: number;
   disguisedFragileChance: number;
+  movingFragileChance: number; // Probability that a fragile platform also moves horizontally
   paceMultiplier: number;
+  dynamicJumpBpm: number;      // Jump tempo (BPM) accelerating from minJumpBpm to maxJumpBpm with Flow
   moveSpeedPxPerSec: number;
   movingPlatformChance: number;
   platformHazardChance: number;
+  maxSpikeCount: number;       // Max spikes in a single cluster (2 up to 7 at high Flow)
   aerialHazardChance: number;
+  heartPickupChance: number;   // Rare heart pickup probability, strictly < aerialHazardChance
   enemySpeedPxPerSec: number;
   enemyHalfRangePx: number;
 }
 
 export function computeFlowDynamicDifficulty(
   flowEnergy: number,
-  fineTune: FineTuneConfig = DEFAULT_FINE_TUNE
+  fineTune: FineTuneConfig = DEFAULT_FINE_TUNE,
+  altitudeMeters = 0
 ): FlowDynamicDifficulty {
   const ft = { ...DEFAULT_FINE_TUNE, ...fineTune };
-  // 1/5th slower difficulty scaling modulated by difficultyRampSpeed
-  const effectiveFlow = Math.max(0, flowEnergy * ft.difficultyRampSpeed);
-  const clampedFlow = Math.max(0, Math.min(45, effectiveFlow));
-  const f = clampedFlow / 45; // 0.0 at Flow 0 -> 1.0 at Flow 45
+  // Smooth Flow curve above Flow 18 so Flow 20+ remains playable and rewarding
+  const rawFlow = Math.max(0, flowEnergy);
+  const dampedFlow =
+    rawFlow <= 18
+      ? rawFlow
+      : 18 + (rawFlow - 18) * 0.55;
+  const clampedFlow = Math.max(0, Math.min(45, dampedFlow));
+  const f = clampedFlow / 45; // 0.0 at Flow 0 -> 1.0 at damped max
 
   const maxW = Math.max(100, ft.maxPlatformWidth);
-  const minW = Math.max(48, Math.min(maxW, ft.minPlatformWidth));
+  const minW = Math.max(58, Math.min(maxW, ft.minPlatformWidth));
 
-  // Fragile platform probability scales strongly as Flow rises
-  const rawFragile = (0.05 + f * 0.32) * (ft.fragileSpawnRate ?? 1.2);
-  const fragilePlatformChance = Number(Math.max(0, Math.min(0.8, rawFragile)).toFixed(2));
+  // Platform width narrows strictly based on Altitude Meters (M) and difficultyRampSpeed (0.1..10.0)
+  const rampSpeed = Math.max(0.1, Math.min(10.0, ft.difficultyRampSpeed ?? 3.0));
+  const safeAltMeters = Math.max(0, altitudeMeters);
+  const fullNarrowingMeters = Math.max(35, 540 / rampSpeed);
+  const altitudeFactor = Math.max(0, Math.min(1, safeAltMeters / fullNarrowingMeters));
+  const targetPlatformWidth = Math.round(maxW - altitudeFactor * (maxW - minW));
+
+  // Jump Speed (BPM) accelerates with Flow between minJumpBpm and maxJumpBpm (96..250 BPM)
+  const minBpm = Math.max(96, Math.min(250, ft.minJumpBpm ?? ft.baseJumpTempo ?? 100));
+  const maxBpm = Math.max(minBpm, Math.min(250, ft.maxJumpBpm ?? 165));
+  const dynamicJumpBpm = Math.round(minBpm + f * (maxBpm - minBpm));
+
+  // Fragile platform probability scales smoothly and caps at a fair level (0.52 max)
+  const rawFragile = (0.05 + f * 0.30) * (ft.fragileSpawnRate ?? 1.5);
+  const fragilePlatformChance = Number(Math.max(0, Math.min(0.52, rawFragile)).toFixed(2));
   const fragileStreakChance = Number(
-    Math.max(0, Math.min(0.9, (ft.fragileStreakChance ?? 0.38) * (0.4 + f * 0.9))).toFixed(2)
+    Math.max(0, Math.min(0.65, (ft.fragileStreakChance ?? 1.5) * (0.28 + f * 0.55))).toFixed(2)
   );
-  const fragileStreakMaxLen = Math.max(2, Math.min(8, Math.round(ft.fragileStreakMaxLen ?? 4)));
-  // Disguised fragile platforms: rare at low Flow, appearing more noticeably at high Flow!
+  const fragileStreakMaxLen = Math.max(2, Math.min(5, Math.round(ft.fragileStreakMaxLen ?? 5)));
   const disguisedFragileChance = Number(
-    Math.max(0, Math.min(0.65, (ft.disguisedFragileChance ?? 0.16) * (0.25 + f * 1.35))).toFixed(2)
+    Math.max(0, Math.min(0.42, (ft.disguisedFragileChance ?? 0.22) * (0.25 + f * 1.15))).toFixed(2)
+  );
+  // Moving + Fragile combination probability rises with Flow
+  const movingFragileChance = Number(
+    Math.max(0, Math.min(0.65, flowEnergy < 2 ? 0.05 : 0.1 + f * 0.48)).toFixed(2)
   );
 
-  const enemySpeedMult = Math.max(0.2, ft.enemyMoveSpeedMult ?? 1.4);
-  const enemyRangeMult = Math.max(0.3, ft.enemyMoveRangeMult ?? 1.5);
+  // Spike cluster count scales with Flow up to 7 spikes per cluster
+  const maxSpikeCount =
+    flowEnergy < 5
+      ? 2
+      : flowEnergy < 9
+        ? 3
+        : flowEnergy < 13
+          ? 4
+          : flowEnergy < 17
+            ? 5
+            : flowEnergy < 22
+              ? 6
+              : 7;
+
+  const platformHazardChance =
+    flowEnergy < 3 ? 0 : Number(Math.min(0.45, (0.04 + f * 0.13) * ft.spikeHazardRate).toFixed(2));
+  const aerialHazardChance =
+    flowEnergy < 4 ? 0 : Number(Math.min(0.45, (0.04 + f * 0.14) * ft.aerialDroneRate).toFixed(2));
+
+  // Heart pickup spawn rate is configurable via heartSpawnRate and ALWAYS strictly less than aerialHazardChance
+  const rawHeartChance = Math.max(0, (ft.heartSpawnRate ?? 0.18) * (0.22 + f * 0.45));
+  const effectiveEnemyRate = Math.max(0.04, aerialHazardChance > 0 ? aerialHazardChance : 0.08 * ft.aerialDroneRate);
+  const heartPickupChance =
+    (ft.heartSpawnRate ?? 0.18) <= 0
+      ? 0
+      : Number(Math.min(rawHeartChance, effectiveEnemyRate * 0.55).toFixed(3));
+
+  const enemySpeedMult = Math.max(0.2, ft.enemyMoveSpeedMult ?? 2.7);
+  const enemyRangeMult = Math.max(0.3, ft.enemyMoveRangeMult ?? 2.1);
 
   return {
     flowFactor: f,
-    targetPlatformWidth: Math.round(maxW - f * (maxW - minW)),
+    altitudeFactor,
+    targetPlatformWidth,
     stepY: 134,
     minHorizDist: Math.round(92 * ft.horizontalScatterMult),
     maxHorizDist: Math.round(184 * ft.horizontalScatterMult),
     wideLeapChance: Number(
-      Math.min(0.85, (0.06 + f * 0.44) * (ft.wideLeapSpawnRate ?? 1.0)).toFixed(2)
+      Math.min(0.58, (0.06 + f * 0.36) * (ft.wideLeapSpawnRate ?? 2.1)).toFixed(2)
     ),
     fragilePlatformChance,
     fragileStreakChance,
     fragileStreakMaxLen,
     disguisedFragileChance,
+    movingFragileChance,
     paceMultiplier: 0.9,
+    dynamicJumpBpm,
     moveSpeedPxPerSec: ft.baseMoveSpeed,
     movingPlatformChance: Number((0.06 + f * 0.18).toFixed(2)),
-    platformHazardChance:
-      flowEnergy < 3 ? 0 : Number(Math.min(0.85, (0.04 + f * 0.14) * ft.spikeHazardRate).toFixed(2)),
-    aerialHazardChance:
-      flowEnergy < 4 ? 0 : Number(Math.min(0.85, (0.04 + f * 0.15) * ft.aerialDroneRate).toFixed(2)),
-    enemySpeedPxPerSec: Math.round((68 + f * 95) * enemySpeedMult),
-    enemyHalfRangePx: Math.round((95 + f * 60) * enemyRangeMult),
+    platformHazardChance,
+    maxSpikeCount,
+    aerialHazardChance,
+    heartPickupChance,
+    enemySpeedPxPerSec: Math.round((68 + f * 82) * enemySpeedMult),
+    enemyHalfRangePx: Math.round((95 + f * 55) * enemyRangeMult),
   };
 }
 
@@ -1317,7 +1482,7 @@ export interface JumpKinematics {
 }
 
 export function computeBpmLockedKinematics(tempoHint = 100, stepScale = 1.0): JumpKinematics {
-  const safeTempo = Math.max(60, Math.min(180, tempoHint || 100));
+  const safeTempo = Math.max(60, Math.min(250, tempoHint || 100));
   const flightDurationSec = 60 / safeTempo;
 
   const stepY = Math.round(134 * stepScale);
@@ -1362,7 +1527,7 @@ export function computeNoteDurationKinematics(
   baseStepY = 134,
   _baseApex = 184
 ): NoteDurationKinematics {
-  const safeBpm = Math.max(50, Math.min(200, bpm || 100));
+  const safeBpm = Math.max(50, Math.min(250, bpm || 100));
   const r = Math.max(0.25, Math.min(4.0, beatDurationRatio || 1.0));
   const oneBeatSec = 60 / safeBpm;
   const flightDurationSec = oneBeatSec * r;
@@ -2004,6 +2169,7 @@ export interface PlatformEntity {
   hasHazard?: boolean;
   hazardXOffset?: number;
   hazardWidth?: number;
+  spikeCount?: number;
   // 4-Gate Chord Progression properties
   chordGateIndex?: 0 | 1 | 2 | 3;
   chordProgressionVariant?: number;
@@ -2039,6 +2205,17 @@ export interface AerialHazardEntity {
   phase: number;
 }
 
+export interface HeartPickupEntity {
+  id: number;
+  x: number;
+  y: number;
+  baseY: number;
+  radius: number;
+  collected: boolean;
+  healAmount: number;
+  phase: number;
+}
+
 export interface HarmonicOrb {
   id: number;
   x: number;
@@ -2056,7 +2233,6 @@ export type PowerUpItemId =
   | 'orb_magnet'
   | 'combo_shield'
   | 'dash_capacitor'
-  | 'double_jump'
   | 'rhythm_aura'
   | 'chrono_slow'
   | 'star_rain'
@@ -2065,7 +2241,9 @@ export type PowerUpItemId =
   | 'jetpack_prism'
   | 'dash_turbine'
   | 'dash_shockwave'
-  | 'wall_bounce';
+  | 'wall_bounce'
+  | 'nano_heal'
+  | 'vital_core';
 
 export type PowerUpCategory = 'ACTIVE' | 'JETPACK' | 'DASH_MOD';
 export type PowerUpActivationMode = 'ACTIVE' | 'PASSIVE';
@@ -2130,104 +2308,64 @@ export interface PowerUpStoreDef {
 export type PowerUpStoreItemDef = PowerUpStoreDef;
 
 export const POWERUP_STORE_ITEMS: PowerUpStoreDef[] = [
-  // --- CATEGORY 1: BUTTON-ACTIVATED IN-GAME POWER-UPS (ACTIVE) ---
-  {
-    id: 'orb_magnet',
-    name: 'Harmonic Magnet',
-    category: 'ACTIVE',
-    activationMode: 'ACTIVE',
-    maxLevel: 10,
-    tier: 'standard',
-    icon: '◎',
-    accentColor: '#22d3ee',
-    shortBenefit: 'Wide Orb Pull',
-    desc: 'Button-Activated: Pulls all nearby & on-screen Harmonic Orbs directly to you (250px to 500px radius).',
-    baseUnlockCost: 0,
-    baseUpgradeStepCost: 26,
-    baseUsesPerRun: 2,
-    maxUsesAtLv10: 6,
-    baseDurationSec: 6.5,
-    maxDurationAtLv10: 15.5,
-    baseCooldownSec: 10.5,
-    minCooldownAtLv10: 5.0,
-  },
+  // --- CATEGORY 1: BUTTON-ACTIVATED IN-GAME POWER-UPS (ACTIVE, 5 LEVELS MAX) ---
   {
     id: 'combo_shield',
     name: 'Phase Aegis Shield',
     category: 'ACTIVE',
     activationMode: 'ACTIVE',
-    maxLevel: 10,
+    maxLevel: 5,
     tier: 'standard',
     icon: '❖',
     accentColor: '#34d399',
-    shortBenefit: 'Hazard & Fall Shield',
-    desc: 'Button-Activated: Forms an energy barrier that blocks spikes, drones, and rescues from falls.',
+    shortBenefit: 'No-Timer Shield (CD Only)',
+    desc: 'Default Starter Power-Up (5 Levels): Forms a permanent energy shield with NO expiration timer! Cooldown begins only after it blocks a hazard or fall.',
     baseUnlockCost: 0,
-    baseUpgradeStepCost: 28,
+    baseUpgradeStepCost: 90,
     baseUsesPerRun: 2,
     maxUsesAtLv10: 6,
-    baseDurationSec: 7.0,
-    maxDurationAtLv10: 16.5,
-    baseCooldownSec: 11.5,
+    baseDurationSec: 0,
+    maxDurationAtLv10: 0,
+    baseCooldownSec: 14.0,
     minCooldownAtLv10: 5.5,
   },
   {
-    id: 'double_jump',
-    name: 'Aero Thrusters',
+    id: 'nano_heal',
+    name: 'Vitality Pulse',
     category: 'ACTIVE',
     activationMode: 'ACTIVE',
-    maxLevel: 10,
-    tier: 'standard',
-    icon: '⇈',
-    accentColor: '#a78bfa',
-    shortBenefit: 'Mid-Air Boost Jump',
-    desc: 'Button-Activated: Launches an instant upward mid-air thrust and enables extra air jumps [Space].',
-    baseUnlockCost: 34,
-    baseUpgradeStepCost: 30,
-    baseUsesPerRun: 3,
-    maxUsesAtLv10: 7,
-    baseDurationSec: 6.5,
-    maxDurationAtLv10: 15.0,
-    baseCooldownSec: 10.0,
-    minCooldownAtLv10: 4.8,
-  },
-  {
-    id: 'rhythm_aura',
-    name: 'Resonance Overdrive',
-    category: 'ACTIVE',
-    activationMode: 'ACTIVE',
-    maxLevel: 10,
+    maxLevel: 5,
     tier: 'gold',
-    icon: '♫',
-    accentColor: '#fbbf24',
-    shortBenefit: '2x-3.5x Score & Orbs',
-    desc: 'Button-Activated: Multiplies Score & Orb yield (1.8x up to 3.5x) and grants +2 instant Flow.',
-    baseUnlockCost: 55,
-    baseUpgradeStepCost: 36,
+    icon: '♥',
+    accentColor: '#f43f5e',
+    shortBenefit: 'Instant +3 to +7 HP Heal',
+    desc: 'Button-Activated (5 Levels): Immediately restores +3 HP (Lv.1) up to +7 HP (Lv.5) and emits a protective harmonic wave that clears nearby hazards!',
+    baseUnlockCost: 190,
+    baseUpgradeStepCost: 130,
     baseUsesPerRun: 2,
-    maxUsesAtLv10: 6,
-    baseDurationSec: 6.5,
-    maxDurationAtLv10: 15.0,
-    baseCooldownSec: 11.5,
-    minCooldownAtLv10: 5.5,
+    maxUsesAtLv10: 5,
+    baseDurationSec: 1.5,
+    maxDurationAtLv10: 2.5,
+    baseCooldownSec: 14.0,
+    minCooldownAtLv10: 6.5,
   },
   {
     id: 'chrono_slow',
     name: 'Chrono Dilator',
     category: 'ACTIVE',
     activationMode: 'ACTIVE',
-    maxLevel: 10,
+    maxLevel: 5,
     tier: 'standard',
     icon: '⏳',
     accentColor: '#60a5fa',
     shortBenefit: 'Slows Hazards + Wide Pads',
-    desc: 'Button-Activated: Slows enemy drones & crumble timers by up to 80% while widening all platforms!',
-    baseUnlockCost: 68,
-    baseUpgradeStepCost: 40,
+    desc: 'Button-Activated (5 Levels): Slows enemy drones & crumble timers by up to 80% while widening all platforms!',
+    baseUnlockCost: 170,
+    baseUpgradeStepCost: 115,
     baseUsesPerRun: 2,
-    maxUsesAtLv10: 6,
+    maxUsesAtLv10: 5,
     baseDurationSec: 6.0,
-    maxDurationAtLv10: 14.5,
+    maxDurationAtLv10: 14.0,
     baseCooldownSec: 12.0,
     minCooldownAtLv10: 5.8,
   },
@@ -2236,14 +2374,14 @@ export const POWERUP_STORE_ITEMS: PowerUpStoreDef[] = [
     name: 'Harmonic Starfall',
     category: 'ACTIVE',
     activationMode: 'ACTIVE',
-    maxLevel: 10,
+    maxLevel: 5,
     tier: 'gold',
     icon: '★',
     accentColor: '#fde047',
     shortBenefit: 'Spawns Orb Shower',
-    desc: 'Button-Activated: Showers 6 to 15 magnetic Harmonic Orbs above you and stabilizes fragile pads!',
-    baseUnlockCost: 95,
-    baseUpgradeStepCost: 45,
+    desc: 'Button-Activated (5 Levels): Showers 6 to 14 magnetic Harmonic Orbs above you and stabilizes fragile pads!',
+    baseUnlockCost: 240,
+    baseUpgradeStepCost: 140,
     baseUsesPerRun: 2,
     maxUsesAtLv10: 5,
     baseDurationSec: 5.5,
@@ -2256,36 +2394,36 @@ export const POWERUP_STORE_ITEMS: PowerUpStoreDef[] = [
     name: 'Nova EMP Shockwave',
     category: 'ACTIVE',
     activationMode: 'ACTIVE',
-    maxLevel: 10,
+    maxLevel: 5,
     tier: 'rainbow',
     icon: '💥',
     accentColor: '#ec4899',
     shortBenefit: 'EMP Destroys All Hazards',
-    desc: 'Button-Activated: Unleashes a massive EMP shockwave that vaporizes all spikes/drones, heals fragile pads & pulls all Orbs!',
-    baseUnlockCost: 82,
-    baseUpgradeStepCost: 44,
+    desc: 'Button-Activated (5 Levels): Unleashes a massive EMP shockwave that vaporizes all spikes/drones, heals fragile pads & pulls all Orbs!',
+    baseUnlockCost: 260,
+    baseUpgradeStepCost: 155,
     baseUsesPerRun: 2,
-    maxUsesAtLv10: 6,
+    maxUsesAtLv10: 5,
     baseDurationSec: 6.0,
     maxDurationAtLv10: 14.0,
     baseCooldownSec: 11.0,
     minCooldownAtLv10: 5.2,
   },
 
-  // --- THREE JETPACK TIERS (ACTIVE BUTTON LAUNCHERS: WHITE / GOLD / PRISM) ---
+  // --- THREE JETPACK TIERS (ACTIVE BUTTON LAUNCHERS: 500 / 1500 / 3000 ORBS) ---
   {
     id: 'jetpack_white',
     name: 'Ion Jetpack (White)',
     category: 'JETPACK',
     activationMode: 'ACTIVE',
-    maxLevel: 10,
+    maxLevel: 5,
     tier: 'standard',
     icon: '🚀',
     accentColor: '#38bdf8',
     shortBenefit: 'Blue Glitter Sky Launch',
-    desc: 'Button-Activated: Launches you rapidly upward through platforms with a cyan-blue glitter trail & fast biome scale notes.',
-    baseUnlockCost: 48,
-    baseUpgradeStepCost: 34,
+    desc: 'Button-Activated (5 Levels): Launches you rapidly upward through platforms with a cyan-blue glitter trail & fast biome scale notes.',
+    baseUnlockCost: 500,
+    baseUpgradeStepCost: 180,
     baseUsesPerRun: 2,
     maxUsesAtLv10: 5,
     baseDurationSec: 2.0,
@@ -2298,14 +2436,14 @@ export const POWERUP_STORE_ITEMS: PowerUpStoreDef[] = [
     name: 'Solar Jetpack (Gold)',
     category: 'JETPACK',
     activationMode: 'ACTIVE',
-    maxLevel: 10,
+    maxLevel: 5,
     tier: 'gold',
     icon: '☄',
     accentColor: '#facc15',
     shortBenefit: 'Gold Thruster + Magnet',
-    desc: 'Button-Activated: High-velocity golden thruster with solar glitter trail, Orb pull & shimmering biome arpeggios.',
-    baseUnlockCost: 195,
-    baseUpgradeStepCost: 60,
+    desc: 'Button-Activated (5 Levels): High-velocity golden thruster with solar glitter trail, Orb pull & shimmering biome arpeggios.',
+    baseUnlockCost: 1500,
+    baseUpgradeStepCost: 340,
     baseUsesPerRun: 3,
     maxUsesAtLv10: 6,
     baseDurationSec: 2.5,
@@ -2318,14 +2456,14 @@ export const POWERUP_STORE_ITEMS: PowerUpStoreDef[] = [
     name: 'Prism Jetpack (Omni)',
     category: 'JETPACK',
     activationMode: 'ACTIVE',
-    maxLevel: 10,
+    maxLevel: 5,
     tier: 'rainbow',
     icon: '✦',
     accentColor: '#f472b6',
     shortBenefit: '7-Color Hyper Launch',
-    desc: 'Button-Activated: Ultimate rainbow warp jetpack with 7-color glitter trail, full-screen Orb magnet & cascading notes.',
-    baseUnlockCost: 460,
-    baseUpgradeStepCost: 88,
+    desc: 'Button-Activated (5 Levels): Ultimate rainbow warp jetpack with 7-color glitter trail, full-screen Orb magnet & cascading notes.',
+    baseUnlockCost: 3000,
+    baseUpgradeStepCost: 620,
     baseUsesPerRun: 3,
     maxUsesAtLv10: 7,
     baseDurationSec: 3.0,
@@ -2334,20 +2472,80 @@ export const POWERUP_STORE_ITEMS: PowerUpStoreDef[] = [
     minCooldownAtLv10: 5.2,
   },
 
-  // --- CATEGORY 2: PASSIVE INNATE CHARACTER UPGRADES (EQUIP & AUTO-ACTIVE, NO BUTTON NEEDED) ---
+  // --- CATEGORY 2: PASSIVE INNATE UPGRADES (EQUIP & AUTO-ACTIVE, SHOWN COMPACT IN HUD) ---
+  {
+    id: 'orb_magnet',
+    name: 'Harmonic Magnet',
+    category: 'DASH_MOD',
+    activationMode: 'PASSIVE',
+    maxLevel: 5,
+    tier: 'standard',
+    icon: '◎',
+    accentColor: '#22d3ee',
+    shortBenefit: 'Same-Pad to Wide Orb Pull',
+    desc: 'Passive Ability (5 Levels): At Lv.1 gently pulls Orbs on the same platform (52px). Upgrading to Lv.5 gradually expands pull range up to 190px while keeping multiplier steady.',
+    baseUnlockCost: 120,
+    baseUpgradeStepCost: 95,
+    baseUsesPerRun: 99,
+    maxUsesAtLv10: 99,
+    baseDurationSec: 0,
+    maxDurationAtLv10: 0,
+    baseCooldownSec: 0,
+    minCooldownAtLv10: 0,
+  },
+  {
+    id: 'vital_core',
+    name: 'Bio-Regen Core',
+    category: 'DASH_MOD',
+    activationMode: 'PASSIVE',
+    maxLevel: 5,
+    tier: 'gold',
+    icon: '💖',
+    accentColor: '#fb7185',
+    shortBenefit: '+1..+5 Max HP & Auto-Regen',
+    desc: 'Passive Ability (5 Levels): Increases skin Max Health by +1 to +5 HP and automatically regenerates +1 HP every 16 down to 8 platforms climbed!',
+    baseUnlockCost: 210,
+    baseUpgradeStepCost: 145,
+    baseUsesPerRun: 99,
+    maxUsesAtLv10: 99,
+    baseDurationSec: 0,
+    maxDurationAtLv10: 0,
+    baseCooldownSec: 0,
+    minCooldownAtLv10: 0,
+  },
+  {
+    id: 'rhythm_aura',
+    name: 'Resonance Overdrive',
+    category: 'DASH_MOD',
+    activationMode: 'PASSIVE',
+    maxLevel: 5,
+    tier: 'gold',
+    icon: '♫',
+    accentColor: '#fbbf24',
+    shortBenefit: 'Passive 1.8x-3.4x Score & Orbs',
+    desc: 'Passive Ability (5 Levels): Permanently multiplies Score & Orb yield (1.8x up to 3.4x by level) throughout the entire run when equipped.',
+    baseUnlockCost: 180,
+    baseUpgradeStepCost: 135,
+    baseUsesPerRun: 99,
+    maxUsesAtLv10: 99,
+    baseDurationSec: 0,
+    maxDurationAtLv10: 0,
+    baseCooldownSec: 0,
+    minCooldownAtLv10: 0,
+  },
   {
     id: 'wall_bounce',
     name: 'Wall-Bounce Rebound',
     category: 'DASH_MOD',
     activationMode: 'PASSIVE',
-    maxLevel: 4,
+    maxLevel: 5,
     tier: 'gold',
-    icon: 'kos',
+    icon: '⤣',
     accentColor: '#38bdf8',
     shortBenefit: '30°-45° Wall Dash Rebound',
-    desc: 'Passive Ability (4 Levels): Dashing into a wall bounces you diagonally back & upward at 30°–45°! Each level increases rebound height.',
-    baseUnlockCost: 30,
-    baseUpgradeStepCost: 48,
+    desc: 'Passive Ability (5 Levels): Dashing into a wall bounces you diagonally upward at 30°–45%! Higher levels boost rebound height, but wall impacts slow down your next Dash recharge.',
+    baseUnlockCost: 140,
+    baseUpgradeStepCost: 125,
     baseUsesPerRun: 99,
     maxUsesAtLv10: 99,
     baseDurationSec: 0,
@@ -2360,14 +2558,14 @@ export const POWERUP_STORE_ITEMS: PowerUpStoreDef[] = [
     name: 'Phase Dash Capacitor',
     category: 'DASH_MOD',
     activationMode: 'PASSIVE',
-    maxLevel: 10,
+    maxLevel: 5,
     tier: 'standard',
     icon: '⚡',
     accentColor: '#00ff88',
-    shortBenefit: '-5%/Lv Dash Cooldown',
-    desc: 'Passive Ability: Permanently reduces Dash recharge cooldown by -5% per level (up to -50% faster Dash) when equipped.',
-    baseUnlockCost: 0,
-    baseUpgradeStepCost: 28,
+    shortBenefit: '-10%/Lv Dash Cooldown',
+    desc: 'Passive Ability (5 Levels): Permanently reduces Dash recharge cooldown by -10% per level (up to -50% faster Dash at Lv.5) when equipped.',
+    baseUnlockCost: 110,
+    baseUpgradeStepCost: 90,
     baseUsesPerRun: 99,
     maxUsesAtLv10: 99,
     baseDurationSec: 0,
@@ -2380,14 +2578,14 @@ export const POWERUP_STORE_ITEMS: PowerUpStoreDef[] = [
     name: 'Kinetic Dash Booster',
     category: 'DASH_MOD',
     activationMode: 'PASSIVE',
-    maxLevel: 10,
+    maxLevel: 5,
     tier: 'gold',
     icon: '⫸',
     accentColor: '#f97316',
-    shortBenefit: '+6%/Lv Dash & Wall Lift',
-    desc: 'Passive Ability: Boosts Dash horizontal speed, upward lift & Wall-Bounce elasticity by +6% per level (up to +60%) when equipped.',
-    baseUnlockCost: 42,
-    baseUpgradeStepCost: 34,
+    shortBenefit: '+12%/Lv Dash & Wall Lift',
+    desc: 'Passive Ability (5 Levels): Boosts Dash horizontal speed, upward lift & Wall-Bounce elasticity by +12% per level (up to +60% at Lv.5) when equipped.',
+    baseUnlockCost: 150,
+    baseUpgradeStepCost: 110,
     baseUsesPerRun: 99,
     maxUsesAtLv10: 99,
     baseDurationSec: 0,
@@ -2396,10 +2594,6 @@ export const POWERUP_STORE_ITEMS: PowerUpStoreDef[] = [
     minCooldownAtLv10: 0,
   },
 ];
-
-// Clean icon for wall_bounce
-POWERUP_STORE_ITEMS.find((p) => p.id === 'wall_bounce')!.icon = 'kos'.replace('kos', '');
-POWERUP_STORE_ITEMS.find((p) => p.id === 'wall_bounce')!.icon = '⤣';
 
 export const RUN_UPGRADES: RunUpgrade[] = POWERUP_STORE_ITEMS.map((item) => ({
   id: item.id,
@@ -2420,17 +2614,18 @@ export function getPowerUpItemById(id: string): PowerUpStoreDef | undefined {
 }
 
 /**
- * Computes the Orb cost to unlock (when currentLevel === 0) or upgrade to `currentLevel + 1` (up to `def.maxLevel`).
+ * Computes the Orb cost to unlock (when currentLevel === 0) or upgrade to `currentLevel + 1` (up to `def.maxLevel = 5`).
+ * Features a steep exponential price gap between levels 1..5!
  */
 export function getPowerUpUpgradeCost(def: PowerUpStoreDef, currentLevel: number): number {
-  const maxLv = def.maxLevel || 10;
+  const maxLv = def.maxLevel || 5;
   if (currentLevel <= 0) {
     return def.baseUnlockCost;
   }
   if (currentLevel >= maxLv) {
     return 0;
   }
-  return Math.round(def.baseUpgradeStepCost * Math.pow(1.36, currentLevel - 1));
+  return Math.round(def.baseUpgradeStepCost * Math.pow(2.35, currentLevel - 1));
 }
 
 export interface PowerUpLevelStats {
@@ -2442,6 +2637,7 @@ export interface PowerUpLevelStats {
   cooldownSec: number;
   powerMult: number;
   powerValue: number;
+  flowBonusPct: number;
   dashCooldownBonusPct: number;
   dashPowerBonusPct: number;
   dashShockwaveRadiusPx: number;
@@ -2450,9 +2646,9 @@ export interface PowerUpLevelStats {
 
 export function getPowerUpLevelStats(id: PowerUpItemId | string, level: number): PowerUpLevelStats {
   const def = getPowerUpDef(id);
-  const maxLv = def.maxLevel || 10;
+  const maxLv = def.maxLevel || 5;
   const clampedLv = Math.max(1, Math.min(maxLv, Math.round(level || 1)));
-  const t = maxLv > 1 ? (clampedLv - 1) / (maxLv - 1) : 1; // 0.0 at Lv.1 -> 1.0 at maxLv
+  const t = maxLv > 1 ? (clampedLv - 1) / (maxLv - 1) : 1; // 0.0 at Lv.1 -> 1.0 at Lv.5
 
   const maxUsesPerRun = Math.round(
     def.baseUsesPerRun + t * (def.maxUsesAtLv10 - def.baseUsesPerRun)
@@ -2464,8 +2660,10 @@ export function getPowerUpLevelStats(id: PowerUpItemId | string, level: number):
     (def.baseCooldownSec - t * (def.baseCooldownSec - def.minCooldownAtLv10)).toFixed(1)
   );
   const powerMult = Number((1.0 + t * 1.15).toFixed(2));
+  // Gradual small-percentage Flow acceleration per level (+2.5% per level across 5 levels)
+  const flowBonusPct = Number((clampedLv * 2.5).toFixed(1));
 
-  // Domain-specific powerValue so every power-up functions with real, impactful gameplay physics!
+  // Domain-specific powerValue across 5 levels
   let powerValue = powerMult;
   switch (def.id) {
     case 'jetpack_white':
@@ -2478,28 +2676,34 @@ export function getPowerUpLevelStats(id: PowerUpItemId | string, level: number):
       powerValue = Math.round(1180 + t * 340); // 1180..1520 px/s upward velocity
       break;
     case 'orb_magnet':
-      powerValue = Math.round(260 + t * 260); // 260..520 px magnetic pull radius
+      // Lv.1 is 52px (same-platform gentle pull only), scaling across 5 levels: 52 -> 86 -> 121 -> 156 -> 190px
+      powerValue = Math.round(52 + t * 138);
+      break;
+    case 'nano_heal':
+      // Instant heal: +3 HP at Lv.1 up to +7 HP at Lv.5
+      powerValue = Math.round(3 + t * 4);
+      break;
+    case 'vital_core':
+      // Bonus Max HP: +1 HP at Lv.1 up to +5 HP at Lv.5
+      powerValue = Math.round(1 + t * 4);
       break;
     case 'dash_shockwave':
       powerValue = Math.round(350 + t * 270); // 350..620 px EMP blast radius
       break;
     case 'star_rain':
-      powerValue = Math.round(6 + t * 9);     // 6..15 harmonic orbs spawned
+      powerValue = Math.round(6 + t * 8);     // 6..14 harmonic orbs spawned
       break;
     case 'chrono_slow':
       powerValue = Number((0.36 - t * 0.18).toFixed(2)); // 0.36..0.18 hazard speed factor
       break;
     case 'rhythm_aura':
-      powerValue = Number((1.8 + t * 1.7).toFixed(2));   // 1.8x..3.5x score & orb multiplier
-      break;
-    case 'double_jump':
-      powerValue = Number((1.22 + t * 0.45).toFixed(2)); // 1.22x..1.67x jump boost
+      powerValue = Number((1.8 + t * 1.6).toFixed(2));   // 1.8x..3.4x score & orb multiplier
       break;
     case 'combo_shield':
-      powerValue = Math.round(1 + Math.floor(t * 2));    // 1..3 shield hits
+      powerValue = maxUsesPerRun;                        // 2..6 shields per run
       break;
     case 'wall_bounce':
-      powerValue = Number((1.0 + t * 0.55).toFixed(2));  // 1.00x..1.55x wall rebound velocity across 4 levels
+      powerValue = Number((1.0 + t * 0.56).toFixed(2));  // 1.00x..1.56x wall rebound velocity across 5 levels
       break;
     default:
       powerValue = powerMult;
@@ -2514,15 +2718,17 @@ export function getPowerUpLevelStats(id: PowerUpItemId | string, level: number):
     cooldownSec,
     powerMult,
     powerValue,
-    dashCooldownBonusPct: def.id === 'dash_capacitor' ? clampedLv * 5 : 0,
-    dashPowerBonusPct: def.id === 'dash_turbine' ? clampedLv * 6 : 0,
-    dashShockwaveRadiusPx: def.id === 'dash_shockwave' ? clampedLv * 18 : 0,
+    flowBonusPct,
+    dashCooldownBonusPct: def.id === 'dash_capacitor' ? clampedLv * 10 : 0,
+    dashPowerBonusPct: def.id === 'dash_turbine' ? clampedLv * 12 : 0,
+    dashShockwaveRadiusPx: def.id === 'dash_shockwave' ? clampedLv * 36 : 0,
     wallBouncePowerMult: def.id === 'wall_bounce' ? powerValue : 1.0,
   };
 }
 
 /**
- * Computes passive Dash & Wall-Bounce upgrades from unlocked/equipped PASSIVE power-ups.
+ * Computes passive Dash, Wall-Bounce, Passive Magnet, Passive Overdrive, Bio-Regen Core, and gradual Flow acceleration
+ * from unlocked/equipped power-ups.
  */
 export function computePassiveDashUpgrades(
   powerUpLevels?: Record<string, number>,
@@ -2534,6 +2740,14 @@ export function computePassiveDashUpgrades(
   wallBounceUnlocked: boolean;
   wallBounceLevel: number;
   wallBounceLiftMultiplier: number;
+  wallBounceRechargeRateFactor: number;
+  passiveMagnetRadiusPx: number;
+  passiveMagnetLevel: number;
+  passiveOverdriveMult: number;
+  bonusMaxHp: number;
+  regenPlatformsInterval: number;
+  flowAccelMultiplier: number;
+  flowBonusPct: number;
   shockwaveRadiusBonusPx: number;
   cooldownReductionPct: number;
   powerBonusPct: number;
@@ -2549,23 +2763,66 @@ export function computePassiveDashUpgrades(
   };
 
   const capLv = isPassiveActive('dash_capacitor')
-    ? Math.max(0, Math.min(10, levels.dash_capacitor || 0))
+    ? Math.max(0, Math.min(5, levels.dash_capacitor || 0))
     : 0;
   const turbLv = isPassiveActive('dash_turbine')
-    ? Math.max(0, Math.min(10, levels.dash_turbine || 0))
+    ? Math.max(0, Math.min(5, levels.dash_turbine || 0))
     : 0;
   const wallLv = isPassiveActive('wall_bounce')
-    ? Math.max(0, Math.min(4, levels.wall_bounce || 0))
+    ? Math.max(0, Math.min(5, levels.wall_bounce || 0))
     : 0;
-  const shockLv = Math.max(0, Math.min(10, levels.dash_shockwave || 0));
+  const magLv = isPassiveActive('orb_magnet')
+    ? Math.max(0, Math.min(5, levels.orb_magnet || 0))
+    : 0;
+  const auraLv = isPassiveActive('rhythm_aura')
+    ? Math.max(0, Math.min(5, levels.rhythm_aura || 0))
+    : 0;
+  const vitalLv = isPassiveActive('vital_core')
+    ? Math.max(0, Math.min(5, levels.vital_core || 0))
+    : 0;
+  const shockLv = Math.max(0, Math.min(5, levels.dash_shockwave || 0));
 
-  const cooldownReductionPct = capLv * 5; // up to 50% reduction at Lv.10
-  const powerBonusPct = turbLv * 6;        // up to +60% power at Lv.10
-  const shockwaveRadiusBonusPx = shockLv * 18;
+  // Gradual small-percentage Flow acceleration across equipped/upgraded power-ups (+2.0% per level)
+  const activePoolIds = equipped && equipped.length > 0 ? equipped : Object.keys(levels);
+  let totalUpgradeLevels = 0;
+  for (const id of activePoolIds) {
+    const lv = Math.max(0, Math.min(5, levels[id] || 0));
+    if (lv > 0) {
+      totalUpgradeLevels += lv;
+    }
+  }
+  const flowBonusPct = Number(Math.min(36, totalUpgradeLevels * 2.0).toFixed(1));
+  const flowAccelMultiplier = Number((1 + flowBonusPct / 100).toFixed(3));
+
+  const cooldownReductionPct = capLv * 10; // up to 50% reduction at Lv.5
+  const powerBonusPct = turbLv * 12;       // up to +60% power at Lv.5
+  const shockwaveRadiusBonusPx = shockLv * 36;
   const powerMult = Number((1 + powerBonusPct / 100).toFixed(2));
 
   const wallBounceStats = wallLv > 0 ? getPowerUpLevelStats('wall_bounce', wallLv) : null;
   const wallBounceBaseMult = wallBounceStats ? wallBounceStats.powerValue : 0;
+
+  // Tactical Wall-Bounce trade-off: hitting a wall slows the subsequent Dash recharge rate,
+  // and higher Wall-Bounce levels slow the post-wall recharge further (0.76x -> 0.64x -> 0.52x -> 0.42x -> 0.34x)
+  const wallBounceRechargeRateFactor =
+    wallLv === 1
+      ? 0.76
+      : wallLv === 2
+        ? 0.64
+        : wallLv === 3
+          ? 0.52
+          : wallLv === 4
+            ? 0.42
+            : wallLv >= 5
+              ? 0.34
+              : 1.0;
+
+  const passiveMagnetRadiusPx =
+    magLv > 0 ? getPowerUpLevelStats('orb_magnet', magLv).powerValue : 0;
+  const passiveOverdriveMult =
+    auraLv > 0 ? getPowerUpLevelStats('rhythm_aura', auraLv).powerValue : 1.0;
+  const bonusMaxHp = vitalLv > 0 ? vitalLv : 0;
+  const regenPlatformsInterval = vitalLv > 0 ? Math.max(8, 18 - vitalLv * 2) : 0;
 
   return {
     cooldownMultiplier: Number(Math.max(0.42, 1 - cooldownReductionPct / 100).toFixed(2)),
@@ -2574,6 +2831,14 @@ export function computePassiveDashUpgrades(
     wallBounceUnlocked: wallLv > 0,
     wallBounceLevel: wallLv,
     wallBounceLiftMultiplier: Number((wallBounceBaseMult * powerMult).toFixed(2)),
+    wallBounceRechargeRateFactor,
+    passiveMagnetRadiusPx,
+    passiveMagnetLevel: magLv,
+    passiveOverdriveMult,
+    bonusMaxHp,
+    regenPlatformsInterval,
+    flowAccelMultiplier,
+    flowBonusPct,
     shockwaveRadiusBonusPx,
     cooldownReductionPct,
     powerBonusPct,
@@ -2581,10 +2846,10 @@ export function computePassiveDashUpgrades(
 }
 
 /**
- * 15-Level Player Progression Table:
- * - Replaces purchasing Biomes and Sound Banks in the Shop.
- * - Across Levels 1 to 15, all 27 Biomes, all 8 Sound Banks, Power-Up Loadout Slots (3 -> 7),
- *   and the 9 Secret Skins (at Levels 5, 10, and 15) unlock automatically by earning score/XP!
+ * 0-to-15 Player Level Progression Table (Starts at Level 0 with 0 XP -> 1500 XP for Level 1 -> 150,000 XP for Level 15):
+ * - Starter items (Biomes 0, 1, 2, 6, CRT Velvet synth, 3 slots) are unlocked at Level 0.
+ * - Levels 1 through 5 are smoothly subdivided so early progression feels rewarding.
+ * - Levels 5, 10, and 15 unlock the 3 sets of Secret Skins (White, Gold, and Prism)!
  */
 export interface LevelProgressionDef {
   level: number;
@@ -2599,10 +2864,20 @@ export interface LevelProgressionDef {
 
 export const LEVEL_PROGRESSION_TABLE: LevelProgressionDef[] = [
   {
-    level: 1,
+    level: 0,
     minXp: 0,
     newlyUnlockedScales: [0, 1, 2, 6],
     newlyUnlockedSoundBanks: ['crt_velvet'],
+    newlyUnlockedSecretAvatars: [],
+    powerUpSlots: 3,
+    titleEn: 'Dormant Seed (Lv.0)',
+    titleFa: 'بذر خاموش (سطح ۰)',
+  },
+  {
+    level: 1,
+    minXp: 1500,
+    newlyUnlockedScales: [3],
+    newlyUnlockedSoundBanks: ['lofi_tape'],
     newlyUnlockedSecretAvatars: [],
     powerUpSlots: 3,
     titleEn: 'Neon Initiate',
@@ -2610,9 +2885,9 @@ export const LEVEL_PROGRESSION_TABLE: LevelProgressionDef[] = [
   },
   {
     level: 2,
-    minXp: 350,
-    newlyUnlockedScales: [3, 4],
-    newlyUnlockedSoundBanks: ['lofi_tape'],
+    minXp: 3500,
+    newlyUnlockedScales: [4, 5],
+    newlyUnlockedSoundBanks: [],
     newlyUnlockedSecretAvatars: [],
     powerUpSlots: 3,
     titleEn: 'Signal Runner',
@@ -2620,8 +2895,8 @@ export const LEVEL_PROGRESSION_TABLE: LevelProgressionDef[] = [
   },
   {
     level: 3,
-    minXp: 850,
-    newlyUnlockedScales: [5, 7],
+    minXp: 6500,
+    newlyUnlockedScales: [7, 8],
     newlyUnlockedSoundBanks: [],
     newlyUnlockedSecretAvatars: [],
     powerUpSlots: 3,
@@ -2630,9 +2905,9 @@ export const LEVEL_PROGRESSION_TABLE: LevelProgressionDef[] = [
   },
   {
     level: 4,
-    minXp: 1500,
-    newlyUnlockedScales: [8, 9],
-    newlyUnlockedSoundBanks: ['bladerunner_cs80'],
+    minXp: 10500,
+    newlyUnlockedScales: [9],
+    newlyUnlockedSoundBanks: [],
     newlyUnlockedSecretAvatars: [],
     powerUpSlots: 4,
     titleEn: 'Harmonic Strider (+Slot 4)',
@@ -2640,7 +2915,7 @@ export const LEVEL_PROGRESSION_TABLE: LevelProgressionDef[] = [
   },
   {
     level: 5,
-    minXp: 2300,
+    minXp: 15500,
     newlyUnlockedScales: [10],
     newlyUnlockedSoundBanks: [],
     newlyUnlockedSecretAvatars: ['secret_heart', 'secret_flower', 'secret_cherry'],
@@ -2650,7 +2925,7 @@ export const LEVEL_PROGRESSION_TABLE: LevelProgressionDef[] = [
   },
   {
     level: 6,
-    minXp: 3300,
+    minXp: 21500,
     newlyUnlockedScales: [11, 12],
     newlyUnlockedSoundBanks: ['akira_fm'],
     newlyUnlockedSecretAvatars: [],
@@ -2660,7 +2935,7 @@ export const LEVEL_PROGRESSION_TABLE: LevelProgressionDef[] = [
   },
   {
     level: 7,
-    minXp: 4500,
+    minXp: 28500,
     newlyUnlockedScales: [13, 14],
     newlyUnlockedSoundBanks: [],
     newlyUnlockedSecretAvatars: [],
@@ -2670,7 +2945,7 @@ export const LEVEL_PROGRESSION_TABLE: LevelProgressionDef[] = [
   },
   {
     level: 8,
-    minXp: 5900,
+    minXp: 37000,
     newlyUnlockedScales: [15, 16],
     newlyUnlockedSoundBanks: ['vhs_dream'],
     newlyUnlockedSecretAvatars: [],
@@ -2680,7 +2955,7 @@ export const LEVEL_PROGRESSION_TABLE: LevelProgressionDef[] = [
   },
   {
     level: 9,
-    minXp: 7500,
+    minXp: 47500,
     newlyUnlockedScales: [17, 18],
     newlyUnlockedSoundBanks: ['arcade_crt_pulse'],
     newlyUnlockedSecretAvatars: [],
@@ -2690,7 +2965,7 @@ export const LEVEL_PROGRESSION_TABLE: LevelProgressionDef[] = [
   },
   {
     level: 10,
-    minXp: 9400,
+    minXp: 60000,
     newlyUnlockedScales: [19],
     newlyUnlockedSoundBanks: [],
     newlyUnlockedSecretAvatars: ['secret_rockhand', 'secret_leaf', 'secret_skull'],
@@ -2700,7 +2975,7 @@ export const LEVEL_PROGRESSION_TABLE: LevelProgressionDef[] = [
   },
   {
     level: 11,
-    minXp: 11600,
+    minXp: 74500,
     newlyUnlockedScales: [20, 21],
     newlyUnlockedSoundBanks: ['rainy_shibuya'],
     newlyUnlockedSecretAvatars: [],
@@ -2710,7 +2985,7 @@ export const LEVEL_PROGRESSION_TABLE: LevelProgressionDef[] = [
   },
   {
     level: 12,
-    minXp: 14100,
+    minXp: 91000,
     newlyUnlockedScales: [22, 23],
     newlyUnlockedSoundBanks: [],
     newlyUnlockedSecretAvatars: [],
@@ -2720,7 +2995,7 @@ export const LEVEL_PROGRESSION_TABLE: LevelProgressionDef[] = [
   },
   {
     level: 13,
-    minXp: 17000,
+    minXp: 109000,
     newlyUnlockedScales: [24],
     newlyUnlockedSoundBanks: ['cyber_matrix_sub'],
     newlyUnlockedSecretAvatars: [],
@@ -2730,7 +3005,7 @@ export const LEVEL_PROGRESSION_TABLE: LevelProgressionDef[] = [
   },
   {
     level: 14,
-    minXp: 20400,
+    minXp: 128500,
     newlyUnlockedScales: [25, 26],
     newlyUnlockedSoundBanks: [],
     newlyUnlockedSecretAvatars: [],
@@ -2740,7 +3015,7 @@ export const LEVEL_PROGRESSION_TABLE: LevelProgressionDef[] = [
   },
   {
     level: 15,
-    minXp: 24500,
+    minXp: 150000,
     newlyUnlockedScales: [],
     newlyUnlockedSoundBanks: [],
     newlyUnlockedSecretAvatars: ['secret_eyeball', 'secret_hexagram', 'secret_cat'],
@@ -2758,7 +3033,7 @@ export function getRequiredLevelForScale(scaleId: number): number {
       return row.level;
     }
   }
-  return 1;
+  return 0;
 }
 
 export function getRequiredLevelForSoundBank(bankId: string): number {
@@ -2767,7 +3042,7 @@ export function getRequiredLevelForSoundBank(bankId: string): number {
       return row.level;
     }
   }
-  return 1;
+  return 0;
 }
 
 export interface PlayerLevelInfo {
@@ -2842,7 +3117,7 @@ export function getCumulativeUnlocksForLevel(
   unlockedSecretAvatars: string[];
   powerUpSlots: number;
 } {
-  const clampedLv = Math.max(1, Math.min(15, Math.floor(level || 1)));
+  const clampedLv = Math.max(0, Math.min(15, Math.floor(level ?? 0)));
   const scales = new Set<number>([0, 1, 2, 6]);
   const banks = new Set<string>(['crt_velvet']);
   const secrets = new Set<string>();
@@ -2950,15 +3225,15 @@ export function getLevelUpRewardsBetween(
 
 /**
  * Unlocks Power-Up Loadout Slots based on Player Level (or Best Score fallback):
- * - Starts with 3 slots at Lv.1.
+ * - Starts with 3 slots at Lv.0.
  * - Unlocks Slot 4 at Lv.4, Slot 5 at Lv.7, Slot 6 at Lv.10, Slot 7 at Lv.13.
  */
 export function computeUnlockedPowerUpSlots(highScoreOrLevel: number, playerLevel?: number): number {
-  if (playerLevel !== undefined && playerLevel >= 1) {
+  if (playerLevel !== undefined && playerLevel >= 0) {
     return getCumulativeUnlocksForLevel(playerLevel).powerUpSlots;
   }
-  // Fallback compatibility if called with highScore only
-  if (highScoreOrLevel <= 15 && highScoreOrLevel >= 1) {
+  // Fallback compatibility if called with level (0..15) or highScore
+  if (highScoreOrLevel <= 15 && highScoreOrLevel >= 0) {
     return getCumulativeUnlocksForLevel(highScoreOrLevel).powerUpSlots;
   }
   const baseSlots = 3;
@@ -2983,6 +3258,11 @@ export function tickActivePowerUps(list: ActivePowerUp[], dt: number): ActivePow
   const next: ActivePowerUp[] = [];
   for (let i = 0; i < list.length; i++) {
     const item = list[i];
+    // Shield (`combo_shield`) has NO expiration timer — it stays active indefinitely until broken by a hazard or fall!
+    if (item.id === 'combo_shield') {
+      next.push(item);
+      continue;
+    }
     const rem = item.remainingSec - dt;
     if (rem > 0) {
       next.push({ ...item, remainingSec: rem });
@@ -3033,13 +3313,11 @@ export function computePostDefeatShopRecommendation(
   }
 
   const pLevels = cfg.powerUpLevels || {
-    orb_magnet: 1,
     combo_shield: 1,
-    dash_capacitor: 1,
   };
   for (const pu of POWERUP_STORE_ITEMS) {
     const curLv = pLevels[pu.id] || 0;
-    const maxLv = pu.maxLevel || 10;
+    const maxLv = pu.maxLevel || 5;
     if (curLv < maxLv) {
       const cost = getPowerUpUpgradeCost(pu, curLv);
       if (cost > 0) {

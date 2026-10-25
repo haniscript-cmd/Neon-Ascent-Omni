@@ -6,6 +6,9 @@ import {
   ScaleBiome,
   SoundBankDef,
   CHROMATIC_12_NOTES,
+  ProChordQuality,
+  ProChordExtension,
+  buildProChordFromSpec,
   computeSmartHslBiomePalette,
   createCustomBiomeFromHsl,
   getAllBiomes,
@@ -21,6 +24,7 @@ import {
   buildBiomePianoRollRows,
   parseMidiBufferToStage,
   getBiomeForBar,
+  getUnifiedStageLibrary,
 } from '../game/stages';
 import { OmniAudioEngine } from '../game/audioEngine';
 
@@ -30,8 +34,10 @@ interface StageCreatorModalProps {
   cfg: GameConfig;
   audioEngine: OmniAudioEngine;
   isMuted: boolean;
+  initialViewMode?: 'daw' | 'manager' | 'custom_biomes';
   onSaveStages: (nextStages: CustomStage[], newActiveId?: string) => void;
   onSaveCustomBiomes?: (nextBiomes: ScaleBiome[]) => void;
+  onToggleMelodyDisabled?: (melodyId: string) => void;
   onPlayStage: (stage: CustomStage) => void;
   onClose: () => void;
 }
@@ -69,10 +75,13 @@ interface CopiedNoteClip {
   durationBeats: number;
 }
 
-const CELL_W = 38;
-const CELL_H = 28;
+const DEFAULT_CELL_W = 38;
+const DEFAULT_CELL_H = 28;
 const PIANO_KEY_W = 110;
-const HEADER_H = 73; // Sticky bar header + step ruler height
+const HEADER_H = 97; // Sticky bar header + Chord Gate trigger row + step ruler height
+
+const PRO_CHORD_QUALITIES: ProChordQuality[] = ['Major', 'Minor', 'Dim', 'Aug', 'Sus2', 'Sus4'];
+const PRO_CHORD_EXTENSIONS: ProChordExtension[] = ['None', '7th', 'maj7', '9th', '11th', '13th'];
 
 export default function StageCreatorModal({
   stages,
@@ -80,15 +89,18 @@ export default function StageCreatorModal({
   cfg,
   audioEngine,
   isMuted,
+  initialViewMode = 'daw',
   onSaveStages,
   onSaveCustomBiomes,
+  onToggleMelodyDisabled,
   onPlayStage,
   onClose,
 }: StageCreatorModalProps) {
+  const unifiedStages = useMemo(() => getUnifiedStageLibrary(stages), [stages]);
   const initialStage =
-    stages.find((s) => s.id === activeStageId) || stages[0];
+    unifiedStages.find((s) => s.id === activeStageId) || unifiedStages[0];
 
-  const [viewMode, setViewMode] = useState<'daw' | 'manager' | 'custom_biomes'>('daw');
+  const [viewMode, setViewMode] = useState<'daw' | 'manager' | 'custom_biomes'>(initialViewMode);
   const [activeChannel, setActiveChannel] = useState<'lead' | 'synth'>('lead');
   const [toolMode, setToolMode] = useState<'draw' | 'select'>('draw');
   const [selectedDurationBeats, setSelectedDurationBeats] = useState<number>(1.0);
@@ -98,7 +110,20 @@ export default function StageCreatorModal({
   const [selectedNoteIds, setSelectedNoteIds] = useState<string[]>([]);
   const [marquee, setMarquee] = useState<MarqueeSelectState | null>(null);
 
-  // Custom Biome Builder State (Default: all 12 chromatic keys active!)
+  // Horizontal (Ctrl+Scroll) & Vertical (Alt+Scroll) Piano Roll Zoom State
+  const [cellW, setCellW] = useState<number>(DEFAULT_CELL_W);
+  const [cellH, setCellH] = useState<number>(DEFAULT_CELL_H);
+  const cellWRef = useRef<number>(cellW);
+  cellWRef.current = cellW;
+  const cellHRef = useRef<number>(cellH);
+  cellHRef.current = cellH;
+
+  // Unified Library Filter State
+  const [libraryFilterBiomeId, setLibraryFilterBiomeId] = useState<number | 'ALL' | 'CUSTOM'>('ALL');
+  const [librarySearch, setLibrarySearch] = useState<string>('');
+
+  // Custom Biome Builder State (Default: all 12 chromatic keys active!) + Edit Mode
+  const [editingCustomBiomeId, setEditingCustomBiomeId] = useState<number | null>(null);
   const [cbName, setCbName] = useState<string>('CYBER AURORA');
   const [cbHue, setCbHue] = useState<number>(185);
   const [cbSat, setCbSat] = useState<number>(92);
@@ -122,8 +147,14 @@ export default function StageCreatorModal({
   ]);
   const [cbTripletIndices, setCbTripletIndices] = useState<[number, number, number]>([0, 3, 7]);
 
+  // Pro Chord Builder (+) Modal State
+  const [proChordModalGateIdx, setProChordModalGateIdx] = useState<number | null>(null);
+  const [proChordRoot, setProChordRoot] = useState<number>(0);
+  const [proChordQuality, setProChordQuality] = useState<ProChordQuality>('Minor');
+  const [proChordExtension, setProChordExtension] = useState<ProChordExtension>('9th');
+
   const allBiomes = useMemo(
-    () => getAllBiomes(cfg.customBiomes),
+    () => getAllBiomes(cfg.customBiomes, true),
     [cfg.customBiomes]
   );
 
@@ -133,6 +164,7 @@ export default function StageCreatorModal({
     notes: [...initialStage.notes],
     synthNotes: [...(initialStage.synthNotes || [])],
     barFlowRules: [...(initialStage.barFlowRules || [])],
+    chordGateTriggerSteps: [...(initialStage.chordGateTriggerSteps || [12, 28])],
   }));
 
   // Undo / Redo History Stack
@@ -426,7 +458,7 @@ export default function StageCreatorModal({
     setDraft((prev) => {
       const nextTotalSteps = Math.max(
         prev.totalSteps,
-        Math.min(128, Math.ceil(neededSteps / STEPS_PER_BAR) * STEPS_PER_BAR)
+        Math.min(2048, Math.ceil(neededSteps / STEPS_PER_BAR) * STEPS_PER_BAR)
       );
       const nextBars = Math.ceil(nextTotalSteps / STEPS_PER_BAR);
       const nextRules: StageBarFlowRule[] = Array.from({ length: nextBars }, (_, bIdx) => {
@@ -546,7 +578,7 @@ export default function StageCreatorModal({
 
     const targetBarStartStep = targetBar * STEPS_PER_BAR;
     const neededTotalBars = Math.max(currentTotalBars, targetBar + barSpan);
-    const nextTotalSteps = Math.min(128, neededTotalBars * STEPS_PER_BAR);
+    const nextTotalSteps = Math.min(2048, neededTotalBars * STEPS_PER_BAR);
 
     const newIds: string[] = [];
     const duplicatedEvents = sourceNotes
@@ -836,8 +868,8 @@ export default function StageCreatorModal({
         const relY =
           e.clientY - rect.top + gridScrollRef.current.scrollTop - HEADER_H;
 
-        const curStepFloat = Math.max(0, relX / CELL_W);
-        const curRowFloat = Math.max(0, relY / CELL_H);
+        const curStepFloat = Math.max(0, relX / cellWRef.current);
+        const curRowFloat = Math.max(0, relY / cellHRef.current);
 
         if (
           Math.abs(curStepFloat - m.startStepFloat) > 0.18 ||
@@ -897,8 +929,8 @@ export default function StageCreatorModal({
         suppressNextClickRef.current = true;
       }
 
-      const deltaSteps = Math.round(dx / CELL_W);
-      const deltaRows = Math.round(dy / CELL_H);
+      const deltaSteps = Math.round(dx / cellWRef.current);
+      const deltaRows = Math.round(dy / cellHRef.current);
       const rows = pitchRowsRef.current;
       const maxSteps = draftRef.current.totalSteps;
       const snapshotMap = new Map<string, NoteSnapshotItem>();
@@ -1302,7 +1334,7 @@ export default function StageCreatorModal({
     setDraft((prev) => {
       const nextSteps = Math.max(
         STEPS_PER_BAR,
-        Math.min(128, prev.totalSteps + deltaBars * STEPS_PER_BAR)
+        Math.min(2048, prev.totalSteps + deltaBars * STEPS_PER_BAR)
       );
       const nextBars = Math.ceil(nextSteps / STEPS_PER_BAR);
       const nextRules: StageBarFlowRule[] = Array.from(
@@ -1329,15 +1361,48 @@ export default function StageCreatorModal({
     });
   };
 
+  const handleToggleChordGateTriggerStep = (stepIdx: number) => {
+    pushUndoSnapshot(draftRef.current);
+    setDraft((prev) => {
+      const current = prev.chordGateTriggerSteps || [];
+      const exists = current.includes(stepIdx);
+      const next = exists
+        ? current.filter((s) => s !== stepIdx)
+        : [...current, stepIdx].sort((a, b) => a - b);
+      return {
+        ...prev,
+        chordGateTriggerSteps: next,
+      };
+    });
+  };
+
+  // Non-passive Wheel Handler for Ctrl+Scroll (Length/Horizontal Zoom) & Alt+Scroll (Width/Vertical Zoom)
+  useEffect(() => {
+    const el = gridScrollRef.current;
+    if (!el || viewMode !== 'daw') return;
+    const onWheelZoom = (e: WheelEvent) => {
+      if (e.ctrlKey || e.metaKey) {
+        e.preventDefault();
+        const dir = e.deltaY < 0 ? 1 : -1;
+        setCellW((prev) => Math.max(20, Math.min(76, prev + dir * 4)));
+      } else if (e.altKey) {
+        e.preventDefault();
+        const dir = e.deltaY < 0 ? 1 : -1;
+        setCellH((prev) => Math.max(16, Math.min(48, prev + dir * 3)));
+      }
+    };
+    el.addEventListener('wheel', onWheelZoom, { passive: false });
+    return () => el.removeEventListener('wheel', onWheelZoom);
+  }, [viewMode]);
+
   const handleSaveCurrentStage = (asNewCopy = false) => {
     const stageToSave: CustomStage = {
       ...draft,
-      id: asNewCopy || draft.isBuiltIn ? `stage_custom_${Date.now()}` : draft.id,
-      name:
-        asNewCopy || draft.isBuiltIn
-          ? `${draft.name.replace(/ \(Custom\)$/i, '')} (Custom)`
-          : draft.name,
-      isBuiltIn: false,
+      id: asNewCopy ? `stage_custom_${Date.now()}` : draft.id,
+      name: asNewCopy
+        ? `${draft.name.replace(/ \(Copy\)$/i, '')} (Copy)`
+        : draft.name,
+      isBuiltIn: asNewCopy ? false : draft.isBuiltIn,
       createdAt: Date.now(),
     };
 
@@ -1352,13 +1417,14 @@ export default function StageCreatorModal({
   };
 
   const handleDeleteStage = (stageId: string) => {
-    if (stages.length <= 1) return;
     const filtered = stages.filter((s) => s.id !== stageId);
-    const nextActive = filtered[0];
+    const nextUnified = getUnifiedStageLibrary(filtered);
+    const nextActive = nextUnified[0] || initialStage;
     onSaveStages(filtered, nextActive.id);
     if (draft.id === stageId && nextActive) {
       setDraft({ ...nextActive });
     }
+    flashBanner('STAGE REMOVED / RESET');
   };
 
   const handleMidiFileImportToDaw = async (
@@ -1368,10 +1434,11 @@ export default function StageCreatorModal({
     if (!file) return;
     try {
       const buf = await file.arrayBuffer();
+      // Always import MIDI files onto the 12-Key Chromatic Free Biome (id: 99) so all 12 semitones are preserved!
       const importedStage = parseMidiBufferToStage(
         buf,
         file.name,
-        draft.biomeId,
+        99,
         draft.soundBankId
       );
       pushUndoSnapshot(draftRef.current);
@@ -1379,13 +1446,17 @@ export default function StageCreatorModal({
       setSelectedNoteIds([]);
       const nextList = [...stages, importedStage];
       onSaveStages(nextList, importedStage.id);
-      flashBanner(`MIDI LOADED: ${importedStage.notes.length} NOTES`);
+      flashBanner(`MIDI LOADED (12-KEY CHROMATIC): ${importedStage.notes.length} NOTES`);
     } catch {
       flashBanner('MIDI ERROR');
     }
   };
 
   const selectedSet = useMemo(() => new Set(selectedNoteIds), [selectedNoteIds]);
+  const chordTriggerSet = useMemo(
+    () => new Set(draft.chordGateTriggerSteps || []),
+    [draft.chordGateTriggerSteps]
+  );
 
   return (
     <div
@@ -1434,6 +1505,7 @@ export default function StageCreatorModal({
 
           <button
             type="button"
+            data-testid="daw-library-btn"
             onClick={() => {
               stopPreview();
               setViewMode('manager');
@@ -1444,7 +1516,7 @@ export default function StageCreatorModal({
                 : 'bg-slate-900 border-slate-700 text-slate-400 hover:text-white'
             }`}
           >
-            = LIST ({stages.length})
+            ♫ MELODIES ({unifiedStages.length})
           </button>
 
           <button
@@ -1867,18 +1939,51 @@ export default function StageCreatorModal({
                 >
                   ALL [C-A]
                 </button>
+                <span className="text-slate-700 mx-0.5">|</span>
+                <button
+                  type="button"
+                  onClick={() => setCellW((w) => Math.max(20, w - 6))}
+                  className="px-1.5 py-0.5 bg-slate-900 hover:bg-slate-800 border border-slate-700 text-emerald-300 cursor-pointer"
+                  title="Zoom Out Length [Ctrl + Scroll Down]"
+                >
+                  W-
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCellW((w) => Math.min(76, w + 6))}
+                  className="px-1.5 py-0.5 bg-slate-900 hover:bg-slate-800 border border-slate-700 text-emerald-300 cursor-pointer"
+                  title="Zoom In Length [Ctrl + Scroll Up]"
+                >
+                  W+
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCellH((h) => Math.max(16, h - 4))}
+                  className="px-1.5 py-0.5 bg-slate-900 hover:bg-slate-800 border border-slate-700 text-amber-300 cursor-pointer"
+                  title="Zoom Out Pitch Height [Alt + Scroll Down]"
+                >
+                  H-
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCellH((h) => Math.min(48, h + 4))}
+                  className="px-1.5 py-0.5 bg-slate-900 hover:bg-slate-800 border border-slate-700 text-amber-300 cursor-pointer"
+                  title="Zoom In Pitch Height [Alt + Scroll Up]"
+                >
+                  H+
+                </button>
               </div>
             </div>
           </div>
 
-          {/* 2D Scrollable Multi-Octave Piano Roll Grid with Marquee Selection & Dual-Edge Multi-Resize */}
+          {/* 2D Scrollable Multi-Octave Piano Roll Grid with Marquee Selection, Ctrl/Alt Scroll Zoom & Chord Gate Trigger Row */}
           <div
             ref={gridScrollRef}
             className="flex-1 overflow-auto border border-slate-800 bg-[#050811] relative select-none"
           >
             <div
               className="inline-block min-w-full relative"
-              style={{ width: `${PIANO_KEY_W + draft.totalSteps * CELL_W}px` }}
+              style={{ width: `${PIANO_KEY_W + draft.totalSteps * cellW}px` }}
             >
               {/* Sticky Header 1: Per-Bar Biome Key Selector + Flow Bounds */}
               <div className="sticky top-0 z-20 flex bg-slate-950 border-b border-slate-800">
@@ -1905,7 +2010,7 @@ export default function StageCreatorModal({
                     <div
                       key={barIdx}
                       onClick={() => setActiveBarIdx(barIdx)}
-                      style={{ width: `${STEPS_PER_BAR * CELL_W}px` }}
+                      style={{ width: `${STEPS_PER_BAR * cellW}px` }}
                       className={`shrink-0 border-r border-slate-700 px-1.5 py-1 flex flex-col gap-1 cursor-pointer ${
                         isFocusedBar ? 'bg-slate-900' : 'bg-slate-950/90'
                       }`}
@@ -1983,8 +2088,48 @@ export default function StageCreatorModal({
                 })}
               </div>
 
-              {/* Sticky Header 2: Clickable Step Numbers Ruler (Scrub Playhead) */}
-              <div className="sticky top-[47px] z-20 flex bg-slate-950 border-b border-slate-800">
+              {/* Sticky Header 2: Dedicated Chord Gate Sequence Trigger Marker Row */}
+              <div className="sticky top-[47px] z-20 flex bg-[#090d1a] border-b border-slate-800 h-[24px]">
+                <div
+                  className="sticky left-0 z-30 w-[110px] shrink-0 bg-[#090d1a] border-r border-slate-800 px-2 flex items-center justify-between text-[7px] text-amber-300"
+                  title="Click any step cell in this row to trigger a 4-Gate Chord Sequence when that note is reached in gameplay!"
+                >
+                  <span>⛩ CHORD GATE</span>
+                  <span className="text-amber-400 font-bold">
+                    {(draft.chordGateTriggerSteps || []).length}
+                  </span>
+                </div>
+                {Array.from({ length: draft.totalSteps }, (_, stepIdx) => {
+                  const isTrigger = chordTriggerSet.has(stepIdx);
+                  const isBarStart = stepIdx % STEPS_PER_BAR === 0;
+                  return (
+                    <button
+                      key={stepIdx}
+                      type="button"
+                      data-testid={`chord-gate-trigger-step-${stepIdx}`}
+                      onClick={() => handleToggleChordGateTriggerStep(stepIdx)}
+                      title={
+                        isTrigger
+                          ? `Step ${stepIdx + 1}: 4-Gate Chord Sequence ACTIVE (Click to remove)`
+                          : `Click to start 4-Gate Chord Sequence after Step ${stepIdx + 1}`
+                      }
+                      style={{ width: `${cellW}px` }}
+                      className={`shrink-0 h-full border-r flex items-center justify-center text-[7px] cursor-pointer transition-colors ${
+                        isTrigger
+                          ? 'bg-amber-400/30 border-amber-300 text-amber-200 font-bold shadow-[inset_0_0_8px_rgba(251,191,36,0.6)]'
+                          : isBarStart
+                          ? 'bg-slate-900/60 border-slate-800 text-slate-600 hover:bg-amber-400/15 hover:text-amber-300'
+                          : 'bg-[#090d1a] border-slate-900 text-slate-700 hover:bg-amber-400/15 hover:text-amber-300'
+                      }`}
+                    >
+                      {isTrigger ? '⛩I-IV' : '·'}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Sticky Header 3: Clickable Step Numbers Ruler (Scrub Playhead) */}
+              <div className="sticky top-[71px] z-20 flex bg-slate-950 border-b border-slate-800">
                 <div className="sticky left-0 z-30 w-[110px] shrink-0 bg-slate-950 border-r border-slate-800 px-2 py-1 text-[8px] text-slate-400">
                   NOTE / STEP
                 </div>
@@ -2000,7 +2145,7 @@ export default function StageCreatorModal({
                         triggerRealtimeStepAudio(stepIdx);
                       }}
                       title={`Jump Playhead to Step ${stepIdx + 1}`}
-                      style={{ width: `${CELL_W}px` }}
+                      style={{ width: `${cellW}px` }}
                       className={`shrink-0 text-center py-1 text-[8px] border-r cursor-pointer ${
                         isPlayhead
                           ? 'bg-amber-400 text-slate-950 font-bold border-amber-300'
@@ -2024,19 +2169,19 @@ export default function StageCreatorModal({
                   style={{
                     left: `${
                       PIANO_KEY_W +
-                      Math.min(marquee.startStepFloat, marquee.curStepFloat) * CELL_W
+                      Math.min(marquee.startStepFloat, marquee.curStepFloat) * cellW
                     }px`,
                     top: `${
                       HEADER_H +
-                      Math.min(marquee.startRowFloat, marquee.curRowFloat) * CELL_H
+                      Math.min(marquee.startRowFloat, marquee.curRowFloat) * cellH
                     }px`,
                     width: `${Math.max(
                       6,
-                      Math.abs(marquee.curStepFloat - marquee.startStepFloat) * CELL_W
+                      Math.abs(marquee.curStepFloat - marquee.startStepFloat) * cellW
                     )}px`,
                     height: `${Math.max(
                       6,
-                      Math.abs(marquee.curRowFloat - marquee.startRowFloat) * CELL_H
+                      Math.abs(marquee.curRowFloat - marquee.startRowFloat) * cellH
                     )}px`,
                   }}
                 />
@@ -2046,7 +2191,7 @@ export default function StageCreatorModal({
               {pitchRows.map((row, rowIdx) => (
                 <div
                   key={`${row.noteName}_${row.freq}`}
-                  style={{ height: `${CELL_H}px` }}
+                  style={{ height: `${cellH}px` }}
                   className={`flex items-center border-b ${
                     row.isRoot ? 'border-slate-700/80' : 'border-slate-900'
                   }`}
@@ -2083,7 +2228,7 @@ export default function StageCreatorModal({
                   {/* Step Cells across the Song */}
                   {Array.from({ length: draft.totalSteps }, (_, stepIdx) => {
                     const barIdx = Math.floor(stepIdx / STEPS_PER_BAR);
-                    const barBiome = getBiomeForBar(draft, barIdx);
+                    const barBiome = getBiomeForBar(draft, barIdx, cfg.customBiomes);
 
                     const leadEvent = draft.notes.find(
                       (n) =>
@@ -2114,7 +2259,7 @@ export default function StageCreatorModal({
                     return (
                       <div
                         key={stepIdx}
-                        style={{ width: `${CELL_W}px` }}
+                        style={{ width: `${cellW}px` }}
                         onMouseDown={(e) =>
                           handleEmptyCellMouseDown(e, stepIdx, rowIdx)
                         }
@@ -2143,11 +2288,11 @@ export default function StageCreatorModal({
                             }`}
                             style={{
                               width: `${Math.max(
-                                34,
+                                18,
                                 Math.round(
                                   ghostEvent.durationBeats *
                                     STEPS_PER_BEAT *
-                                    CELL_W
+                                    cellW
                                 ) - 4
                               )}px`,
                             }}
@@ -2185,7 +2330,7 @@ export default function StageCreatorModal({
                               );
                             }}
                             style={{
-                              width: `${Math.max(34, spanCols * CELL_W - 3)}px`,
+                              width: `${Math.max(18, spanCols * cellW - 3)}px`,
                               backgroundColor:
                                 activeChannel === 'lead'
                                   ? barBiome.fg
@@ -2235,13 +2380,12 @@ export default function StageCreatorModal({
           {/* Pro DAW Shortcut Legend & Footer */}
           <div className="pt-1.5 mt-1 border-t border-slate-800 flex flex-wrap items-center justify-between gap-2 text-[7px] text-slate-400">
             <div className="flex flex-wrap items-center gap-2.5">
-              <span>⬚ DRAG GRID: BOX SELECT</span>
-              <span>CLICK EMPTY: DESELECT / ADD</span>
-              <span>&lt;&gt; BOTH EDGES: MULTI-RESIZE</span>
+              <span>CTRL+SCROLL: HORIZ ZOOM</span>
+              <span>ALT+SCROLL: VERT ZOOM</span>
+              <span>⛩ ROW: CHORD GATE TRIGGER</span>
               <span>SPACE: PLAY/PAUSE</span>
               <span>DEL: DELETE</span>
               <span>CTRL+B: DUP TO EMPTY BAR</span>
-              <span>CTRL+C/V: COPY/PASTE</span>
             </div>
             <div className="flex items-center gap-1.5">
               <button
@@ -2286,38 +2430,63 @@ export default function StageCreatorModal({
                       }}
                     />
                     <span className="text-[10px] text-pink-300 uppercase">
-                      🎨 CUSTOM BIOME ARCHITECT (SMART HSL + 12-KEY + CHORDS + TRIPLETS)
+                      {editingCustomBiomeId !== null
+                        ? `✎ EDITING CUSTOM BIOME #${editingCustomBiomeId}`
+                        : '🎨 CUSTOM BIOME ARCHITECT (SMART HSL + 12-KEY + PRO CHORDS + TRIPLETS)'}
                     </span>
                   </div>
-                  <button
-                    type="button"
-                    data-testid="save-custom-biome-btn"
-                    onClick={() => {
-                      const created = createCustomBiomeFromHsl({
-                        id: 100 + ((cfg.customBiomes || []).length + 1) + Math.floor(Math.random() * 500),
-                        name: cbName.trim() || 'CUSTOM BIOME',
-                        hue: cbHue,
-                        saturation: cbSat,
-                        lightness: cbLight,
-                        activeChromaticKeys:
-                          cbActiveKeys.length > 0
-                            ? cbActiveKeys
-                            : [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
-                        chordNames: cbChordNames,
-                        chordKeyIndices: cbChordIndices,
-                        tripletKeyIndices: cbTripletIndices,
-                      });
-                      const nextCustomList = [...(cfg.customBiomes || []), created];
-                      if (onSaveCustomBiomes) {
-                        onSaveCustomBiomes(nextCustomList);
-                      }
-                      handleSelectBarBiome(activeBarIdx, created.id);
-                      flashBanner(`SAVED CUSTOM BIOME: ${created.name}`);
-                    }}
-                    className="px-3 py-1.5 bg-emerald-400 hover:bg-emerald-300 text-slate-950 text-[8px] uppercase cursor-pointer"
-                  >
-                    + SAVE CUSTOM BIOME
-                  </button>
+                  <div className="flex items-center gap-1.5">
+                    {editingCustomBiomeId !== null && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingCustomBiomeId(null);
+                          setCbName('CYBER AURORA');
+                        }}
+                        className="px-2 py-1 bg-slate-900 border border-slate-700 text-slate-300 text-[8px] uppercase cursor-pointer"
+                      >
+                        CANCEL EDIT
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      data-testid="save-custom-biome-btn"
+                      onClick={() => {
+                        const targetId =
+                          editingCustomBiomeId !== null
+                            ? editingCustomBiomeId
+                            : 100 + ((cfg.customBiomes || []).length + 1) + Math.floor(Math.random() * 500);
+                        const created = createCustomBiomeFromHsl({
+                          id: targetId,
+                          name: cbName.trim() || 'CUSTOM BIOME',
+                          hue: cbHue,
+                          saturation: cbSat,
+                          lightness: cbLight,
+                          activeChromaticKeys:
+                            cbActiveKeys.length > 0
+                              ? cbActiveKeys
+                              : [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
+                          chordNames: cbChordNames,
+                          chordKeyIndices: cbChordIndices,
+                          tripletKeyIndices: cbTripletIndices,
+                        });
+                        const existingList = cfg.customBiomes || [];
+                        const nextCustomList =
+                          editingCustomBiomeId !== null && existingList.some((b) => b.id === editingCustomBiomeId)
+                            ? existingList.map((b) => (b.id === editingCustomBiomeId ? created : b))
+                            : [...existingList, created];
+                        if (onSaveCustomBiomes) {
+                          onSaveCustomBiomes(nextCustomList);
+                        }
+                        setEditingCustomBiomeId(null);
+                        handleSelectBarBiome(activeBarIdx, created.id);
+                        flashBanner(`SAVED CUSTOM BIOME: ${created.name}`);
+                      }}
+                      className="px-3 py-1.5 bg-emerald-400 hover:bg-emerald-300 text-slate-950 text-[8px] uppercase cursor-pointer"
+                    >
+                      {editingCustomBiomeId !== null ? '✓ UPDATE CUSTOM BIOME' : '+ SAVE CUSTOM BIOME'}
+                    </button>
+                  </div>
                 </div>
 
                 {/* Row 1: Name + Smart HSL Color Sliders & Auto-Gradient Preview */}
@@ -2485,12 +2654,14 @@ export default function StageCreatorModal({
                   </div>
                 </div>
 
-                {/* Row 3: Custom 4-Gate Chord Progression Builder + Custom 3-Note Triplet Selector */}
+                {/* Row 3: Custom 4-Gate Chord Progression Builder (with + Pro Chord Modal) + Custom 3-Note Triplet Selector */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-2.5">
                   <div className="lg:col-span-2 bg-slate-900/60 border border-slate-800 p-2.5 space-y-2">
-                    <span className="text-[8px] text-emerald-300 uppercase block">
-                      ❖ 4-GATE CHORD PROGRESSION BUILDER
-                    </span>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[8px] text-emerald-300 uppercase">
+                        ❖ 4-GATE CHORD PROGRESSION BUILDER (MANUAL OR + PRO CHORD BUILDER)
+                      </span>
+                    </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       {[0, 1, 2, 3].map((gateIdx) => (
                         <div
@@ -2514,8 +2685,20 @@ export default function StageCreatorModal({
                                 next[gateIdx] = e.target.value;
                                 setCbChordNames(next);
                               }}
-                              className="w-24 bg-slate-900 border border-slate-700 px-1.5 py-0.5 text-[8px] text-white"
+                              className="w-20 bg-slate-900 border border-slate-700 px-1.5 py-0.5 text-[8px] text-white"
                             />
+                            <button
+                              type="button"
+                              data-testid={`open-pro-chord-builder-${gateIdx}`}
+                              onClick={() => {
+                                setProChordRoot(cbChordIndices[gateIdx][0] || 0);
+                                setProChordModalGateIdx(gateIdx);
+                              }}
+                              title="Open Pro Chord Builder (Root + Quality + Extension)"
+                              className="px-2 py-0.5 bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold text-[8px] cursor-pointer"
+                            >
+                              + CHORD
+                            </button>
                             <button
                               type="button"
                               onClick={() => {
@@ -2564,6 +2747,167 @@ export default function StageCreatorModal({
                         </div>
                       ))}
                     </div>
+
+                    {/* Pro Chord Builder Popover / Modal */}
+                    {proChordModalGateIdx !== null && (() => {
+                      const previewSpec = buildProChordFromSpec(
+                        proChordRoot,
+                        proChordQuality,
+                        proChordExtension
+                      );
+                      return (
+                        <div
+                          data-testid="pro-chord-builder-modal"
+                          className="mt-2 p-3 bg-[#090d1a] border-2 border-amber-400 space-y-2.5 shadow-[0_0_24px_rgba(251,191,36,0.25)]"
+                        >
+                          <div className="flex items-center justify-between border-b border-slate-800 pb-1.5">
+                            <span className="text-[9px] text-amber-300 font-bold uppercase">
+                              ✦ PRO CHORD BUILDER — GATE {proChordModalGateIdx + 1} ({previewSpec.chordName})
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => setProChordModalGateIdx(null)}
+                              className="px-1.5 py-0.5 bg-slate-900 border border-slate-700 text-slate-400 hover:text-white text-[8px] cursor-pointer"
+                            >
+                              ✕
+                            </button>
+                          </div>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                            {/* 1. Root Selector */}
+                            <div className="space-y-1">
+                              <span className="text-[7px] text-slate-400 block uppercase">
+                                1. ROOT (نت پایه)
+                              </span>
+                              <div className="grid grid-cols-4 gap-1">
+                                {CHROMATIC_12_NOTES.map((n) => (
+                                  <button
+                                    key={n.index}
+                                    type="button"
+                                    onClick={() => setProChordRoot(n.index)}
+                                    className={`py-1 text-[8px] border cursor-pointer ${
+                                      proChordRoot === n.index
+                                        ? 'bg-amber-400 text-slate-950 font-bold border-white'
+                                        : 'bg-slate-900 border-slate-800 text-slate-300 hover:border-slate-600'
+                                    }`}
+                                  >
+                                    {n.shortName}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+
+                            {/* 2. Quality Selector */}
+                            <div className="space-y-1">
+                              <span className="text-[7px] text-slate-400 block uppercase">
+                                2. QUALITY (جنس آکورد)
+                              </span>
+                              <div className="grid grid-cols-2 gap-1">
+                                {PRO_CHORD_QUALITIES.map((q) => (
+                                  <button
+                                    key={q}
+                                    type="button"
+                                    onClick={() => setProChordQuality(q)}
+                                    className={`py-1.5 text-[8px] border cursor-pointer ${
+                                      proChordQuality === q
+                                        ? 'bg-cyan-400 text-slate-950 font-bold border-white'
+                                        : 'bg-slate-900 border-slate-800 text-slate-300 hover:border-slate-600'
+                                    }`}
+                                  >
+                                    {q}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+
+                            {/* 3. Extension Selector */}
+                            <div className="space-y-1">
+                              <span className="text-[7px] text-slate-400 block uppercase">
+                                3. EXTENSION (افزونه)
+                              </span>
+                              <div className="grid grid-cols-2 gap-1">
+                                {PRO_CHORD_EXTENSIONS.map((ext) => (
+                                  <button
+                                    key={ext}
+                                    type="button"
+                                    onClick={() => setProChordExtension(ext)}
+                                    className={`py-1.5 text-[8px] border cursor-pointer ${
+                                      proChordExtension === ext
+                                        ? 'bg-emerald-400 text-slate-950 font-bold border-white'
+                                        : 'bg-slate-900 border-slate-800 text-slate-300 hover:border-slate-600'
+                                    }`}
+                                  >
+                                    {ext}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex flex-wrap items-center justify-between gap-2 pt-1.5 border-t border-slate-800">
+                            <div className="text-[8px] text-slate-300">
+                              VOICING:{' '}
+                              <span className="text-amber-300 font-bold">
+                                {previewSpec.chordName}
+                              </span>{' '}
+                              →{' '}
+                              {previewSpec.chromaticIndices
+                                .map((i) => CHROMATIC_12_NOTES[i]?.shortName)
+                                .join(' - ')}
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (!isMuted) {
+                                    audioEngine.playPlatformNote(
+                                      MASTER_SCALES[0],
+                                      14,
+                                      cfg,
+                                      previewSpec.freqs,
+                                      selectedBank,
+                                      false,
+                                      1.0
+                                    );
+                                  }
+                                }}
+                                className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 border border-cyan-400 text-cyan-200 text-[8px] uppercase cursor-pointer"
+                              >
+                                🔊 PREVIEW
+                              </button>
+                              <button
+                                type="button"
+                                data-testid="apply-pro-chord-btn"
+                                onClick={() => {
+                                  const gIdx = proChordModalGateIdx;
+                                  const nextNames = [...cbChordNames] as [
+                                    string,
+                                    string,
+                                    string,
+                                    string
+                                  ];
+                                  nextNames[gIdx] = previewSpec.chordName;
+                                  setCbChordNames(nextNames);
+
+                                  const nextIndices = cbChordIndices.map((arr) => [
+                                    ...arr,
+                                  ]) as typeof cbChordIndices;
+                                  nextIndices[gIdx] = [...previewSpec.chromaticIndices];
+                                  setCbChordIndices(nextIndices);
+                                  setProChordModalGateIdx(null);
+                                  flashBanner(
+                                    `GATE ${gIdx + 1} SET TO ${previewSpec.chordName}`
+                                  );
+                                }}
+                                className="px-3 py-1 bg-emerald-400 hover:bg-emerald-300 text-slate-950 font-bold text-[8px] uppercase cursor-pointer"
+                              >
+                                ✓ APPLY TO GATE {proChordModalGateIdx + 1}
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </div>
 
                   {/* Custom 3-Note Triplet Run Selector */}
@@ -2639,7 +2983,7 @@ export default function StageCreatorModal({
             );
           })()}
 
-          {/* Saved Custom Biomes List */}
+          {/* Saved Custom Biomes List (with Edit & Apply) */}
           <div className="space-y-1.5">
             <div className="text-[8px] text-slate-400 uppercase px-1">
               SAVED CUSTOM BIOMES ({(cfg.customBiomes || []).length})
@@ -2677,6 +3021,26 @@ export default function StageCreatorModal({
                   <div className="flex items-center gap-1.5">
                     <button
                       type="button"
+                      data-testid={`edit-custom-biome-${cb.id}`}
+                      onClick={() => {
+                        setEditingCustomBiomeId(cb.id);
+                        setCbName(cb.name);
+                        setCbActiveKeys(
+                          cb.activeChromaticKeys && cb.activeChromaticKeys.length > 0
+                            ? [...cb.activeChromaticKeys]
+                            : [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+                        );
+                        if (cb.chordNames && cb.chordNames.length === 4) {
+                          setCbChordNames([...cb.chordNames] as [string, string, string, string]);
+                        }
+                        flashBanner(`EDITING CUSTOM BIOME: ${cb.name}`);
+                      }}
+                      className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 border border-cyan-400 text-cyan-200 text-[8px] uppercase cursor-pointer"
+                    >
+                      ✎ EDIT
+                    </button>
+                    <button
+                      type="button"
                       onClick={() => {
                         handleSelectBarBiome(activeBarIdx, cb.id);
                         setViewMode('daw');
@@ -2707,80 +3071,165 @@ export default function StageCreatorModal({
           </div>
         </div>
       ) : (
-        /* STAGE MANAGER LIST VIEW */
+        /* UNIFIED CURATED + DAW MELODY LIBRARY VIEW */
         <div className="flex-1 overflow-y-auto my-2 space-y-2 pr-1">
-          {stages.map((st) => {
-            const b =
-              allBiomes.find((m) => m.id === st.biomeId) ||
-              MASTER_SCALES[0];
-            const sb =
-              SOUND_BANKS.find((k) => k.id === st.soundBankId) ||
-              SOUND_BANKS[0];
-            const isSelected = st.id === draft.id;
-
-            return (
-              <div
-                key={st.id}
-                className={`p-3 border flex flex-wrap items-center justify-between gap-2 ${
-                  isSelected
-                    ? 'bg-slate-900 border-emerald-400'
-                    : 'bg-slate-950/90 border-slate-800'
-                }`}
+          {/* Filter & Search Bar */}
+          <div className="sticky top-0 z-10 p-2 bg-slate-950 border border-slate-800 flex flex-wrap items-center justify-between gap-2">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-[8px] text-cyan-300 uppercase">BIOME FILTER:</span>
+              <select
+                value={libraryFilterBiomeId}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setLibraryFilterBiomeId(
+                    v === 'ALL' ? 'ALL' : v === 'CUSTOM' ? 'CUSTOM' : Number(v)
+                  );
+                }}
+                className="bg-slate-900 border border-slate-700 px-2 py-1 text-[8px] text-emerald-300"
               >
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <span
-                      className="w-3 h-3 inline-block"
-                      style={{ backgroundColor: b.fg }}
-                    />
-                    <span className="text-[10px] text-white">{st.name}</span>
-                    <span className="text-[8px]" style={{ color: b.fg }}>
-                      [{b.name}]
-                    </span>
-                  </div>
-                  <div className="text-[8px] text-slate-400">
-                    {sb.name} · {st.bpm} BPM · {st.notes.length} NOTES ·{' '}
-                    {Math.ceil(st.totalSteps / STEPS_PER_BAR)} BARS
-                  </div>
-                </div>
+                <option value="ALL">ALL MELODIES ({unifiedStages.length})</option>
+                <option value="CUSTOM">USER / CUSTOM STAGES ONLY</option>
+                {allBiomes.map((b) => (
+                  <option key={b.id} value={b.id}>
+                    {b.name} ({b.subtitle})
+                  </option>
+                ))}
+              </select>
+              <input
+                type="text"
+                placeholder="Search melody or composer..."
+                value={librarySearch}
+                onChange={(e) => setLibrarySearch(e.target.value)}
+                className="bg-slate-900 border border-slate-700 px-2 py-1 text-[8px] text-white w-48"
+              />
+            </div>
+            <div className="text-[8px] text-slate-400">
+              All 81 Curated Melodies + DAW Stages are editable in the Piano Roll &amp; can be toggled Active/Inactive!
+            </div>
+          </div>
 
-                <div className="flex items-center gap-1.5">
-                  <button
-                    type="button"
-                    onClick={() => onPlayStage(st)}
-                    className="px-3 py-1.5 bg-emerald-400 hover:bg-emerald-300 text-slate-950 text-[8px] uppercase cursor-pointer"
-                  >
-                    ▶ PLAY
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setDraft({
-                        ...st,
-                        notes: [...st.notes],
-                        synthNotes: [...(st.synthNotes || [])],
-                        barFlowRules: [...(st.barFlowRules || [])],
-                      });
-                      setSelectedNoteIds([]);
-                      setViewMode('daw');
-                    }}
-                    className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 border border-cyan-400/60 text-cyan-200 text-[8px] uppercase cursor-pointer"
-                  >
-                    ✎ EDIT
-                  </button>
-                  {stages.length > 1 && (
+          {unifiedStages
+            .filter((st) => {
+              if (libraryFilterBiomeId === 'CUSTOM') {
+                return !st.isCuratedBuiltIn;
+              }
+              if (typeof libraryFilterBiomeId === 'number') {
+                return st.biomeId === libraryFilterBiomeId;
+              }
+              return true;
+            })
+            .filter((st) => {
+              if (!librarySearch.trim()) return true;
+              const q = librarySearch.toLowerCase();
+              return (
+                st.name.toLowerCase().includes(q) ||
+                (st.author || '').toLowerCase().includes(q)
+              );
+            })
+            .map((st) => {
+              const b =
+                allBiomes.find((m) => m.id === st.biomeId) ||
+                MASTER_SCALES[0];
+              const sb =
+                SOUND_BANKS.find((k) => k.id === st.soundBankId) ||
+                SOUND_BANKS[0];
+              const isSelected = st.id === draft.id;
+              const isDisabled = (cfg.disabledMelodies || []).includes(st.id);
+              const isUserEdited = stages.some((custom) => custom.id === st.id);
+
+              return (
+                <div
+                  key={st.id}
+                  className={`p-2.5 border flex flex-wrap items-center justify-between gap-2 ${
+                    isSelected
+                      ? 'bg-slate-900 border-emerald-400'
+                      : isDisabled
+                      ? 'bg-slate-950/50 border-slate-900 opacity-60'
+                      : 'bg-slate-950/90 border-slate-800'
+                  }`}
+                >
+                  <div className="space-y-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span
+                        className="w-3 h-3 inline-block"
+                        style={{ backgroundColor: b.fg }}
+                      />
+                      <span className="text-[9px] text-white font-bold">
+                        {st.name}
+                      </span>
+                      <span className="text-[8px]" style={{ color: b.fg }}>
+                        [{b.name}]
+                      </span>
+                      {st.isCuratedBuiltIn && (
+                        <span className="text-[7px] px-1.5 py-0.5 bg-amber-500/15 border border-amber-400/50 text-amber-300">
+                          {isUserEdited ? 'CURATED (EDITED)' : 'CURATED'}
+                        </span>
+                      )}
+                      {!st.isCuratedBuiltIn && (
+                        <span className="text-[7px] px-1.5 py-0.5 bg-cyan-500/15 border border-cyan-400/50 text-cyan-300">
+                          DAW STAGE
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-[7px] text-slate-400">
+                      {st.author} · {sb.name} · {st.bpm} BPM · {st.notes.length} NOTES ·{' '}
+                      {(st.chordGateTriggerSteps || []).length} CHORD GATES
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-1.5">
+                    {onToggleMelodyDisabled && (
+                      <button
+                        type="button"
+                        data-testid={`toggle-melody-active-${st.id}`}
+                        onClick={() => onToggleMelodyDisabled(st.id)}
+                        className={`px-2 py-1.5 border text-[8px] uppercase cursor-pointer ${
+                          !isDisabled
+                            ? 'bg-emerald-500/20 border-emerald-400 text-emerald-200'
+                            : 'bg-slate-900 border-slate-700 text-slate-500'
+                        }`}
+                      >
+                        {!isDisabled ? '✓ ACTIVE' : '✕ INACTIVE'}
+                      </button>
+                    )}
                     <button
                       type="button"
-                      onClick={() => handleDeleteStage(st.id)}
-                      className="px-2 py-1.5 bg-slate-900 hover:bg-rose-950/60 border border-rose-500/60 text-rose-400 text-[8px] uppercase cursor-pointer"
+                      onClick={() => onPlayStage(st)}
+                      className="px-2.5 py-1.5 bg-emerald-400 hover:bg-emerald-300 text-slate-950 text-[8px] uppercase cursor-pointer"
                     >
-                      🗑
+                      ▶ PLAY
                     </button>
-                  )}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDraft({
+                          ...st,
+                          notes: [...st.notes],
+                          synthNotes: [...(st.synthNotes || [])],
+                          barFlowRules: [...(st.barFlowRules || [])],
+                          chordGateTriggerSteps: [...(st.chordGateTriggerSteps || [12, 28])],
+                        });
+                        setSelectedNoteIds([]);
+                        setViewMode('daw');
+                      }}
+                      className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 border border-cyan-400/60 text-cyan-200 text-[8px] uppercase cursor-pointer"
+                    >
+                      ✎ EDIT IN DAW
+                    </button>
+                    {(!st.isCuratedBuiltIn || isUserEdited) && (
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteStage(st.id)}
+                        title={isUserEdited && st.isCuratedBuiltIn ? 'Reset to Original Curated Melody' : 'Delete Stage'}
+                        className="px-2 py-1.5 bg-slate-900 hover:bg-rose-950/60 border border-rose-500/60 text-rose-400 text-[8px] uppercase cursor-pointer"
+                      >
+                        {isUserEdited && st.isCuratedBuiltIn ? '↺' : '🗑'}
+                      </button>
+                    )}
+                  </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
         </div>
       )}
     </div>

@@ -600,6 +600,46 @@ export class OmniAudioEngine {
     });
   }
 
+  /**
+   * Plays the biome/key scale notes sequentially from the 1st note up to the 7th/8th note
+   * and then descends back down to the 1st note using the specified (or last-tested) Sound Bank!
+   */
+  previewScaleAscendingDescending(
+    biome: ScaleBiome,
+    cfg: GameConfig,
+    soundBank?: SoundBankDef
+  ): void {
+    this.init(cfg);
+    if (!this.ctx || !this.masterGain) return;
+    const t = this.ctx.currentTime;
+    const activeBank = soundBank || SOUND_BANKS[0];
+    const baseScale =
+      biome.scale && biome.scale.length > 0 ? biome.scale : MASTER_SCALES[0].scale;
+    const upNotes = baseScale.slice(0, 8);
+    if (upNotes.length < 8 && upNotes.length > 0) {
+      while (upNotes.length < 8) {
+        upNotes.push(upNotes[0] * 2);
+      }
+    }
+    const downNotes = upNotes.slice(0, -1).reverse();
+    const fullRun = [...upNotes, ...downNotes];
+
+    const stepSec = 0.105;
+    fullRun.forEach((freq, idx) => {
+      const startTime = t + idx * stepSec;
+      this.triggerVoiceAt(
+        freq,
+        startTime,
+        0,
+        1,
+        FLOW_THRESHOLDS.SUBDIVISION,
+        cfg,
+        0.92,
+        activeBank
+      );
+    });
+  }
+
   private triggerVoiceAt(
     freq: number,
     startTime: number,
