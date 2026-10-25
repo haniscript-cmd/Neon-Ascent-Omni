@@ -188,6 +188,104 @@ export class OmniAudioEngine {
   }
 
   /**
+   * Plays an 8-note preview phrase of a Curated Biome Melody so the user can audition it in Settings.
+   */
+  previewMelodySequence(
+    freqs: number[],
+    cfg: GameConfig,
+    bankOverride?: SoundBankDef
+  ): void {
+    this.init(cfg);
+    if (!this.ctx || !this.masterGain || freqs.length === 0) return;
+    const t = this.ctx.currentTime;
+    const bank = bankOverride || SOUND_BANKS[0];
+    const previewSlice = freqs.slice(0, 8);
+    previewSlice.forEach((f, idx) => {
+      this.triggerVoiceAt(f, t + idx * 0.21, 0, 1, 6, cfg, 0.88, bank);
+    });
+  }
+
+  /**
+   * Plays a soft, warm, low-pass muffled ("underwater / next-room") note with lush extra reverb
+   * and stereo delay for continuous background menu, pause, and game-over melody playback.
+   */
+  playMenuMuffledMelodyNote(
+    freq: number,
+    cfg: GameConfig,
+    bankOverride?: SoundBankDef
+  ): void {
+    this.init(cfg);
+    if (!this.ctx || !this.masterGain || cfg.volMaster <= 0 || cfg.volNotes <= 0) return;
+    if (this.ctx.state === 'suspended') return;
+    if (this.activeVoiceCount >= 12) return;
+
+    const t = this.ctx.currentTime;
+    const bank = bankOverride || SOUND_BANKS[0];
+    this.activeVoiceCount++;
+
+    const oscA = this.ctx.createOscillator();
+    const oscSub = this.ctx.createOscillator();
+    const muffleFilter = this.ctx.createBiquadFilter();
+    const dryGain = this.ctx.createGain();
+    const wetReverbSend = this.ctx.createGain();
+
+    // Gentle pitch warmth & lower octave body
+    const baseFreq = Math.max(110, Math.min(880, freq));
+    oscA.type = bank.baseWave === 'sawtooth' ? 'triangle' : bank.baseWave;
+    oscA.frequency.setValueAtTime(baseFreq, t);
+    oscA.detune.setValueAtTime(-5, t);
+
+    oscSub.type = 'sine';
+    oscSub.frequency.setValueAtTime(baseFreq * 0.5, t);
+    oscSub.detune.setValueAtTime(5, t);
+
+    // Deep muffled low-pass filter (420Hz -> 640Hz -> 310Hz)
+    muffleFilter.type = 'lowpass';
+    muffleFilter.Q.setValueAtTime(1.1, t);
+    muffleFilter.frequency.setValueAtTime(380, t);
+    muffleFilter.frequency.exponentialRampToValueAtTime(640, t + 0.14);
+    muffleFilter.frequency.exponentialRampToValueAtTime(290, t + 1.65);
+
+    const peakGain = Math.min(0.11, 0.052 * cfg.volNotes * cfg.volMaster);
+    dryGain.gain.setValueAtTime(0.0001, t);
+    dryGain.gain.linearRampToValueAtTime(peakGain, t + 0.085);
+    dryGain.gain.exponentialRampToValueAtTime(0.0008, t + 1.75);
+
+    // Extra-lush reverb & ping-pong delay send (2.4x wet ambience)
+    wetReverbSend.gain.setValueAtTime(peakGain * 2.4, t);
+    wetReverbSend.gain.exponentialRampToValueAtTime(0.001, t + 1.8);
+
+    oscA.connect(muffleFilter);
+    oscSub.connect(muffleFilter);
+    muffleFilter.connect(dryGain);
+    muffleFilter.connect(wetReverbSend);
+
+    dryGain.connect(this.masterGain);
+    if (this.reverbNode) {
+      wetReverbSend.connect(this.reverbNode);
+    }
+    if (this.delayLeft) {
+      wetReverbSend.connect(this.delayLeft);
+    }
+
+    const stopAt = t + 1.82;
+    oscA.onended = () => {
+      this.activeVoiceCount = Math.max(0, this.activeVoiceCount - 1);
+      oscA.disconnect();
+      oscSub.disconnect();
+      muffleFilter.disconnect();
+      dryGain.disconnect();
+      wetReverbSend.disconnect();
+    };
+
+    oscA.start(t);
+    oscSub.start(t);
+    oscA.stop(stopAt);
+    oscSub.stop(stopAt);
+  }
+
+
+  /**
    * Plays a dedicated Synthesizer Pad Channel note (for the Stage Creator DAW Synth Channel & Custom Stage runs).
    */
   playCustomSynthNote(freq: number, durationSec: number, cfg: GameConfig): void {
@@ -206,7 +304,7 @@ export class OmniAudioEngine {
   /**
    * Plays a platform note with:
    * 1. Active Lo-Fi / Cyberpunk / CRT Sound Bank synthesis
-   * 2. Non-repetitive multi-octave melodic contour (wide 7–8+ note leaps at high Flow)
+   * 2. Non-repetitive multi-octave melodic contour (wide 7–8+ note leaps at high Flow) or Curated Melody cluster
    * 3. Rolling average jump-rhythm tracking
    * 4. 3-note rhythmic subdivision + 3 synchronized player rings triggered ONLY when Flow levels up (`didFlowLevelUp === true`)!
    */
@@ -217,7 +315,8 @@ export class OmniAudioEngine {
     noteCluster?: number[],
     soundBank?: SoundBankDef,
     didFlowLevelUp = false,
-    noteDurationBeats = 1.0
+    noteDurationBeats = 1.0,
+    customTripletFreqs?: [number, number, number]
   ): PlatformNoteResult {
     this.init(cfg);
     const baseBank = soundBank || SOUND_BANKS[0];
@@ -351,7 +450,8 @@ export class OmniAudioEngine {
         flow,
         cfg,
         t,
-        activeBank
+        activeBank,
+        customTripletFreqs
       );
     }
 
@@ -622,7 +722,8 @@ export class OmniAudioEngine {
     flow: number,
     cfg: GameConfig,
     baseTime: number,
-    bank: SoundBankDef
+    bank: SoundBankDef,
+    customTripletFreqs?: [number, number, number]
   ): number[] {
     if (!this.ctx || !this.masterGain || extScale.length === 0) return [];
 
@@ -650,11 +751,16 @@ export class OmniAudioEngine {
       const delayOffset = Number(((k + 1) * stepInterval).toFixed(3));
       delaysSec.push(delayOffset);
       const stepTime = baseTime + delayOffset;
-      const targetIdx = Math.max(
-        1,
-        Math.min(extScale.length - 1, anchorIdx + pattern[k % pattern.length])
-      );
-      const subFreq = extScale[targetIdx];
+      let subFreq: number;
+      if (customTripletFreqs && customTripletFreqs[k]) {
+        subFreq = customTripletFreqs[k];
+      } else {
+        const targetIdx = Math.max(
+          1,
+          Math.min(extScale.length - 1, anchorIdx + pattern[k % pattern.length])
+        );
+        subFreq = extScale[targetIdx];
+      }
       this.triggerVoiceAt(subFreq, stepTime, 0, 1, flow, cfg, 0.72, bank);
     }
 
@@ -1133,6 +1239,90 @@ export class OmniAudioEngine {
       osc.start(st);
       osc.stop(st + 0.24);
     });
+  }
+
+  /**
+   * Rapid, delicate high-register biome-scale glitter arpeggio notes played during Jetpack flight.
+   * Sounds like shimmering musical stardust / glitter sparkling on the character!
+   */
+  playJetpackGlitterNote(
+    biome: ScaleBiome,
+    stepIdx: number,
+    tier: 'standard' | 'white' | 'gold' | 'rainbow' | 'prism',
+    cfg: GameConfig
+  ): void {
+    this.init(cfg);
+    if (!this.ctx || !this.masterGain || cfg.volMaster <= 0 || this.activeVoiceCount >= 12) return;
+    if (this.ctx.state === 'suspended') {
+      this.ctx.resume().catch(() => {});
+    }
+
+    const isPrism = tier === 'rainbow' || tier === 'prism';
+    const isWhite = tier === 'standard' || tier === 'white';
+    const sc = biome.scale.length ? biome.scale : MASTER_SCALES[0].scale;
+    const sparklePattern = [0, 2, 4, 1, 3, 5, 2, 6, 4, 7];
+    const deg = sparklePattern[stepIdx % sparklePattern.length] % sc.length;
+    const octaveShift =
+      isPrism
+        ? stepIdx % 3 === 0
+          ? 4
+          : 2
+        : tier === 'gold'
+        ? stepIdx % 4 === 0
+          ? 4
+          : 2
+        : 2;
+    const freq = Math.min(3600, Math.max(320, sc[deg] * octaveShift));
+
+    const t = this.ctx.currentTime + 0.005;
+    this.activeVoiceCount++;
+
+    const osc = this.ctx.createOscillator();
+    const shimmerOsc = !isWhite ? this.ctx.createOscillator() : null;
+    const filter = this.ctx.createBiquadFilter();
+    const g = this.ctx.createGain();
+
+    osc.type = isPrism ? 'triangle' : 'sine';
+    osc.frequency.setValueAtTime(freq, t);
+    osc.frequency.exponentialRampToValueAtTime(freq * 1.012, t + 0.14);
+
+    if (shimmerOsc) {
+      shimmerOsc.type = 'sine';
+      shimmerOsc.frequency.setValueAtTime(freq * 1.5, t);
+      const shimGain = this.ctx.createGain();
+      shimGain.gain.value = isPrism ? 0.28 : 0.18;
+      shimmerOsc.connect(shimGain);
+      shimGain.connect(filter);
+    }
+
+    filter.type = 'bandpass';
+    filter.frequency.setValueAtTime(Math.min(4800, freq * 1.35), t);
+    filter.Q.setValueAtTime(1.4, t);
+
+    const vol = Math.min(0.11, 0.065 * Math.max(0.4, cfg.volNotes) * (isPrism ? 1.15 : 1.0));
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.linearRampToValueAtTime(vol, t + 0.008);
+    g.gain.exponentialRampToValueAtTime(0.0006, t + 0.22);
+
+    osc.connect(filter);
+    filter.connect(g);
+    g.connect(this.masterGain);
+    if (this.reverbNode) g.connect(this.reverbNode);
+    if (this.delayLeft && stepIdx % 2 === 0) g.connect(this.delayLeft);
+
+    const stopAt = t + 0.24;
+    osc.onended = () => {
+      this.activeVoiceCount = Math.max(0, this.activeVoiceCount - 1);
+      osc.disconnect();
+      if (shimmerOsc) shimmerOsc.disconnect();
+      filter.disconnect();
+      g.disconnect();
+    };
+
+    osc.start(t);
+    if (shimmerOsc) shimmerOsc.start(t);
+    osc.stop(stopAt);
+    if (shimmerOsc) shimmerOsc.stop(stopAt);
   }
 }
 

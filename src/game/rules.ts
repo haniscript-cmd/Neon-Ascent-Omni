@@ -13,15 +13,24 @@ export interface FineTuneConfig {
   maxPlatformWidth: number;       // Starting platform width at Flow 0 (default 180px)
   horizontalScatterMult: number;  // Horizontal distance multiplier between platforms (default 1.0)
   wideLeapSpawnRate: number;      // Multiplier for max-distance opposite-direction platform leaps as Flow rises (default 1.0)
+  fragileSpawnRate: number;       // Multiplier for fragile (crumble) platform probability as Flow rises (default 1.2)
+  fragileStreakChance: number;    // Probability (0..1) of spawning consecutive fragile platform streaks (default 0.38)
+  fragileStreakMaxLen: number;    // Maximum consecutive fragile platforms in a streak (default 4)
+  disguisedFragileChance: number; // Probability (0..1) that a fragile platform is disguised as a normal platform (default 0.16)
+  biomePlatformDuration: number;  // Number of platforms before shifting to the next Biome (default 55)
+  biomeShiftSpeed: number;        // Speed multiplier for visual/musical biome transition dissolve (default 1.2)
   orbSpawnRate: number;           // Probability of spawning an Orb on a platform (default 0.32)
   orbScatterSpread: number;       // Vertical/horizontal spread of Orbs (default 1.0)
   spikeHazardRate: number;        // Multiplier for on-platform spike probability (default 1.0)
   aerialDroneRate: number;        // Multiplier for mid-air drone probability (default 1.0)
+  enemyMoveSpeedMult: number;     // Multiplier for enemy movement speed (default 1.4)
+  enemyMoveRangeMult: number;     // Multiplier for enemy horizontal patrol displacement range (default 1.5)
   hazardFlowPenalty: number;      // Multiplier for Flow lost on hazard collision (default 1.0)
   powerUpDurationSec: number;     // Base duration of temporary power-ups in seconds (default 15)
   chordGateCooldownSteps: number; // Platforms between 4-Gate Chord chains (default 16)
   baseMoveSpeed: number;          // Horizontal steering speed in px/s (default 345)
   baseJumpTempo: number;          // Base auto-bounce tempo in BPM equivalent (default 100)
+  dashBoostPowerMult: number;     // Multiplier for Dash horizontal velocity & upward lift boost (default 1.25)
 }
 
 export const DEFAULT_FINE_TUNE: FineTuneConfig = {
@@ -32,15 +41,24 @@ export const DEFAULT_FINE_TUNE: FineTuneConfig = {
   maxPlatformWidth: 180,
   horizontalScatterMult: 1.0,
   wideLeapSpawnRate: 1.0,
+  fragileSpawnRate: 1.2,
+  fragileStreakChance: 0.38,
+  fragileStreakMaxLen: 4,
+  disguisedFragileChance: 0.16,
+  biomePlatformDuration: 55,
+  biomeShiftSpeed: 1.2,
   orbSpawnRate: 0.32,
   orbScatterSpread: 1.0,
   spikeHazardRate: 1.0,
   aerialDroneRate: 1.0,
+  enemyMoveSpeedMult: 1.4,
+  enemyMoveRangeMult: 1.5,
   hazardFlowPenalty: 1.0,
   powerUpDurationSec: 15,
   chordGateCooldownSteps: 16,
   baseMoveSpeed: 345,
   baseJumpTempo: 100,
+  dashBoostPowerMult: 1.25,
 };
 
 export interface GameConfig {
@@ -65,6 +83,16 @@ export interface GameConfig {
   unlockedSoundBanks: string[];
   enabledSoundBanks: string[];
   tiltControlEnabled?: boolean;
+  melodyMode?: 'curated' | 'random';
+  disabledMelodies?: string[];
+  powerUpLevels?: Record<string, number>;
+  equippedPowerUps?: string[];
+  language?: 'en' | 'fa';
+  playerXp?: number;
+  playerLevel?: number;
+  betaUnlockSecretSkins?: boolean;
+  tutorialSeen?: boolean;
+  customBiomes?: ScaleBiome[];
   fineTune: FineTuneConfig;
 }
 
@@ -247,6 +275,18 @@ export const DEFAULT_CFG: GameConfig = {
   unlockedSoundBanks: ['crt_velvet'],
   enabledSoundBanks: ['crt_velvet'],
   tiltControlEnabled: true,
+  language: 'en',
+  playerXp: 0,
+  playerLevel: 1,
+  betaUnlockSecretSkins: false,
+  tutorialSeen: false,
+  customBiomes: [],
+  powerUpLevels: {
+    orb_magnet: 1,
+    combo_shield: 1,
+    dash_capacitor: 1,
+  },
+  equippedPowerUps: ['orb_magnet', 'combo_shield', 'dash_capacitor'],
   fineTune: { ...DEFAULT_FINE_TUNE },
 };
 
@@ -277,6 +317,10 @@ export interface ScaleBiome {
   noteNames: string[];
   chordNames: [string, string, string, string];
   chords: [number[], number[], number[], number[]];
+  isCustom?: boolean;
+  activeChromaticKeys?: number[];
+  tripletNotes?: [string, string, string];
+  tripletFreqs?: [number, number, number];
 }
 
 /**
@@ -974,6 +1018,172 @@ export function blendHex(hexA: string, hexB: string, t: number): string {
   );
 }
 
+/**
+ * Smart HSL-to-HEX and Custom Biome Builder:
+ * Converts HSL (h: 0..360, s: 0..100, l: 0..100) to HEX and automatically derives
+ * cohesive foreground, deep atmospheric background accent, and luminous horizon gradient colors.
+ */
+export function hslToHex(h: number, s: number, l: number): string {
+  const hue = ((h % 360) + 360) % 360;
+  const sat = Math.max(0, Math.min(100, s)) / 100;
+  const light = Math.max(0, Math.min(100, l)) / 100;
+
+  const c = (1 - Math.abs(2 * light - 1)) * sat;
+  const x = c * (1 - Math.abs(((hue / 60) % 2) - 1));
+  const m = light - c / 2;
+
+  let r1 = 0;
+  let g1 = 0;
+  let b1 = 0;
+  if (hue < 60) {
+    r1 = c; g1 = x; b1 = 0;
+  } else if (hue < 120) {
+    r1 = x; g1 = c; b1 = 0;
+  } else if (hue < 180) {
+    r1 = 0; g1 = c; b1 = x;
+  } else if (hue < 240) {
+    r1 = 0; g1 = x; b1 = c;
+  } else if (hue < 300) {
+    r1 = x; g1 = 0; b1 = c;
+  } else {
+    r1 = c; g1 = 0; b1 = x;
+  }
+
+  return rgbToHex((r1 + m) * 255, (g1 + m) * 255, (b1 + m) * 255);
+}
+
+export function computeSmartHslBiomePalette(hue: number, sat = 90, light = 56): {
+  fg: string;
+  bgAccent: string;
+  horizonColor: string;
+} {
+  const fg = hslToHex(hue, sat, light);
+  const bgAccent = hslToHex((hue + 8) % 360, Math.max(55, sat - 10), 13);
+  const horizonColor = hslToHex((hue + 342) % 360, Math.min(100, sat + 5), Math.min(82, light + 22));
+  return { fg, bgAccent, horizonColor };
+}
+
+export const CHROMATIC_12_NOTES: Array<{ index: number; noteName: string; shortName: string; freq: number }> = [
+  { index: 0, noteName: 'C4', shortName: 'C', freq: 261.63 },
+  { index: 1, noteName: 'C#4', shortName: 'C#', freq: 277.18 },
+  { index: 2, noteName: 'D4', shortName: 'D', freq: 293.66 },
+  { index: 3, noteName: 'Eb4', shortName: 'Eb', freq: 311.13 },
+  { index: 4, noteName: 'E4', shortName: 'E', freq: 329.63 },
+  { index: 5, noteName: 'F4', shortName: 'F', freq: 349.23 },
+  { index: 6, noteName: 'F#4', shortName: 'F#', freq: 369.99 },
+  { index: 7, noteName: 'G4', shortName: 'G', freq: 392.00 },
+  { index: 8, noteName: 'Ab4', shortName: 'Ab', freq: 415.30 },
+  { index: 9, noteName: 'A4', shortName: 'A', freq: 440.00 },
+  { index: 10, noteName: 'Bb4', shortName: 'Bb', freq: 466.16 },
+  { index: 11, noteName: 'B4', shortName: 'B', freq: 493.88 },
+];
+
+export interface CustomBiomeCreatorInput {
+  id?: number;
+  name: string;
+  subtitle?: string;
+  hue: number;
+  saturation?: number;
+  lightness?: number;
+  /** Indices 0..11 of CHROMATIC_12_NOTES; defaults to all 12 notes active! */
+  activeChromaticKeys?: number[];
+  chordNames?: [string, string, string, string];
+  /** 4 chords, each an array of 4 chromatic indices (0..11) */
+  chordKeyIndices?: [[number, number, number, number], [number, number, number, number], [number, number, number, number], [number, number, number, number]];
+  /** 3 chromatic indices (0..11) for the 3-note triplet run */
+  tripletKeyIndices?: [number, number, number];
+}
+
+export function createCustomBiomeFromHsl(input: CustomBiomeCreatorInput): ScaleBiome {
+  const palette = computeSmartHslBiomePalette(
+    input.hue,
+    input.saturation ?? 90,
+    input.lightness ?? 56
+  );
+
+  // Default: all 12 chromatic keys active
+  const rawKeys =
+    input.activeChromaticKeys && input.activeChromaticKeys.length > 0
+      ? input.activeChromaticKeys
+      : [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
+  const sortedKeys = Array.from(new Set(rawKeys.map((k) => Math.max(0, Math.min(11, k))))).sort(
+    (a, b) => a - b
+  );
+
+  const scale = sortedKeys.map((idx) => CHROMATIC_12_NOTES[idx].freq);
+  const noteNames = sortedKeys.map((idx) => CHROMATIC_12_NOTES[idx].noteName);
+  // Ensure at least 6 notes in scale array for downstream octave builders
+  while (scale.length < 6) {
+    const baseIdx = scale.length % sortedKeys.length;
+    scale.push(Number((scale[baseIdx] * 2).toFixed(2)));
+    noteNames.push(noteNames[baseIdx].replace('4', '5'));
+  }
+
+  const defaultChordIndices: [[number, number, number, number], [number, number, number, number], [number, number, number, number], [number, number, number, number]] = [
+    [sortedKeys[0] ?? 0, sortedKeys[Math.min(2, sortedKeys.length - 1)] ?? 3, sortedKeys[Math.min(4, sortedKeys.length - 1)] ?? 7, sortedKeys[Math.min(6, sortedKeys.length - 1)] ?? 10],
+    [sortedKeys[Math.min(3, sortedKeys.length - 1)] ?? 5, sortedKeys[Math.min(5, sortedKeys.length - 1)] ?? 8, sortedKeys[0] ?? 0, sortedKeys[Math.min(2, sortedKeys.length - 1)] ?? 3],
+    [sortedKeys[Math.min(4, sortedKeys.length - 1)] ?? 7, sortedKeys[Math.min(6, sortedKeys.length - 1)] ?? 10, sortedKeys[Math.min(1, sortedKeys.length - 1)] ?? 2, sortedKeys[Math.min(3, sortedKeys.length - 1)] ?? 5],
+    [sortedKeys[Math.min(5, sortedKeys.length - 1)] ?? 8, sortedKeys[0] ?? 0, sortedKeys[Math.min(2, sortedKeys.length - 1)] ?? 3, sortedKeys[Math.min(4, sortedKeys.length - 1)] ?? 7],
+  ];
+
+  const cIndices = input.chordKeyIndices || defaultChordIndices;
+  const chords = cIndices.map((grp) =>
+    grp.map((chromIdx, pos) => {
+      const f = CHROMATIC_12_NOTES[Math.max(0, Math.min(11, chromIdx))].freq;
+      if (pos === 0) return Number((f * 0.5).toFixed(2));
+      if (pos === 3) return Number((f * 2.0).toFixed(2));
+      return Number(f.toFixed(2));
+    })
+  ) as [number[], number[], number[], number[]];
+
+  const chordNames: [string, string, string, string] = input.chordNames || [
+    `${CHROMATIC_12_NOTES[cIndices[0][0]]?.shortName || 'C'}m9`,
+    `${CHROMATIC_12_NOTES[cIndices[1][0]]?.shortName || 'F'}maj7`,
+    `${CHROMATIC_12_NOTES[cIndices[2][0]]?.shortName || 'G'}7sus4`,
+    `${CHROMATIC_12_NOTES[cIndices[3][0]]?.shortName || 'Ab'}add9`,
+  ];
+
+  const tIndices: [number, number, number] = input.tripletKeyIndices || [
+    sortedKeys[0] ?? 0,
+    sortedKeys[Math.min(2, sortedKeys.length - 1)] ?? 4,
+    sortedKeys[Math.min(4, sortedKeys.length - 1)] ?? 7,
+  ];
+  const tripletNotes: [string, string, string] = [
+    CHROMATIC_12_NOTES[tIndices[0]]?.noteName || 'C4',
+    CHROMATIC_12_NOTES[tIndices[1]]?.noteName || 'E4',
+    CHROMATIC_12_NOTES[tIndices[2]]?.noteName || 'G4',
+  ];
+  const tripletFreqs: [number, number, number] = [
+    CHROMATIC_12_NOTES[tIndices[0]]?.freq || 261.63,
+    CHROMATIC_12_NOTES[tIndices[1]]?.freq || 329.63,
+    CHROMATIC_12_NOTES[tIndices[2]]?.freq || 392.00,
+  ];
+
+  return {
+    id: input.id ?? 100 + Math.floor(Math.random() * 899),
+    name: (input.name || 'CUSTOM BIOME').toUpperCase(),
+    subtitle: input.subtitle || `${sortedKeys.length}-Key Custom Scale`,
+    tradition: 'CUSTOM DAW',
+    costOrbs: 0,
+    fg: palette.fg,
+    bgAccent: palette.bgAccent,
+    horizonColor: palette.horizonColor,
+    scale,
+    noteNames,
+    chordNames,
+    chords,
+    isCustom: true,
+    activeChromaticKeys: sortedKeys,
+    tripletNotes,
+    tripletFreqs,
+  };
+}
+
+export function getAllBiomes(customBiomes?: ScaleBiome[]): ScaleBiome[] {
+  if (!customBiomes || customBiomes.length === 0) return MASTER_SCALES;
+  return [...MASTER_SCALES, ...customBiomes];
+}
+
 export type PlatformArchetype =
   | 'normal'
   | 'moving'
@@ -1028,11 +1238,17 @@ export interface FlowDynamicDifficulty {
   minHorizDist: number;
   maxHorizDist: number;
   wideLeapChance: number;
+  fragilePlatformChance: number;
+  fragileStreakChance: number;
+  fragileStreakMaxLen: number;
+  disguisedFragileChance: number;
   paceMultiplier: number;
   moveSpeedPxPerSec: number;
   movingPlatformChance: number;
   platformHazardChance: number;
   aerialHazardChance: number;
+  enemySpeedPxPerSec: number;
+  enemyHalfRangePx: number;
 }
 
 export function computeFlowDynamicDifficulty(
@@ -1048,6 +1264,21 @@ export function computeFlowDynamicDifficulty(
   const maxW = Math.max(100, ft.maxPlatformWidth);
   const minW = Math.max(48, Math.min(maxW, ft.minPlatformWidth));
 
+  // Fragile platform probability scales strongly as Flow rises
+  const rawFragile = (0.05 + f * 0.32) * (ft.fragileSpawnRate ?? 1.2);
+  const fragilePlatformChance = Number(Math.max(0, Math.min(0.8, rawFragile)).toFixed(2));
+  const fragileStreakChance = Number(
+    Math.max(0, Math.min(0.9, (ft.fragileStreakChance ?? 0.38) * (0.4 + f * 0.9))).toFixed(2)
+  );
+  const fragileStreakMaxLen = Math.max(2, Math.min(8, Math.round(ft.fragileStreakMaxLen ?? 4)));
+  // Disguised fragile platforms: rare at low Flow, appearing more noticeably at high Flow!
+  const disguisedFragileChance = Number(
+    Math.max(0, Math.min(0.65, (ft.disguisedFragileChance ?? 0.16) * (0.25 + f * 1.35))).toFixed(2)
+  );
+
+  const enemySpeedMult = Math.max(0.2, ft.enemyMoveSpeedMult ?? 1.4);
+  const enemyRangeMult = Math.max(0.3, ft.enemyMoveRangeMult ?? 1.5);
+
   return {
     flowFactor: f,
     targetPlatformWidth: Math.round(maxW - f * (maxW - minW)),
@@ -1057,6 +1288,10 @@ export function computeFlowDynamicDifficulty(
     wideLeapChance: Number(
       Math.min(0.85, (0.06 + f * 0.44) * (ft.wideLeapSpawnRate ?? 1.0)).toFixed(2)
     ),
+    fragilePlatformChance,
+    fragileStreakChance,
+    fragileStreakMaxLen,
+    disguisedFragileChance,
     paceMultiplier: 0.9,
     moveSpeedPxPerSec: ft.baseMoveSpeed,
     movingPlatformChance: Number((0.06 + f * 0.18).toFixed(2)),
@@ -1064,6 +1299,8 @@ export function computeFlowDynamicDifficulty(
       flowEnergy < 3 ? 0 : Number(Math.min(0.85, (0.04 + f * 0.14) * ft.spikeHazardRate).toFixed(2)),
     aerialHazardChance:
       flowEnergy < 4 ? 0 : Number(Math.min(0.85, (0.04 + f * 0.15) * ft.aerialDroneRate).toFixed(2)),
+    enemySpeedPxPerSec: Math.round((68 + f * 95) * enemySpeedMult),
+    enemyHalfRangePx: Math.round((95 + f * 60) * enemyRangeMult),
   };
 }
 
@@ -1785,6 +2022,8 @@ export interface PlatformEntity {
   customBiomeId?: number;
   synthFreqs?: number[];
   synthDurationBeats?: number;
+  tripletFreqs?: [number, number, number];
+  disguisedFragile?: boolean;
 }
 
 export interface AerialHazardEntity {
@@ -1810,10 +2049,30 @@ export interface HarmonicOrb {
   freq: number;
   color: string;
   phase: number;
+  magnetLocked?: boolean;
 }
 
+export type PowerUpItemId =
+  | 'orb_magnet'
+  | 'combo_shield'
+  | 'dash_capacitor'
+  | 'double_jump'
+  | 'rhythm_aura'
+  | 'chrono_slow'
+  | 'star_rain'
+  | 'jetpack_white'
+  | 'jetpack_gold'
+  | 'jetpack_prism'
+  | 'dash_turbine'
+  | 'dash_shockwave'
+  | 'wall_bounce';
+
+export type PowerUpCategory = 'ACTIVE' | 'JETPACK' | 'DASH_MOD';
+export type PowerUpActivationMode = 'ACTIVE' | 'PASSIVE';
+export type PowerUpTier = 'standard' | 'gold' | 'rainbow';
+
 export interface RunUpgrade {
-  id: 'double_jump' | 'orb_magnet' | 'combo_shield' | 'dash_capacitor' | 'rhythm_aura';
+  id: PowerUpItemId;
   name: string;
   desc: string;
   icon: string;
@@ -1821,50 +2080,904 @@ export interface RunUpgrade {
 }
 
 export interface ActivePowerUp {
-  id: RunUpgrade['id'];
+  id: PowerUpItemId;
   name: string;
   icon: string;
   remainingSec: number;
   durationSec: number;
 }
 
-export const RUN_UPGRADES: RunUpgrade[] = [
-  {
-    id: 'double_jump',
-    name: 'AERO THRUSTERS',
-    desc: 'Mid-Air Boost Jump [Space]',
-    icon: '⇈',
-    durationSec: 15,
-  },
+export interface EquippedPowerUpSlotRuntime {
+  id: PowerUpItemId;
+  level: number;
+  name: string;
+  icon: string;
+  accentColor: string;
+  tier?: PowerUpTier;
+  activationMode: PowerUpActivationMode;
+  phase: 'charging' | 'ready' | 'active' | 'cooldown' | 'depleted';
+  chargeProgress: number; // 0.0 (empty at start/cooldown) -> 1.0 (ready)
+  chargeTimeSec: number;
+  cooldownSec: number;
+  durationSec: number;
+  activeRemainingSec: number;
+  usesLeft: number;
+  maxUses: number;
+  powerValue: number;
+}
+
+export interface PowerUpStoreDef {
+  id: PowerUpItemId;
+  name: string;
+  category: PowerUpCategory;
+  activationMode: PowerUpActivationMode;
+  maxLevel: number;
+  tier: PowerUpTier;
+  icon: string;
+  accentColor: string;
+  shortBenefit: string;
+  desc: string;
+  baseUnlockCost: number;
+  baseUpgradeStepCost: number;
+  baseUsesPerRun: number;
+  maxUsesAtLv10: number;
+  baseDurationSec: number;
+  maxDurationAtLv10: number;
+  baseCooldownSec: number;
+  minCooldownAtLv10: number;
+}
+
+export type PowerUpStoreItemDef = PowerUpStoreDef;
+
+export const POWERUP_STORE_ITEMS: PowerUpStoreDef[] = [
+  // --- CATEGORY 1: BUTTON-ACTIVATED IN-GAME POWER-UPS (ACTIVE) ---
   {
     id: 'orb_magnet',
-    name: 'HARMONIC MAGNET',
-    desc: 'Pulls nearby Harmonic Orbs',
+    name: 'Harmonic Magnet',
+    category: 'ACTIVE',
+    activationMode: 'ACTIVE',
+    maxLevel: 10,
+    tier: 'standard',
     icon: '◎',
-    durationSec: 15,
+    accentColor: '#22d3ee',
+    shortBenefit: 'Wide Orb Pull',
+    desc: 'Button-Activated: Pulls all nearby & on-screen Harmonic Orbs directly to you (250px to 500px radius).',
+    baseUnlockCost: 0,
+    baseUpgradeStepCost: 26,
+    baseUsesPerRun: 2,
+    maxUsesAtLv10: 6,
+    baseDurationSec: 6.5,
+    maxDurationAtLv10: 15.5,
+    baseCooldownSec: 10.5,
+    minCooldownAtLv10: 5.0,
   },
   {
     id: 'combo_shield',
-    name: 'PHASE AEGIS SHIELD',
-    desc: 'Absorbs hazard or fall once',
+    name: 'Phase Aegis Shield',
+    category: 'ACTIVE',
+    activationMode: 'ACTIVE',
+    maxLevel: 10,
+    tier: 'standard',
     icon: '❖',
-    durationSec: 16,
+    accentColor: '#34d399',
+    shortBenefit: 'Hazard & Fall Shield',
+    desc: 'Button-Activated: Forms an energy barrier that blocks spikes, drones, and rescues from falls.',
+    baseUnlockCost: 0,
+    baseUpgradeStepCost: 28,
+    baseUsesPerRun: 2,
+    maxUsesAtLv10: 6,
+    baseDurationSec: 7.0,
+    maxDurationAtLv10: 16.5,
+    baseCooldownSec: 11.5,
+    minCooldownAtLv10: 5.5,
   },
   {
-    id: 'dash_capacitor',
-    name: 'HYPER CAPACITOR',
-    desc: 'Fast Dash recharge & wide wave',
-    icon: '⚡',
-    durationSec: 15,
+    id: 'double_jump',
+    name: 'Aero Thrusters',
+    category: 'ACTIVE',
+    activationMode: 'ACTIVE',
+    maxLevel: 10,
+    tier: 'standard',
+    icon: '⇈',
+    accentColor: '#a78bfa',
+    shortBenefit: 'Mid-Air Boost Jump',
+    desc: 'Button-Activated: Launches an instant upward mid-air thrust and enables extra air jumps [Space].',
+    baseUnlockCost: 34,
+    baseUpgradeStepCost: 30,
+    baseUsesPerRun: 3,
+    maxUsesAtLv10: 7,
+    baseDurationSec: 6.5,
+    maxDurationAtLv10: 15.0,
+    baseCooldownSec: 10.0,
+    minCooldownAtLv10: 4.8,
   },
   {
     id: 'rhythm_aura',
-    name: 'RESONANCE AMPLIFIER',
-    desc: '+50% Harmonic Score Multiplier',
+    name: 'Resonance Overdrive',
+    category: 'ACTIVE',
+    activationMode: 'ACTIVE',
+    maxLevel: 10,
+    tier: 'gold',
     icon: '♫',
-    durationSec: 15,
+    accentColor: '#fbbf24',
+    shortBenefit: '2x-3.5x Score & Orbs',
+    desc: 'Button-Activated: Multiplies Score & Orb yield (1.8x up to 3.5x) and grants +2 instant Flow.',
+    baseUnlockCost: 55,
+    baseUpgradeStepCost: 36,
+    baseUsesPerRun: 2,
+    maxUsesAtLv10: 6,
+    baseDurationSec: 6.5,
+    maxDurationAtLv10: 15.0,
+    baseCooldownSec: 11.5,
+    minCooldownAtLv10: 5.5,
+  },
+  {
+    id: 'chrono_slow',
+    name: 'Chrono Dilator',
+    category: 'ACTIVE',
+    activationMode: 'ACTIVE',
+    maxLevel: 10,
+    tier: 'standard',
+    icon: '⏳',
+    accentColor: '#60a5fa',
+    shortBenefit: 'Slows Hazards + Wide Pads',
+    desc: 'Button-Activated: Slows enemy drones & crumble timers by up to 80% while widening all platforms!',
+    baseUnlockCost: 68,
+    baseUpgradeStepCost: 40,
+    baseUsesPerRun: 2,
+    maxUsesAtLv10: 6,
+    baseDurationSec: 6.0,
+    maxDurationAtLv10: 14.5,
+    baseCooldownSec: 12.0,
+    minCooldownAtLv10: 5.8,
+  },
+  {
+    id: 'star_rain',
+    name: 'Harmonic Starfall',
+    category: 'ACTIVE',
+    activationMode: 'ACTIVE',
+    maxLevel: 10,
+    tier: 'gold',
+    icon: '★',
+    accentColor: '#fde047',
+    shortBenefit: 'Spawns Orb Shower',
+    desc: 'Button-Activated: Showers 6 to 15 magnetic Harmonic Orbs above you and stabilizes fragile pads!',
+    baseUnlockCost: 95,
+    baseUpgradeStepCost: 45,
+    baseUsesPerRun: 2,
+    maxUsesAtLv10: 5,
+    baseDurationSec: 5.5,
+    maxDurationAtLv10: 12.5,
+    baseCooldownSec: 12.5,
+    minCooldownAtLv10: 6.2,
+  },
+  {
+    id: 'dash_shockwave',
+    name: 'Nova EMP Shockwave',
+    category: 'ACTIVE',
+    activationMode: 'ACTIVE',
+    maxLevel: 10,
+    tier: 'rainbow',
+    icon: '💥',
+    accentColor: '#ec4899',
+    shortBenefit: 'EMP Destroys All Hazards',
+    desc: 'Button-Activated: Unleashes a massive EMP shockwave that vaporizes all spikes/drones, heals fragile pads & pulls all Orbs!',
+    baseUnlockCost: 82,
+    baseUpgradeStepCost: 44,
+    baseUsesPerRun: 2,
+    maxUsesAtLv10: 6,
+    baseDurationSec: 6.0,
+    maxDurationAtLv10: 14.0,
+    baseCooldownSec: 11.0,
+    minCooldownAtLv10: 5.2,
+  },
+
+  // --- THREE JETPACK TIERS (ACTIVE BUTTON LAUNCHERS: WHITE / GOLD / PRISM) ---
+  {
+    id: 'jetpack_white',
+    name: 'Ion Jetpack (White)',
+    category: 'JETPACK',
+    activationMode: 'ACTIVE',
+    maxLevel: 10,
+    tier: 'standard',
+    icon: '🚀',
+    accentColor: '#38bdf8',
+    shortBenefit: 'Blue Glitter Sky Launch',
+    desc: 'Button-Activated: Launches you rapidly upward through platforms with a cyan-blue glitter trail & fast biome scale notes.',
+    baseUnlockCost: 48,
+    baseUpgradeStepCost: 34,
+    baseUsesPerRun: 2,
+    maxUsesAtLv10: 5,
+    baseDurationSec: 2.0,
+    maxDurationAtLv10: 3.8,
+    baseCooldownSec: 13.0,
+    minCooldownAtLv10: 6.5,
+  },
+  {
+    id: 'jetpack_gold',
+    name: 'Solar Jetpack (Gold)',
+    category: 'JETPACK',
+    activationMode: 'ACTIVE',
+    maxLevel: 10,
+    tier: 'gold',
+    icon: '☄',
+    accentColor: '#facc15',
+    shortBenefit: 'Gold Thruster + Magnet',
+    desc: 'Button-Activated: High-velocity golden thruster with solar glitter trail, Orb pull & shimmering biome arpeggios.',
+    baseUnlockCost: 195,
+    baseUpgradeStepCost: 60,
+    baseUsesPerRun: 3,
+    maxUsesAtLv10: 6,
+    baseDurationSec: 2.5,
+    maxDurationAtLv10: 4.6,
+    baseCooldownSec: 12.5,
+    minCooldownAtLv10: 6.0,
+  },
+  {
+    id: 'jetpack_prism',
+    name: 'Prism Jetpack (Omni)',
+    category: 'JETPACK',
+    activationMode: 'ACTIVE',
+    maxLevel: 10,
+    tier: 'rainbow',
+    icon: '✦',
+    accentColor: '#f472b6',
+    shortBenefit: '7-Color Hyper Launch',
+    desc: 'Button-Activated: Ultimate rainbow warp jetpack with 7-color glitter trail, full-screen Orb magnet & cascading notes.',
+    baseUnlockCost: 460,
+    baseUpgradeStepCost: 88,
+    baseUsesPerRun: 3,
+    maxUsesAtLv10: 7,
+    baseDurationSec: 3.0,
+    maxDurationAtLv10: 5.5,
+    baseCooldownSec: 11.5,
+    minCooldownAtLv10: 5.2,
+  },
+
+  // --- CATEGORY 2: PASSIVE INNATE CHARACTER UPGRADES (EQUIP & AUTO-ACTIVE, NO BUTTON NEEDED) ---
+  {
+    id: 'wall_bounce',
+    name: 'Wall-Bounce Rebound',
+    category: 'DASH_MOD',
+    activationMode: 'PASSIVE',
+    maxLevel: 4,
+    tier: 'gold',
+    icon: 'kos',
+    accentColor: '#38bdf8',
+    shortBenefit: '30°-45° Wall Dash Rebound',
+    desc: 'Passive Ability (4 Levels): Dashing into a wall bounces you diagonally back & upward at 30°–45°! Each level increases rebound height.',
+    baseUnlockCost: 30,
+    baseUpgradeStepCost: 48,
+    baseUsesPerRun: 99,
+    maxUsesAtLv10: 99,
+    baseDurationSec: 0,
+    maxDurationAtLv10: 0,
+    baseCooldownSec: 0,
+    minCooldownAtLv10: 0,
+  },
+  {
+    id: 'dash_capacitor',
+    name: 'Phase Dash Capacitor',
+    category: 'DASH_MOD',
+    activationMode: 'PASSIVE',
+    maxLevel: 10,
+    tier: 'standard',
+    icon: '⚡',
+    accentColor: '#00ff88',
+    shortBenefit: '-5%/Lv Dash Cooldown',
+    desc: 'Passive Ability: Permanently reduces Dash recharge cooldown by -5% per level (up to -50% faster Dash) when equipped.',
+    baseUnlockCost: 0,
+    baseUpgradeStepCost: 28,
+    baseUsesPerRun: 99,
+    maxUsesAtLv10: 99,
+    baseDurationSec: 0,
+    maxDurationAtLv10: 0,
+    baseCooldownSec: 0,
+    minCooldownAtLv10: 0,
+  },
+  {
+    id: 'dash_turbine',
+    name: 'Kinetic Dash Booster',
+    category: 'DASH_MOD',
+    activationMode: 'PASSIVE',
+    maxLevel: 10,
+    tier: 'gold',
+    icon: '⫸',
+    accentColor: '#f97316',
+    shortBenefit: '+6%/Lv Dash & Wall Lift',
+    desc: 'Passive Ability: Boosts Dash horizontal speed, upward lift & Wall-Bounce elasticity by +6% per level (up to +60%) when equipped.',
+    baseUnlockCost: 42,
+    baseUpgradeStepCost: 34,
+    baseUsesPerRun: 99,
+    maxUsesAtLv10: 99,
+    baseDurationSec: 0,
+    maxDurationAtLv10: 0,
+    baseCooldownSec: 0,
+    minCooldownAtLv10: 0,
   },
 ];
+
+// Clean icon for wall_bounce
+POWERUP_STORE_ITEMS.find((p) => p.id === 'wall_bounce')!.icon = 'kos'.replace('kos', '');
+POWERUP_STORE_ITEMS.find((p) => p.id === 'wall_bounce')!.icon = '⤣';
+
+export const RUN_UPGRADES: RunUpgrade[] = POWERUP_STORE_ITEMS.map((item) => ({
+  id: item.id,
+  name: item.name.toUpperCase(),
+  desc: item.shortBenefit,
+  icon: item.icon,
+  durationSec: item.baseDurationSec,
+}));
+
+export function getPowerUpDef(id: string): PowerUpStoreDef {
+  return (
+    POWERUP_STORE_ITEMS.find((p) => p.id === id) || POWERUP_STORE_ITEMS[0]
+  );
+}
+
+export function getPowerUpItemById(id: string): PowerUpStoreDef | undefined {
+  return POWERUP_STORE_ITEMS.find((p) => p.id === id);
+}
+
+/**
+ * Computes the Orb cost to unlock (when currentLevel === 0) or upgrade to `currentLevel + 1` (up to `def.maxLevel`).
+ */
+export function getPowerUpUpgradeCost(def: PowerUpStoreDef, currentLevel: number): number {
+  const maxLv = def.maxLevel || 10;
+  if (currentLevel <= 0) {
+    return def.baseUnlockCost;
+  }
+  if (currentLevel >= maxLv) {
+    return 0;
+  }
+  return Math.round(def.baseUpgradeStepCost * Math.pow(1.36, currentLevel - 1));
+}
+
+export interface PowerUpLevelStats {
+  level: number;
+  maxLevel: number;
+  maxUsesPerRun: number;
+  usesPerRun: number;
+  durationSec: number;
+  cooldownSec: number;
+  powerMult: number;
+  powerValue: number;
+  dashCooldownBonusPct: number;
+  dashPowerBonusPct: number;
+  dashShockwaveRadiusPx: number;
+  wallBouncePowerMult: number;
+}
+
+export function getPowerUpLevelStats(id: PowerUpItemId | string, level: number): PowerUpLevelStats {
+  const def = getPowerUpDef(id);
+  const maxLv = def.maxLevel || 10;
+  const clampedLv = Math.max(1, Math.min(maxLv, Math.round(level || 1)));
+  const t = maxLv > 1 ? (clampedLv - 1) / (maxLv - 1) : 1; // 0.0 at Lv.1 -> 1.0 at maxLv
+
+  const maxUsesPerRun = Math.round(
+    def.baseUsesPerRun + t * (def.maxUsesAtLv10 - def.baseUsesPerRun)
+  );
+  const durationSec = Number(
+    (def.baseDurationSec + t * (def.maxDurationAtLv10 - def.baseDurationSec)).toFixed(1)
+  );
+  const cooldownSec = Number(
+    (def.baseCooldownSec - t * (def.baseCooldownSec - def.minCooldownAtLv10)).toFixed(1)
+  );
+  const powerMult = Number((1.0 + t * 1.15).toFixed(2));
+
+  // Domain-specific powerValue so every power-up functions with real, impactful gameplay physics!
+  let powerValue = powerMult;
+  switch (def.id) {
+    case 'jetpack_white':
+      powerValue = Math.round(880 + t * 240); // 880..1120 px/s upward velocity
+      break;
+    case 'jetpack_gold':
+      powerValue = Math.round(1020 + t * 280); // 1020..1300 px/s upward velocity
+      break;
+    case 'jetpack_prism':
+      powerValue = Math.round(1180 + t * 340); // 1180..1520 px/s upward velocity
+      break;
+    case 'orb_magnet':
+      powerValue = Math.round(260 + t * 260); // 260..520 px magnetic pull radius
+      break;
+    case 'dash_shockwave':
+      powerValue = Math.round(350 + t * 270); // 350..620 px EMP blast radius
+      break;
+    case 'star_rain':
+      powerValue = Math.round(6 + t * 9);     // 6..15 harmonic orbs spawned
+      break;
+    case 'chrono_slow':
+      powerValue = Number((0.36 - t * 0.18).toFixed(2)); // 0.36..0.18 hazard speed factor
+      break;
+    case 'rhythm_aura':
+      powerValue = Number((1.8 + t * 1.7).toFixed(2));   // 1.8x..3.5x score & orb multiplier
+      break;
+    case 'double_jump':
+      powerValue = Number((1.22 + t * 0.45).toFixed(2)); // 1.22x..1.67x jump boost
+      break;
+    case 'combo_shield':
+      powerValue = Math.round(1 + Math.floor(t * 2));    // 1..3 shield hits
+      break;
+    case 'wall_bounce':
+      powerValue = Number((1.0 + t * 0.55).toFixed(2));  // 1.00x..1.55x wall rebound velocity across 4 levels
+      break;
+    default:
+      powerValue = powerMult;
+  }
+
+  return {
+    level: clampedLv,
+    maxLevel: maxLv,
+    maxUsesPerRun,
+    usesPerRun: maxUsesPerRun,
+    durationSec,
+    cooldownSec,
+    powerMult,
+    powerValue,
+    dashCooldownBonusPct: def.id === 'dash_capacitor' ? clampedLv * 5 : 0,
+    dashPowerBonusPct: def.id === 'dash_turbine' ? clampedLv * 6 : 0,
+    dashShockwaveRadiusPx: def.id === 'dash_shockwave' ? clampedLv * 18 : 0,
+    wallBouncePowerMult: def.id === 'wall_bounce' ? powerValue : 1.0,
+  };
+}
+
+/**
+ * Computes passive Dash & Wall-Bounce upgrades from unlocked/equipped PASSIVE power-ups.
+ */
+export function computePassiveDashUpgrades(
+  powerUpLevels?: Record<string, number>,
+  equippedPowerUps?: string[]
+): {
+  cooldownMultiplier: number;
+  powerMultiplier: number;
+  dashPowerMultiplier: number;
+  wallBounceUnlocked: boolean;
+  wallBounceLevel: number;
+  wallBounceLiftMultiplier: number;
+  shockwaveRadiusBonusPx: number;
+  cooldownReductionPct: number;
+  powerBonusPct: number;
+} {
+  const levels = powerUpLevels || {};
+  const equipped = equippedPowerUps; // If provided, check equipped; if omitted, check unlocked levels
+
+  const isPassiveActive = (id: string) => {
+    const lv = levels[id] || 0;
+    if (lv <= 0) return false;
+    if (!equipped) return true;
+    return equipped.includes(id);
+  };
+
+  const capLv = isPassiveActive('dash_capacitor')
+    ? Math.max(0, Math.min(10, levels.dash_capacitor || 0))
+    : 0;
+  const turbLv = isPassiveActive('dash_turbine')
+    ? Math.max(0, Math.min(10, levels.dash_turbine || 0))
+    : 0;
+  const wallLv = isPassiveActive('wall_bounce')
+    ? Math.max(0, Math.min(4, levels.wall_bounce || 0))
+    : 0;
+  const shockLv = Math.max(0, Math.min(10, levels.dash_shockwave || 0));
+
+  const cooldownReductionPct = capLv * 5; // up to 50% reduction at Lv.10
+  const powerBonusPct = turbLv * 6;        // up to +60% power at Lv.10
+  const shockwaveRadiusBonusPx = shockLv * 18;
+  const powerMult = Number((1 + powerBonusPct / 100).toFixed(2));
+
+  const wallBounceStats = wallLv > 0 ? getPowerUpLevelStats('wall_bounce', wallLv) : null;
+  const wallBounceBaseMult = wallBounceStats ? wallBounceStats.powerValue : 0;
+
+  return {
+    cooldownMultiplier: Number(Math.max(0.42, 1 - cooldownReductionPct / 100).toFixed(2)),
+    powerMultiplier: powerMult,
+    dashPowerMultiplier: powerMult,
+    wallBounceUnlocked: wallLv > 0,
+    wallBounceLevel: wallLv,
+    wallBounceLiftMultiplier: Number((wallBounceBaseMult * powerMult).toFixed(2)),
+    shockwaveRadiusBonusPx,
+    cooldownReductionPct,
+    powerBonusPct,
+  };
+}
+
+/**
+ * 15-Level Player Progression Table:
+ * - Replaces purchasing Biomes and Sound Banks in the Shop.
+ * - Across Levels 1 to 15, all 27 Biomes, all 8 Sound Banks, Power-Up Loadout Slots (3 -> 7),
+ *   and the 9 Secret Skins (at Levels 5, 10, and 15) unlock automatically by earning score/XP!
+ */
+export interface LevelProgressionDef {
+  level: number;
+  minXp: number;
+  newlyUnlockedScales: number[];
+  newlyUnlockedSoundBanks: string[];
+  newlyUnlockedSecretAvatars: string[];
+  powerUpSlots: number;
+  titleEn: string;
+  titleFa: string;
+}
+
+export const LEVEL_PROGRESSION_TABLE: LevelProgressionDef[] = [
+  {
+    level: 1,
+    minXp: 0,
+    newlyUnlockedScales: [0, 1, 2, 6],
+    newlyUnlockedSoundBanks: ['crt_velvet'],
+    newlyUnlockedSecretAvatars: [],
+    powerUpSlots: 3,
+    titleEn: 'Neon Initiate',
+    titleFa: 'آغازگر نئون',
+  },
+  {
+    level: 2,
+    minXp: 350,
+    newlyUnlockedScales: [3, 4],
+    newlyUnlockedSoundBanks: ['lofi_tape'],
+    newlyUnlockedSecretAvatars: [],
+    powerUpSlots: 3,
+    titleEn: 'Signal Runner',
+    titleFa: 'دونده سیگنال',
+  },
+  {
+    level: 3,
+    minXp: 850,
+    newlyUnlockedScales: [5, 7],
+    newlyUnlockedSoundBanks: [],
+    newlyUnlockedSecretAvatars: [],
+    powerUpSlots: 3,
+    titleEn: 'Pulse Seeker',
+    titleFa: 'جوینده پالس',
+  },
+  {
+    level: 4,
+    minXp: 1500,
+    newlyUnlockedScales: [8, 9],
+    newlyUnlockedSoundBanks: ['bladerunner_cs80'],
+    newlyUnlockedSecretAvatars: [],
+    powerUpSlots: 4,
+    titleEn: 'Harmonic Strider (+Slot 4)',
+    titleFa: 'گام‌بردار هارمونیک (+اسلات ۴)',
+  },
+  {
+    level: 5,
+    minXp: 2300,
+    newlyUnlockedScales: [10],
+    newlyUnlockedSoundBanks: [],
+    newlyUnlockedSecretAvatars: ['secret_heart', 'secret_flower', 'secret_cherry'],
+    powerUpSlots: 4,
+    titleEn: 'White Secret Tier Unlocked!',
+    titleFa: 'باز شدن ۳ اسکین مخفی سفید!',
+  },
+  {
+    level: 6,
+    minXp: 3300,
+    newlyUnlockedScales: [11, 12],
+    newlyUnlockedSoundBanks: ['akira_fm'],
+    newlyUnlockedSecretAvatars: [],
+    powerUpSlots: 4,
+    titleEn: 'Maqam Weaver',
+    titleFa: 'بافنده مقام',
+  },
+  {
+    level: 7,
+    minXp: 4500,
+    newlyUnlockedScales: [13, 14],
+    newlyUnlockedSoundBanks: [],
+    newlyUnlockedSecretAvatars: [],
+    powerUpSlots: 5,
+    titleEn: 'Kyoto Resonator (+Slot 5)',
+    titleFa: 'طنین کیوتو (+اسلات ۵)',
+  },
+  {
+    level: 8,
+    minXp: 5900,
+    newlyUnlockedScales: [15, 16],
+    newlyUnlockedSoundBanks: ['vhs_dream'],
+    newlyUnlockedSecretAvatars: [],
+    powerUpSlots: 5,
+    titleEn: 'Dreamwave Navigator',
+    titleFa: 'ناوبر دریم‌ویو',
+  },
+  {
+    level: 9,
+    minXp: 7500,
+    newlyUnlockedScales: [17, 18],
+    newlyUnlockedSoundBanks: ['arcade_crt_pulse'],
+    newlyUnlockedSecretAvatars: [],
+    powerUpSlots: 5,
+    titleEn: 'Nordic Vanguard',
+    titleFa: 'پیشگام نوردیک',
+  },
+  {
+    level: 10,
+    minXp: 9400,
+    newlyUnlockedScales: [19],
+    newlyUnlockedSoundBanks: [],
+    newlyUnlockedSecretAvatars: ['secret_rockhand', 'secret_leaf', 'secret_skull'],
+    powerUpSlots: 6,
+    titleEn: 'Gold Secret Tier + Slot 6!',
+    titleFa: '۳ اسکین مخفی طلایی + اسلات ۶!',
+  },
+  {
+    level: 11,
+    minXp: 11600,
+    newlyUnlockedScales: [20, 21],
+    newlyUnlockedSoundBanks: ['rainy_shibuya'],
+    newlyUnlockedSecretAvatars: [],
+    powerUpSlots: 6,
+    titleEn: 'Shibuya Virtuoso',
+    titleFa: 'استاد شیبویا',
+  },
+  {
+    level: 12,
+    minXp: 14100,
+    newlyUnlockedScales: [22, 23],
+    newlyUnlockedSoundBanks: [],
+    newlyUnlockedSecretAvatars: [],
+    powerUpSlots: 6,
+    titleEn: 'Mythic Architect',
+    titleFa: 'معمار اسطوره‌ای',
+  },
+  {
+    level: 13,
+    minXp: 17000,
+    newlyUnlockedScales: [24],
+    newlyUnlockedSoundBanks: ['cyber_matrix_sub'],
+    newlyUnlockedSecretAvatars: [],
+    powerUpSlots: 7,
+    titleEn: 'Neuromancer (+Slot 7 Max)',
+    titleFa: 'نورومنسر (+اسلات ۷ نهایی)',
+  },
+  {
+    level: 14,
+    minXp: 20400,
+    newlyUnlockedScales: [25, 26],
+    newlyUnlockedSoundBanks: [],
+    newlyUnlockedSecretAvatars: [],
+    powerUpSlots: 7,
+    titleEn: 'Ascendant Maestro',
+    titleFa: 'رهبر ارکستر صعود',
+  },
+  {
+    level: 15,
+    minXp: 24500,
+    newlyUnlockedScales: [],
+    newlyUnlockedSoundBanks: [],
+    newlyUnlockedSecretAvatars: ['secret_eyeball', 'secret_hexagram', 'secret_cat'],
+    powerUpSlots: 7,
+    titleEn: 'Transcendent Omni (Prism Secrets!)',
+    titleFa: 'اومنی متعالی (۳ اسکین مخفی پریزم!)',
+  },
+];
+
+export const UPGRADABLE_POWERUPS = POWERUP_STORE_ITEMS;
+
+export function getRequiredLevelForScale(scaleId: number): number {
+  for (const row of LEVEL_PROGRESSION_TABLE) {
+    if (row.newlyUnlockedScales.includes(scaleId)) {
+      return row.level;
+    }
+  }
+  return 1;
+}
+
+export function getRequiredLevelForSoundBank(bankId: string): number {
+  for (const row of LEVEL_PROGRESSION_TABLE) {
+    if (row.newlyUnlockedSoundBanks.includes(bankId)) {
+      return row.level;
+    }
+  }
+  return 1;
+}
+
+export interface PlayerLevelInfo {
+  level: number;
+  totalXp: number;
+  currentLevelMinXp: number;
+  nextLevelMinXp: number;
+  xpIntoLevel: number;
+  xpRequiredForNext: number;
+  xpNeededForNext: number;
+  progressPct: number;
+  progressRatio: number;
+  isMaxLevel: boolean;
+  titleEn: string;
+  titleFa: string;
+}
+
+export function computePlayerLevelInfo(totalXp: number): PlayerLevelInfo {
+  const safeXp = Math.max(0, Math.floor(totalXp || 0));
+  let currentDef = LEVEL_PROGRESSION_TABLE[0];
+  for (const row of LEVEL_PROGRESSION_TABLE) {
+    if (safeXp >= row.minXp) {
+      currentDef = row;
+    } else {
+      break;
+    }
+  }
+
+  const nextDef = LEVEL_PROGRESSION_TABLE.find((r) => r.level === currentDef.level + 1);
+  if (!nextDef) {
+    return {
+      level: 15,
+      totalXp: safeXp,
+      currentLevelMinXp: currentDef.minXp,
+      nextLevelMinXp: currentDef.minXp,
+      xpIntoLevel: safeXp - currentDef.minXp,
+      xpRequiredForNext: 1,
+      xpNeededForNext: 1,
+      progressPct: 100,
+      progressRatio: 1,
+      isMaxLevel: true,
+      titleEn: currentDef.titleEn,
+      titleFa: currentDef.titleFa,
+    };
+  }
+
+  const span = Math.max(1, nextDef.minXp - currentDef.minXp);
+  const into = Math.max(0, safeXp - currentDef.minXp);
+  const ratio = Math.min(1, into / span);
+  return {
+    level: currentDef.level,
+    totalXp: safeXp,
+    currentLevelMinXp: currentDef.minXp,
+    nextLevelMinXp: nextDef.minXp,
+    xpIntoLevel: into,
+    xpRequiredForNext: span,
+    xpNeededForNext: span,
+    progressPct: Number((ratio * 100).toFixed(1)),
+    progressRatio: Number(ratio.toFixed(3)),
+    isMaxLevel: false,
+    titleEn: currentDef.titleEn,
+    titleFa: currentDef.titleFa,
+  };
+}
+
+export function getCumulativeUnlocksForLevel(
+  level: number,
+  betaUnlockSecretSkins = false
+): {
+  unlockedScales: number[];
+  unlockedSoundBanks: string[];
+  unlockedSecretAvatars: string[];
+  powerUpSlots: number;
+} {
+  const clampedLv = Math.max(1, Math.min(15, Math.floor(level || 1)));
+  const scales = new Set<number>([0, 1, 2, 6]);
+  const banks = new Set<string>(['crt_velvet']);
+  const secrets = new Set<string>();
+  let slots = 3;
+
+  for (const row of LEVEL_PROGRESSION_TABLE) {
+    if (row.level <= clampedLv) {
+      row.newlyUnlockedScales.forEach((s) => scales.add(s));
+      row.newlyUnlockedSoundBanks.forEach((b) => banks.add(b));
+      row.newlyUnlockedSecretAvatars.forEach((a) => secrets.add(a));
+      slots = Math.max(slots, row.powerUpSlots);
+    }
+  }
+
+  if (betaUnlockSecretSkins) {
+    LEVEL_PROGRESSION_TABLE.forEach((row) =>
+      row.newlyUnlockedSecretAvatars.forEach((a) => secrets.add(a))
+    );
+  }
+
+  return {
+    unlockedScales: Array.from(scales),
+    unlockedSoundBanks: Array.from(banks),
+    unlockedSecretAvatars: Array.from(secrets),
+    powerUpSlots: slots,
+  };
+}
+
+export interface LevelUpRewardItem {
+  level: number;
+  kind: 'biome' | 'sound_bank' | 'slot' | 'secret_skin';
+  nameEn: string;
+  nameFa: string;
+  accentColor: string;
+  avatarId?: string;
+  scaleId?: number;
+  soundBankId?: string;
+}
+
+export type LevelUpRewardDef = LevelUpRewardItem;
+
+export function getLevelUpRewardsBetween(
+  oldLevel: number,
+  newLevel: number
+): LevelUpRewardItem[] {
+  if (newLevel <= oldLevel) return [];
+  const rewards: LevelUpRewardItem[] = [];
+  let prevSlots =
+    LEVEL_PROGRESSION_TABLE.find((r) => r.level === oldLevel)?.powerUpSlots ?? 3;
+
+  for (const row of LEVEL_PROGRESSION_TABLE) {
+    if (row.level > oldLevel && row.level <= newLevel) {
+      if (row.powerUpSlots > prevSlots) {
+        rewards.push({
+          level: row.level,
+          kind: 'slot',
+          nameEn: `Power-Up Loadout Slot #${row.powerUpSlots}`,
+          nameFa: `اسلات پاورآپ شماره ${row.powerUpSlots}`,
+          accentColor: '#34d399',
+        });
+        prevSlots = row.powerUpSlots;
+      }
+      for (const sId of row.newlyUnlockedScales) {
+        const b = MASTER_SCALES.find((m) => m.id === sId);
+        if (b) {
+          rewards.push({
+            level: row.level,
+            kind: 'biome',
+            nameEn: `Biome: ${b.name}`,
+            nameFa: `بیوم جدید: ${b.name}`,
+            accentColor: b.fg,
+            scaleId: sId,
+          });
+        }
+      }
+      for (const bId of row.newlyUnlockedSoundBanks) {
+        const sb = SOUND_BANKS.find((s) => s.id === bId);
+        if (sb) {
+          rewards.push({
+            level: row.level,
+            kind: 'sound_bank',
+            nameEn: `Synth: ${sb.name}`,
+            nameFa: `بانک صدا: ${sb.name}`,
+            accentColor: '#38bdf8',
+            soundBankId: bId,
+          });
+        }
+      }
+      for (const secId of row.newlyUnlockedSecretAvatars) {
+        const tierColor =
+          row.level >= 15 ? '#f472b6' : row.level >= 10 ? '#facc15' : '#e2e8f0';
+        rewards.push({
+          level: row.level,
+          kind: 'secret_skin',
+          nameEn: `Secret Skin: ${secId.replace('secret_', '').toUpperCase()}`,
+          nameFa: `اسکین مخفی: ${secId.replace('secret_', '').toUpperCase()}`,
+          accentColor: tierColor,
+          avatarId: secId,
+        });
+      }
+    }
+  }
+  return rewards;
+}
+
+/**
+ * Unlocks Power-Up Loadout Slots based on Player Level (or Best Score fallback):
+ * - Starts with 3 slots at Lv.1.
+ * - Unlocks Slot 4 at Lv.4, Slot 5 at Lv.7, Slot 6 at Lv.10, Slot 7 at Lv.13.
+ */
+export function computeUnlockedPowerUpSlots(highScoreOrLevel: number, playerLevel?: number): number {
+  if (playerLevel !== undefined && playerLevel >= 1) {
+    return getCumulativeUnlocksForLevel(playerLevel).powerUpSlots;
+  }
+  // Fallback compatibility if called with highScore only
+  if (highScoreOrLevel <= 15 && highScoreOrLevel >= 1) {
+    return getCumulativeUnlocksForLevel(highScoreOrLevel).powerUpSlots;
+  }
+  const baseSlots = 3;
+  if (highScoreOrLevel < 1500) return baseSlots;
+  const bonusSlots = Math.floor((highScoreOrLevel - 1500) / 500) + 1;
+  return Math.min(7, baseSlots + bonusSlots);
+}
+
+export function getNextPowerUpSlotMilestone(highScore: number, playerLevel?: number): number | null {
+  if (playerLevel !== undefined) {
+    const curSlots = getCumulativeUnlocksForLevel(playerLevel).powerUpSlots;
+    const nextRow = LEVEL_PROGRESSION_TABLE.find((r) => r.powerUpSlots > curSlots);
+    return nextRow ? nextRow.level : null;
+  }
+  const currentSlots = computeUnlockedPowerUpSlots(highScore);
+  if (currentSlots >= 7) return null;
+  if (highScore < 1500) return 1500;
+  return 1500 + (currentSlots - 3) * 500;
+}
 
 export function tickActivePowerUps(list: ActivePowerUp[], dt: number): ActivePowerUp[] {
   const next: ActivePowerUp[] = [];
@@ -1877,3 +2990,105 @@ export function tickActivePowerUps(list: ActivePowerUp[], dt: number): ActivePow
   }
   return next;
 }
+
+export interface ShopRecommendationItem {
+  kind: 'character' | 'sound_bank' | 'biome' | 'power_up';
+  id: string | number;
+  name: string;
+  costOrbs: number;
+  shortBenefit: string;
+  accentColor: string;
+  canAfford: boolean;
+  orbsNeeded: number;
+  icon?: string;
+}
+
+/**
+ * Recommends the most motivating locked Store item (Character or Power-Up)
+ * after each defeat based on the player's collected Orbs, with a 2-3 word benefit summary.
+ * (Biomes and Sound Banks are now unlocked via the 15-Level Progression system!)
+ */
+export function computePostDefeatShopRecommendation(
+  totalOrbs: number,
+  cfg: Pick<
+    GameConfig,
+    'unlockedScales' | 'unlockedSoundBanks' | 'unlockedAvatars' | 'powerUpLevels'
+  >,
+  avatars: Array<{ id: string; name: string; costOrbs: number; perkTitle: string; isSecret?: boolean }> = []
+): ShopRecommendationItem | null {
+  const candidates: Array<Omit<ShopRecommendationItem, 'canAfford' | 'orbsNeeded'>> = [];
+
+  for (const av of avatars) {
+    if (av.isSecret) continue;
+    if (av.costOrbs > 0 && !cfg.unlockedAvatars.includes(av.id)) {
+      candidates.push({
+        kind: 'character',
+        id: av.id,
+        name: av.name,
+        costOrbs: av.costOrbs,
+        shortBenefit: av.perkTitle,
+        accentColor: '#fbbf24',
+      });
+    }
+  }
+
+  const pLevels = cfg.powerUpLevels || {
+    orb_magnet: 1,
+    combo_shield: 1,
+    dash_capacitor: 1,
+  };
+  for (const pu of POWERUP_STORE_ITEMS) {
+    const curLv = pLevels[pu.id] || 0;
+    const maxLv = pu.maxLevel || 10;
+    if (curLv < maxLv) {
+      const cost = getPowerUpUpgradeCost(pu, curLv);
+      if (cost > 0) {
+        candidates.push({
+          kind: 'power_up',
+          id: pu.id,
+          name: curLv === 0 ? pu.name : `${pu.name} Lv.${curLv + 1}`,
+          costOrbs: cost,
+          shortBenefit: pu.shortBenefit,
+          accentColor: pu.accentColor,
+          icon: pu.icon,
+        });
+      }
+    }
+  }
+
+  if (candidates.length === 0) return null;
+
+  const affordable = candidates.filter((c) => c.costOrbs <= totalOrbs);
+  if (affordable.length > 0) {
+    const affordableChars = affordable.filter((c) => c.kind === 'character');
+    if (affordableChars.length > 0) {
+      affordableChars.sort((a, b) => b.costOrbs - a.costOrbs);
+      return {
+        ...affordableChars[0],
+        canAfford: true,
+        orbsNeeded: 0,
+      };
+    }
+
+    affordable.sort((a, b) => b.costOrbs - a.costOrbs);
+    const topTierCost = affordable[0].costOrbs;
+    const topMatches = affordable.filter((c) => c.costOrbs >= topTierCost * 0.75);
+    const chosen = topMatches[totalOrbs % topMatches.length] || affordable[0];
+    return {
+      ...chosen,
+      canAfford: true,
+      orbsNeeded: 0,
+    };
+  }
+
+  candidates.sort((a, b) => a.costOrbs - b.costOrbs);
+  const closest = candidates[0];
+  return {
+    ...closest,
+    canAfford: false,
+    orbsNeeded: Math.max(1, closest.costOrbs - totalOrbs),
+  };
+}
+
+
+

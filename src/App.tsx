@@ -6,7 +6,6 @@ import {
   GameConfig,
   FLOW_THRESHOLDS,
   FLOW_PLATFORMS_PER_STEP,
-  BIOME_ALTITUDE_SPAN,
   MASTER_SCALES,
   SOUND_BANKS,
   SoundBankDef,
@@ -14,6 +13,19 @@ import {
   SEQUENCER_PRESETS,
   RUN_UPGRADES,
   ActivePowerUp,
+  PowerUpItemId,
+  PowerUpCategory,
+  PowerUpStoreDef,
+  PowerUpStoreItemDef,
+  EquippedPowerUpSlotRuntime,
+  POWERUP_STORE_ITEMS,
+  getPowerUpDef,
+  getPowerUpItemById,
+  getPowerUpUpgradeCost,
+  getPowerUpLevelStats,
+  computePassiveDashUpgrades,
+  computeUnlockedPowerUpSlots,
+  getNextPowerUpSlotMilestone,
   ScaleBiome,
   PlatformEntity,
   PlatformArchetype,
@@ -31,10 +43,29 @@ import {
   stepSquashStretch,
   shuffleArray,
   pickBiomeChordProgression,
+  buildExtendedScale,
+  computePostDefeatShopRecommendation,
+  LEVEL_PROGRESSION_TABLE,
+  LevelUpRewardDef,
+  computePlayerLevelInfo,
+  getCumulativeUnlocksForLevel,
+  getLevelUpRewardsBetween,
+  getRequiredLevelForScale,
+  getRequiredLevelForSoundBank,
+  getAllBiomes,
+  lighten,
+  withAlpha,
 } from './game/rules';
+import {
+  ALL_CURATED_MELODIES,
+  CuratedBiomeMelody,
+  pickRandomCuratedMelodyForBiome,
+  evaluateCuratedMelodyStep,
+} from './game/melodies';
 import { OmniAudioEngine } from './game/audioEngine';
 import {
   renderGameFrame,
+  drawCircularPixelGauge,
   FloatingTextItem,
   PlayerRenderState,
   BiomeDissolveState,
@@ -47,6 +78,7 @@ import {
   CharacterAvatarDef,
   getCharacterById,
   STARTER_UNLOCKED_AVATARS,
+  SECRET_AVATAR_IDS,
 } from './game/characters';
 import {
   CustomStage,
@@ -56,6 +88,7 @@ import {
 } from './game/stages';
 import CharacterSelectModal, {
   SelectedAvatarMiniBadge,
+  RadiantOrbIcon,
 } from './components/CharacterSelectModal';
 import StageCreatorModal from './components/StageCreatorModal';
 
@@ -72,6 +105,8 @@ type ScreenState =
 
 type GameMode = 'STANDARD' | 'SEQUENCER' | 'MIDI' | 'STAGE';
 
+type FineTuneCategory = 'ALL' | 'FLOW' | 'PLATFORMS' | 'FRAGILE' | 'ENEMIES' | 'PHYSICS';
+
 interface PersistentStats {
   highScore: number;
   maxCombo: number;
@@ -87,8 +122,18 @@ interface BeforeInstallPromptEvent extends Event {
 const NOTE_KEYS = Object.keys(NOTES_MAP);
 const ROMAN_NUMERALS = ['I', 'II', 'III', 'IV'] as const;
 
+const FINE_TUNE_CATEGORIES: Array<{ id: FineTuneCategory; label: string }> = [
+  { id: 'ALL', label: 'ALL (25)' },
+  { id: 'FLOW', label: '⚡ FLOW (6)' },
+  { id: 'PLATFORMS', label: '🧱 PLATFORMS (6)' },
+  { id: 'FRAGILE', label: '💥 FRAGILE (4)' },
+  { id: 'ENEMIES', label: '👾 ENEMIES (5)' },
+  { id: 'PHYSICS', label: '🚀 PHYSICS & DASH (4)' },
+];
+
 const FINE_TUNE_SLIDERS: Array<{
   key: keyof FineTuneConfig;
+  category: Exclude<FineTuneCategory, 'ALL'>;
   label: string;
   min: number;
   max: number;
@@ -96,8 +141,10 @@ const FINE_TUNE_SLIDERS: Array<{
   unit: string;
   desc: string;
 }> = [
+  // --- FLOW & BIOME PROGRESSION CATEGORY ---
   {
     key: 'flowGainRate',
+    category: 'FLOW',
     label: 'Flow Gain Rate',
     min: 0.2,
     max: 3.0,
@@ -107,6 +154,7 @@ const FINE_TUNE_SLIDERS: Array<{
   },
   {
     key: 'flowDecayRate',
+    category: 'FLOW',
     label: 'Idle / Stall Flow Decay',
     min: 0.0,
     max: 3.0,
@@ -116,6 +164,7 @@ const FINE_TUNE_SLIDERS: Array<{
   },
   {
     key: 'difficultyRampSpeed',
+    category: 'FLOW',
     label: 'Difficulty Ramp Speed',
     min: 0.2,
     max: 3.0,
@@ -124,7 +173,40 @@ const FINE_TUNE_SLIDERS: Array<{
     desc: 'How quickly higher Flow narrows platforms and adds obstacles',
   },
   {
+    key: 'biomePlatformDuration',
+    category: 'FLOW',
+    label: 'Biome Duration (Platforms)',
+    min: 15,
+    max: 150,
+    step: 5,
+    unit: ' plats',
+    desc: 'Number of platforms climbed before shifting to the next Biome',
+  },
+  {
+    key: 'biomeShiftSpeed',
+    category: 'FLOW',
+    label: 'Biome Transition Shift Speed',
+    min: 0.3,
+    max: 3.0,
+    step: 0.1,
+    unit: 'x',
+    desc: 'Speed of the pixelated bottom-to-top dissolve when shifting Biomes',
+  },
+  {
+    key: 'chordGateCooldownSteps',
+    category: 'FLOW',
+    label: 'Chord Gate Cooldown Steps',
+    min: 4,
+    max: 40,
+    step: 1,
+    unit: ' steps',
+    desc: 'Platforms between 4-Gate Chord Progression sequences',
+  },
+
+  // --- PLATFORMS CATEGORY ---
+  {
     key: 'maxPlatformWidth',
+    category: 'PLATFORMS',
     label: 'Low-Flow Max Platform Width',
     min: 110,
     max: 240,
@@ -134,6 +216,7 @@ const FINE_TUNE_SLIDERS: Array<{
   },
   {
     key: 'minPlatformWidth',
+    category: 'PLATFORMS',
     label: 'High-Flow Min Platform Width',
     min: 48,
     max: 150,
@@ -143,6 +226,7 @@ const FINE_TUNE_SLIDERS: Array<{
   },
   {
     key: 'horizontalScatterMult',
+    category: 'PLATFORMS',
     label: 'Horizontal Scatter Spread',
     min: 0.3,
     max: 2.2,
@@ -152,6 +236,7 @@ const FINE_TUNE_SLIDERS: Array<{
   },
   {
     key: 'wideLeapSpawnRate',
+    category: 'PLATFORMS',
     label: 'Wide Opposite-Direction Leap Rate',
     min: 0.0,
     max: 3.0,
@@ -161,6 +246,7 @@ const FINE_TUNE_SLIDERS: Array<{
   },
   {
     key: 'orbSpawnRate',
+    category: 'PLATFORMS',
     label: 'Harmonic Orb Spawn Chance',
     min: 0.0,
     max: 1.0,
@@ -170,6 +256,7 @@ const FINE_TUNE_SLIDERS: Array<{
   },
   {
     key: 'orbScatterSpread',
+    category: 'PLATFORMS',
     label: 'Orb Horizontal Offset Spread',
     min: 0.1,
     max: 1.0,
@@ -177,8 +264,53 @@ const FINE_TUNE_SLIDERS: Array<{
     unit: '',
     desc: 'How far across the platform Orbs scatter horizontally',
   },
+
+  // --- FRAGILE PLATFORMS & STREAKS CATEGORY ---
+  {
+    key: 'fragileSpawnRate',
+    category: 'FRAGILE',
+    label: 'Fragile Platform Spawn Rate',
+    min: 0.0,
+    max: 3.0,
+    step: 0.1,
+    unit: 'x',
+    desc: 'Probability multiplier for fragile crumbling platforms as Flow rises',
+  },
+  {
+    key: 'fragileStreakChance',
+    category: 'FRAGILE',
+    label: 'Fragile Multi-Streak Rate',
+    min: 0.0,
+    max: 3.0,
+    step: 0.1,
+    unit: 'x',
+    desc: 'Chance of spawning consecutive fragile platform streaks back-to-back at high Flow',
+  },
+  {
+    key: 'fragileStreakMaxLen',
+    category: 'FRAGILE',
+    label: 'Fragile Streak Max Length',
+    min: 1,
+    max: 6,
+    step: 1,
+    unit: ' plats',
+    desc: 'Maximum consecutive fragile platforms in a single high-Flow streak',
+  },
+  {
+    key: 'disguisedFragileChance',
+    category: 'FRAGILE',
+    label: 'Disguised Fragile Trap Rate',
+    min: 0.0,
+    max: 0.75,
+    step: 0.02,
+    unit: '',
+    desc: 'Chance that a fragile platform looks like a normal platform (scales up at high Flow)',
+  },
+
+  // --- ENEMIES & HAZARDS CATEGORY ---
   {
     key: 'spikeHazardRate',
+    category: 'ENEMIES',
     label: 'Platform Spike Hazard Rate',
     min: 0.0,
     max: 3.0,
@@ -188,6 +320,7 @@ const FINE_TUNE_SLIDERS: Array<{
   },
   {
     key: 'aerialDroneRate',
+    category: 'ENEMIES',
     label: 'Aerial Drone Hazard Rate',
     min: 0.0,
     max: 3.0,
@@ -196,7 +329,28 @@ const FINE_TUNE_SLIDERS: Array<{
     desc: 'Multiplier for mid-air patrolling Dissonance Drones',
   },
   {
+    key: 'enemyMoveSpeedMult',
+    category: 'ENEMIES',
+    label: 'Enemy & Moving Platform Speed',
+    min: 0.4,
+    max: 3.5,
+    step: 0.1,
+    unit: 'x',
+    desc: 'Horizontal speed multiplier for patrolling drones and moving platforms',
+  },
+  {
+    key: 'enemyMoveRangeMult',
+    category: 'ENEMIES',
+    label: 'Enemy Patrol Movement Range',
+    min: 0.4,
+    max: 2.8,
+    step: 0.1,
+    unit: 'x',
+    desc: 'Horizontal patrol displacement distance for drones and moving platforms',
+  },
+  {
     key: 'hazardFlowPenalty',
+    category: 'ENEMIES',
     label: 'Hazard Flow Penalty',
     min: 0.0,
     max: 3.0,
@@ -204,8 +358,21 @@ const FINE_TUNE_SLIDERS: Array<{
     unit: 'x',
     desc: 'Flow lost when hitting spikes or aerial drones without shield',
   },
+
+  // --- PHYSICS & DASH CATEGORY ---
+  {
+    key: 'dashBoostPowerMult',
+    category: 'PHYSICS',
+    label: 'Dash Boost Power & Lift',
+    min: 0.5,
+    max: 3.0,
+    step: 0.05,
+    unit: 'x',
+    desc: 'Horizontal burst velocity and upward anti-gravity rescue lift of Phase Dash',
+  },
   {
     key: 'powerUpDurationSec',
+    category: 'PHYSICS',
     label: 'Base Power-Up Duration',
     min: 4,
     max: 35,
@@ -214,16 +381,8 @@ const FINE_TUNE_SLIDERS: Array<{
     desc: 'Duration in seconds before temporary power-ups expire',
   },
   {
-    key: 'chordGateCooldownSteps',
-    label: 'Chord Gate Cooldown Steps',
-    min: 4,
-    max: 40,
-    step: 1,
-    unit: ' steps',
-    desc: 'Platforms between 4-Gate Chord Progression sequences',
-  },
-  {
     key: 'baseMoveSpeed',
+    category: 'PHYSICS',
     label: 'Lateral Steering Speed',
     min: 180,
     max: 520,
@@ -233,6 +392,7 @@ const FINE_TUNE_SLIDERS: Array<{
   },
   {
     key: 'baseJumpTempo',
+    category: 'PHYSICS',
     label: 'Base Jump Tempo (Gravity)',
     min: 65,
     max: 150,
@@ -241,6 +401,288 @@ const FINE_TUNE_SLIDERS: Array<{
     desc: 'Baseline auto-bounce arc tempo in Standard mode',
   },
 ];
+
+/**
+ * Right-Side Interactive Circular Power-Up Loadout Slots:
+ * - Starts empty (0% charge) at the beginning of a run and gradually fills up with pixels.
+ * - Click / Tap (or press keys 1..7) when READY to activate!
+ * - Stays active for its duration (pixels drain from 100% to 0%), then enters Cooldown to refill!
+ */
+function RightSidePowerUpSlotsHud({
+  slotsCount,
+  getSlotRuntime,
+  onActivateSlot,
+}: {
+  slotsCount: number;
+  getSlotRuntime: (idx: number) => EquippedPowerUpSlotRuntime | undefined;
+  onActivateSlot: (idx: number) => void;
+}) {
+  const canvasRefs = useRef<Array<HTMLCanvasElement | null>>([]);
+  const badgeRefs = useRef<Array<HTMLSpanElement | null>>([]);
+  const btnRefs = useRef<Array<HTMLButtonElement | null>>([]);
+
+  useEffect(() => {
+    let animId = 0;
+    const render = (now: number) => {
+      animId = requestAnimationFrame(render);
+      const t = now / 1000;
+      for (let idx = 0; idx < slotsCount; idx++) {
+        const cvs = canvasRefs.current[idx];
+        const slot = getSlotRuntime(idx);
+        if (!cvs || !slot) continue;
+        const ctx = cvs.getContext('2d');
+        if (!ctx) continue;
+
+        ctx.clearRect(0, 0, cvs.width, cvs.height);
+
+        const isReady = slot.phase === 'ready' && slot.usesLeft > 0;
+        const isActive = slot.phase === 'active';
+        const isDepleted = slot.phase === 'depleted' || (slot.usesLeft <= 0 && !isActive);
+
+        const ratio = isActive
+          ? Math.max(0, Math.min(1, slot.activeRemainingSec / Math.max(0.2, slot.durationSec)))
+          : isReady
+          ? 1
+          : isDepleted
+          ? 0
+          : Math.max(0, Math.min(1, slot.chargeProgress));
+
+        const baseCol = slot.accentColor || '#00ff88';
+        const fillCol = isActive
+          ? withAlpha(lighten(baseCol, 0.25), 0.72)
+          : isReady
+          ? withAlpha(baseCol, 0.52 + 0.14 * Math.sin(t * 7))
+          : withAlpha(baseCol, 0.32);
+        const topEdgeCol = isActive ? '#ffffff' : lighten(baseCol, 0.45);
+        const borderCol = isActive
+          ? '#ffffff'
+          : isReady
+          ? baseCol
+          : isDepleted
+          ? 'rgba(71, 85, 105, 0.45)'
+          : withAlpha(baseCol, 0.55);
+
+        drawCircularPixelGauge(
+          ctx,
+          22,
+          22,
+          19,
+          ratio,
+          fillCol,
+          topEdgeCol,
+          borderCol,
+          isReady,
+          isActive,
+          idx + 1,
+          3
+        );
+
+        // Draw Center Icon
+        ctx.save();
+        ctx.fillStyle = isDepleted ? 'rgba(148, 163, 184, 0.45)' : '#ffffff';
+        ctx.shadowBlur = isReady || isActive ? 6 : 3;
+        ctx.shadowColor = isReady || isActive ? baseCol : '#000000';
+        ctx.font = "12px 'Press Start 2P', monospace";
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(slot.icon, 22, 23);
+        ctx.restore();
+
+        const badge = badgeRefs.current[idx];
+        if (badge) {
+          badge.textContent = isActive
+            ? `${slot.activeRemainingSec.toFixed(1)}s`
+            : `x${slot.usesLeft}`;
+          badge.style.color = isActive
+            ? '#ffffff'
+            : isReady
+            ? '#fde047'
+            : isDepleted
+            ? '#64748b'
+            : '#cbd5e1';
+          badge.style.borderColor = isReady || isActive ? baseCol : '#334155';
+        }
+        const btn = btnRefs.current[idx];
+        if (btn) {
+          btn.style.opacity = isDepleted ? '0.45' : '1';
+        }
+      }
+    };
+    animId = requestAnimationFrame(render);
+    return () => cancelAnimationFrame(animId);
+  }, [slotsCount, getSlotRuntime]);
+
+  if (slotsCount <= 0) return null;
+
+  return (
+    <div
+      id="right-powerup-slots"
+      data-testid="right-powerup-slots"
+      className="pointer-events-auto absolute right-2.5 top-1/2 -translate-y-1/2 flex flex-col items-center gap-2.5 z-20"
+    >
+      {Array.from({ length: slotsCount }, (_, idx) => {
+        const slot = getSlotRuntime(idx);
+        return (
+          <button
+            key={idx}
+            ref={(el) => {
+              btnRefs.current[idx] = el;
+            }}
+            type="button"
+            data-testid={`powerup-slot-btn-${idx}`}
+            aria-label={slot ? `Activate ${slot.name}` : `Power-Up Slot ${idx + 1}`}
+            title={
+              slot
+                ? `${slot.name} (Lv.${slot.level}) — Click or press [${idx + 1}] when full`
+                : ''
+            }
+            onTouchStart={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onActivateSlot(idx);
+            }}
+            onClick={(e) => {
+              e.stopPropagation();
+              onActivateSlot(idx);
+            }}
+            className="relative w-11 h-11 rounded-full flex items-center justify-center transition-transform active:scale-90 cursor-pointer"
+          >
+            <canvas
+              ref={(el) => {
+                canvasRefs.current[idx] = el;
+              }}
+              width={44}
+              height={44}
+              className="w-11 h-11 block pointer-events-none"
+            />
+            <span
+              ref={(el) => {
+                badgeRefs.current[idx] = el;
+              }}
+              className="pointer-events-none absolute -bottom-1 -right-0.5 px-1 py-0.2 bg-slate-950/95 border border-slate-700 text-[6px] text-amber-300 leading-none"
+            >
+              x{slot?.usesLeft ?? 0}
+            </span>
+            <span className="pointer-events-none absolute -top-1 -left-0.5 px-1 py-0.2 bg-slate-950/90 border border-slate-800 text-[5px] text-cyan-300 leading-none">
+              L{slot?.level ?? 1}
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/**
+ * Circular Pixel-Cooldown Dash Button for Android / Touch & Desktop:
+ * - 30% smaller than the old rectangular button (54x54px), while still larger than the 44x44px Power-Up icons!
+ * - Circular shape (`rounded-full`) with ONLY the Dash icon (`⚡`) inside (no text).
+ * - Empties its pixel interior on activation and refills pixel-by-pixel during cooldown!
+ */
+function CircularPixelDashButton({
+  getDashCooldownState,
+  onTriggerDash,
+}: {
+  getDashCooldownState: () => {
+    dashCool: number;
+    dashMaxCool: number;
+    dashAct: number;
+    primaryColor: string;
+    horizonColor: string;
+  };
+  onTriggerDash: () => void;
+}) {
+  const cvsRef = useRef<HTMLCanvasElement | null>(null);
+
+  useEffect(() => {
+    let animId = 0;
+    const render = (now: number) => {
+      animId = requestAnimationFrame(render);
+      const cvs = cvsRef.current;
+      if (!cvs) return;
+      const ctx = cvs.getContext('2d');
+      if (!ctx) return;
+
+      const t = now / 1000;
+      const st = getDashCooldownState();
+      const isReady = st.dashCool <= 0.01;
+      const isActive = st.dashAct > 0;
+      const ratio = isReady
+        ? 1
+        : Math.max(0, Math.min(1, 1 - st.dashCool / Math.max(0.1, st.dashMaxCool)));
+
+      ctx.clearRect(0, 0, cvs.width, cvs.height);
+
+      const baseCol = st.primaryColor || '#00ff88';
+      const horizCol = st.horizonColor || '#00d4ff';
+      const fillCol = isActive
+        ? withAlpha('#ffffff', 0.78)
+        : isReady
+        ? withAlpha(baseCol, 0.48 + 0.14 * Math.sin(t * 6.5))
+        : withAlpha(horizCol, 0.34);
+      const topEdgeCol = isReady || isActive ? '#ffffff' : lighten(horizCol, 0.4);
+      const borderCol = isActive
+        ? '#ffffff'
+        : isReady
+        ? baseCol
+        : withAlpha(horizCol, 0.65);
+
+      drawCircularPixelGauge(
+        ctx,
+        27,
+        27,
+        24,
+        ratio,
+        fillCol,
+        topEdgeCol,
+        borderCol,
+        isReady,
+        isActive,
+        19,
+        3
+      );
+
+      // Draw ONLY the lightning icon inside the circle (no text!)
+      ctx.save();
+      ctx.fillStyle = isReady || isActive ? '#ffffff' : 'rgba(226, 232, 240, 0.75)';
+      ctx.shadowBlur = isReady || isActive ? 8 : 3;
+      ctx.shadowColor = isReady || isActive ? baseCol : '#000000';
+      ctx.font = "16px 'Press Start 2P', monospace";
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('⚡', 27, 28);
+      ctx.restore();
+    };
+    animId = requestAnimationFrame(render);
+    return () => cancelAnimationFrame(animId);
+  }, [getDashCooldownState]);
+
+  return (
+    <button
+      type="button"
+      id="mobile-dash-btn"
+      data-testid="mobile-dash-btn"
+      aria-label="Phase Dash"
+      onTouchStart={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        onTriggerDash();
+      }}
+      onClick={(e) => {
+        e.stopPropagation();
+        onTriggerDash();
+      }}
+      className="pointer-events-auto w-[54px] h-[54px] rounded-full flex items-center justify-center transition-transform active:scale-90 cursor-pointer"
+    >
+      <canvas
+        ref={cvsRef}
+        width={54}
+        height={54}
+        className="w-[54px] h-[54px] block pointer-events-none"
+      />
+    </button>
+  );
+}
 
 export default function App() {
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -256,13 +698,18 @@ export default function App() {
   const comboBarDomRef = useRef<HTMLDivElement | null>(null);
   const rankBadgeDomRef = useRef<HTMLDivElement | null>(null);
   const biomeTagDomRef = useRef<HTMLDivElement | null>(null);
+  const melodyHudDomRef = useRef<HTMLDivElement | null>(null);
 
   const [screen, setScreen] = useState<ScreenState>('title');
-  const [storeTab, setStoreTab] = useState<'banks' | 'scales' | 'characters'>('banks');
+  const [storeTab, setStoreTab] = useState<'powerups' | 'characters' | 'banks' | 'scales'>('powerups');
+  const [powerUpModeFilter, setPowerUpModeFilter] = useState<'ALL' | 'ACTIVE' | 'PASSIVE'>('ALL');
   const [traditionFilter, setTraditionFilter] = useState<string>('ALL');
+  const [fineTuneCategory, setFineTuneCategory] = useState<FineTuneCategory>('ALL');
+  const [melodyBiomeFilter, setMelodyBiomeFilter] = useState<number | 'ALL'>('ALL');
   const [gameMode, setGameMode] = useState<GameMode>('STANDARD');
   const [storeOrbInput, setStoreOrbInput] = useState<string>('');
   const [devBundleStatus, setDevBundleStatus] = useState<string>('');
+  const [tutorialStep, setTutorialStep] = useState<0 | 1 | 2 | 3>(0);
   const [deferredInstallPrompt, setDeferredInstallPrompt] =
     useState<BeforeInstallPromptEvent | null>(null);
 
@@ -275,6 +722,24 @@ export default function App() {
     return () => window.removeEventListener('beforeinstallprompt', onBeforeInstall);
   }, []);
 
+  // Unlock Web Audio Context on first user gesture so muffled background menu music starts immediately
+  useEffect(() => {
+    const unlockAudioOnGesture = () => {
+      if (!simRef.current.isMuted) {
+        audioRef.current.init(simRef.current.cfg);
+        audioRef.current.resume();
+      }
+    };
+    window.addEventListener('pointerdown', unlockAudioOnGesture, { passive: true });
+    window.addEventListener('touchstart', unlockAudioOnGesture, { passive: true });
+    window.addEventListener('keydown', unlockAudioOnGesture, { passive: true });
+    return () => {
+      window.removeEventListener('pointerdown', unlockAudioOnGesture);
+      window.removeEventListener('touchstart', unlockAudioOnGesture);
+      window.removeEventListener('keydown', unlockAudioOnGesture);
+    };
+  }, []);
+
   const [cfg, setCfg] = useState<GameConfig>(() => {
     try {
       const saved = localStorage.getItem('omni_cfg_v8');
@@ -283,27 +748,57 @@ export default function App() {
         const validAvatar = CHARACTER_AVATARS.some((a) => a.id === parsed.playerShape)
           ? parsed.playerShape
           : DEFAULT_CFG.playerShape;
+        const lvInfo = computePlayerLevelInfo(parsed.playerXp || 0);
+        const cumUnlocks = getCumulativeUnlocksForLevel(lvInfo.level);
+        const betaSecrets = parsed.betaUnlockSecretSkins ? SECRET_AVATAR_IDS : [];
         const unlockedAvatars = Array.from(
-          new Set([...STARTER_UNLOCKED_AVATARS, ...(parsed.unlockedAvatars || [])])
+          new Set([
+            ...STARTER_UNLOCKED_AVATARS,
+            ...(parsed.unlockedAvatars || []),
+            ...cumUnlocks.unlockedSecretAvatars,
+            ...betaSecrets,
+          ])
         );
         return {
           ...DEFAULT_CFG,
           ...parsed,
+          language: parsed.language === 'fa' ? 'fa' : 'en',
+          playerXp: lvInfo.totalXp,
+          playerLevel: lvInfo.level,
+          betaUnlockSecretSkins: Boolean(parsed.betaUnlockSecretSkins),
+          tutorialSeen: Boolean(parsed.tutorialSeen),
+          customBiomes: Array.isArray(parsed.customBiomes) ? parsed.customBiomes : [],
           playerShape: validAvatar,
           unlockedAvatars,
+          powerUpLevels: {
+            ...DEFAULT_CFG.powerUpLevels,
+            ...(parsed.powerUpLevels || {}),
+          },
+          equippedPowerUps:
+            Array.isArray(parsed.equippedPowerUps) && parsed.equippedPowerUps.length > 0
+              ? parsed.equippedPowerUps
+              : DEFAULT_CFG.equippedPowerUps,
           fineTune: {
             ...DEFAULT_FINE_TUNE,
             ...(parsed.fineTune || {}),
           },
-          unlockedScales: parsed.unlockedScales?.length
-            ? parsed.unlockedScales
-            : DEFAULT_CFG.unlockedScales,
+          unlockedScales: Array.from(
+            new Set([
+              ...(parsed.unlockedScales?.length ? parsed.unlockedScales : DEFAULT_CFG.unlockedScales),
+              ...cumUnlocks.unlockedScales,
+            ])
+          ),
           enabledScales: parsed.enabledScales?.length
             ? parsed.enabledScales
             : DEFAULT_CFG.enabledScales,
-          unlockedSoundBanks: parsed.unlockedSoundBanks?.length
-            ? parsed.unlockedSoundBanks
-            : DEFAULT_CFG.unlockedSoundBanks,
+          unlockedSoundBanks: Array.from(
+            new Set([
+              ...(parsed.unlockedSoundBanks?.length
+                ? parsed.unlockedSoundBanks
+                : DEFAULT_CFG.unlockedSoundBanks),
+              ...cumUnlocks.unlockedSoundBanks,
+            ])
+          ),
           enabledSoundBanks: parsed.enabledSoundBanks?.length
             ? parsed.enabledSoundBanks
             : DEFAULT_CFG.enabledSoundBanks,
@@ -356,6 +851,13 @@ export default function App() {
     altitude: number;
     orbsCollected: number;
     rank: string;
+    xpGained: number;
+    prevLevel: number;
+    newLevel: number;
+    progressRatio: number;
+    xpIntoLevel: number;
+    xpNeededForNext: number;
+    levelRewards: LevelUpRewardDef[];
   }>({
     score: 0,
     best: 0,
@@ -364,6 +866,13 @@ export default function App() {
     altitude: 0,
     orbsCollected: 0,
     rank: 'D',
+    xpGained: 0,
+    prevLevel: 1,
+    newLevel: 1,
+    progressRatio: 0,
+    xpIntoLevel: 0,
+    xpNeededForNext: 120,
+    levelRewards: [],
   });
 
   const [seqGrid, setSeqGrid] = useState<string[][]>(() => {
@@ -383,6 +892,18 @@ export default function App() {
     x: 300,
     y: 400,
     activeUntil: 0,
+  });
+
+  const touchDragRef = useRef<{
+    active: boolean;
+    touchId: number;
+    anchorX: number;
+    lastX: number;
+  }>({
+    active: false,
+    touchId: -1,
+    anchorX: 0,
+    lastX: 0,
   });
 
   const simRef = useRef<{
@@ -408,6 +929,11 @@ export default function App() {
     activeBiomeIdx: number;
     biomeOrder: number[];
     activeSoundBankId: string;
+    activeCuratedMelody: CuratedBiomeMelody;
+    curatedMelodyStepCursor: number;
+    menuMelodyCursor: number;
+    menuMelodyTimer: number;
+    fragileStreakRemaining: number;
     biomeDissolve: BiomeDissolveState;
     dyingSequence: DyingSequenceState;
     seqData: number[][];
@@ -428,15 +954,26 @@ export default function App() {
       progressionVariant: number;
       prevGatePlatId?: number;
       cooldownSteps: number;
+      sequenceNumberInBiome: 1 | 2;
     };
     platformsGeneratedCount: number;
+    biomeStepsGenerated: number;
+    chordSequencesSpawnedInBiome: number;
+    chordSequencesCompletedInBiome: number;
+    equippedSlotRuntimes: EquippedPowerUpSlotRuntime[];
+    tutorialActive: boolean;
+    jetpackGlitters: GlitterParticle[];
+    jetpackNoteTimer: number;
+    jetpackStepCounter: number;
     player: PlayerRenderState & {
       airJumpsLeft: number;
+      wallDashGraceTimer: number;
     };
     inputs: {
       left: boolean;
       right: boolean;
-      tiltX: number;
+      tiltX: boolean | number;
+      touchSteerX: number;
       upJustPressed: boolean;
       dashJustPressed: boolean;
     };
@@ -470,6 +1007,13 @@ export default function App() {
     activeBiomeIdx: 0,
     biomeOrder: [0, 1, 2, 6],
     activeSoundBankId: 'crt_velvet',
+    activeCuratedMelody:
+      ALL_CURATED_MELODIES[Math.floor(Math.random() * ALL_CURATED_MELODIES.length)] ||
+      ALL_CURATED_MELODIES[0],
+    curatedMelodyStepCursor: 0,
+    menuMelodyCursor: 0,
+    menuMelodyTimer: 0.65,
+    fragileStreakRemaining: 0,
     biomeDissolve: {
       active: false,
       progress: 1,
@@ -505,9 +1049,18 @@ export default function App() {
       nextGateChordIdx: 0,
       progressionVariant: 0,
       prevGatePlatId: undefined,
-      cooldownSteps: 12,
+      cooldownSteps: 8,
+      sequenceNumberInBiome: 1,
     },
     platformsGeneratedCount: 0,
+    biomeStepsGenerated: 0,
+    chordSequencesSpawnedInBiome: 0,
+    chordSequencesCompletedInBiome: 0,
+    equippedSlotRuntimes: [],
+    tutorialActive: false,
+    jetpackGlitters: [],
+    jetpackNoteTimer: 0,
+    jetpackStepCounter: 0,
     player: {
       x: 288,
       y: 740,
@@ -530,6 +1083,7 @@ export default function App() {
       doubleJumpReady: false,
       damageGlitchTimer: 0,
       airJumpsLeft: 0,
+      wallDashGraceTimer: 0,
       trail: [],
       scarfNodes: Array.from({ length: 6 }, () => ({ x: 300, y: 750 })),
     },
@@ -537,6 +1091,7 @@ export default function App() {
       left: false,
       right: false,
       tiltX: 0,
+      touchSteerX: 0,
       upJustPressed: false,
       dashJustPressed: false,
     },
@@ -575,7 +1130,8 @@ export default function App() {
         : 'title';
     document.body.dataset.state = bodyState;
     simRef.current.state = screen;
-  }, [screen]);
+    simRef.current.tutorialActive = tutorialStep > 0;
+  }, [screen, tutorialStep]);
 
   useEffect(() => {
     simRef.current.cfg = cfg;
@@ -661,6 +1217,7 @@ export default function App() {
   }, []);
 
   const getScaleByIndex = useCallback((idx: number, currentCfg: GameConfig): ScaleBiome => {
+    const allBiomes = getAllBiomes(currentCfg.customBiomes);
     const order = simRef.current.biomeOrder;
     const pool =
       order && order.length > 0
@@ -670,7 +1227,7 @@ export default function App() {
         : [0];
     const safeIdx = Math.abs(Math.floor(idx)) % pool.length;
     const id = pool[safeIdx];
-    return MASTER_SCALES.find((s) => s.id === id) || MASTER_SCALES[0];
+    return allBiomes.find((s) => s.id === id) || MASTER_SCALES[0];
   }, []);
 
   const getActiveSoundBank = useCallback((currentCfg: GameConfig): SoundBankDef => {
@@ -761,7 +1318,8 @@ export default function App() {
         nextGateChordIdx: 0,
         progressionVariant: Math.floor(Math.random() * 4),
         prevGatePlatId: undefined,
-        cooldownSteps: Math.max(4, Math.round(sim.cfg.fineTune?.chordGateCooldownSteps ?? 16)),
+        cooldownSteps: Math.max(4, Math.round(sim.cfg.fineTune?.chordGateCooldownSteps ?? 12)),
+        sequenceNumberInBiome: sim.chordSequencesSpawnedInBiome >= 2 ? 2 : 1,
       };
     }
   };
@@ -769,7 +1327,7 @@ export default function App() {
   const grantTemporaryPowerUp = useCallback(
     (biome: ScaleBiome, reasonLabel: string, forcedId?: ActivePowerUp['id']) => {
       const sim = simRef.current;
-      if (sim.activePowerUps.length >= 3) return;
+      if (sim.activePowerUps.length >= 4) return;
 
       const available = RUN_UPGRADES.filter(
         (u) => !sim.activePowerUps.some((active) => active.id === u.id)
@@ -799,7 +1357,7 @@ export default function App() {
         sim.player.hasShield = true;
       }
       if (picked.id === 'double_jump') {
-        sim.player.airJumpsLeft = 1;
+        sim.player.airJumpsLeft = Math.max(sim.player.airJumpsLeft, 1);
       }
       if (!sim.isMuted) {
         audioRef.current.sfxLevelUp(biome, sim.cfg);
@@ -817,11 +1375,216 @@ export default function App() {
     [spawnFloatingText, spawnShockwave]
   );
 
+  // Trigger an immediate biome shift (used when completing the 2nd Chord Gate sequence of a biome)
+  const triggerNextBiomeShift = useCallback(
+    (sim: typeof simRef.current) => {
+      const c = sim.cfg;
+      const prevBiome = getScaleByIndex(sim.activeBiomeIdx, c);
+      sim.activeBiomeIdx = sim.activeBiomeIdx + 1;
+      const nextBiome = getScaleByIndex(sim.activeBiomeIdx, c);
+      sim.biomeStepsGenerated = 0;
+      sim.chordSequencesSpawnedInBiome = 0;
+      sim.chordSequencesCompletedInBiome = 0;
+      sim.chordGatePlan = {
+        nextGateStepIndex: -1,
+        nextGateChordIdx: 0,
+        progressionVariant: Math.floor(Math.random() * 4),
+        prevGatePlatId: undefined,
+        cooldownSteps: 6,
+        sequenceNumberInBiome: 1,
+      };
+      sim.activeSoundBankId = pickRandomEnabledSoundBankId(c, sim.activeSoundBankId);
+      sim.activeCuratedMelody = pickRandomCuratedMelodyForBiome(
+        nextBiome.id,
+        c.disabledMelodies,
+        sim.activeCuratedMelody?.id,
+        c.customBiomes
+      );
+      sim.curatedMelodyStepCursor = 0;
+      sim.menuMelodyCursor = 0;
+      sim.biomeDissolve = {
+        active: true,
+        progress: 0,
+        fromBiome: prevBiome,
+        toBiome: nextBiome,
+      };
+      grantTemporaryPowerUp(nextBiome, `BIOME · ${nextBiome.name}`);
+    },
+    [getScaleByIndex, grantTemporaryPowerUp, pickRandomEnabledSoundBankId]
+  );
+
+  // Activate an equipped right-side Power-Up slot when clicked/tapped or triggered via 1..7 hotkey
+  const activateEquippedPowerUpSlot = useCallback(
+    (slotIdx: number) => {
+      const sim = simRef.current;
+      if (sim.state !== 'playing' || sim.dyingSequence.active) return;
+      const slot = sim.equippedSlotRuntimes[slotIdx];
+      if (!slot || slot.phase !== 'ready' || slot.usesLeft <= 0) return;
+
+      const biome = getScaleByIndex(sim.activeBiomeIdx, sim.cfg);
+      const charPerks = getCharacterById(sim.cfg.playerShape).perks;
+      const finalDurationSec = Math.max(
+        1.4,
+        Number((slot.durationSec * charPerks.powerUpDurationMultiplier).toFixed(2))
+      );
+
+      slot.usesLeft = Math.max(0, slot.usesLeft - 1);
+      slot.phase = 'active';
+      slot.durationSec = finalDurationSec;
+      slot.activeRemainingSec = finalDurationSec;
+      slot.chargeProgress = 1;
+
+      const existingIdx = sim.activePowerUps.findIndex((ap) => ap.id === slot.id);
+      if (existingIdx >= 0) {
+        sim.activePowerUps[existingIdx].remainingSec = finalDurationSec;
+        sim.activePowerUps[existingIdx].durationSec = finalDurationSec;
+      } else {
+        sim.activePowerUps.push({
+          id: slot.id,
+          name: slot.name,
+          icon: slot.icon,
+          remainingSec: finalDurationSec,
+          durationSec: finalDurationSec,
+        });
+      }
+
+      const p = sim.player;
+      if (slot.id === 'combo_shield') {
+        p.hasShield = true;
+      } else if (slot.id === 'double_jump') {
+        p.airJumpsLeft = Math.max(p.airJumpsLeft, Math.round(slot.powerValue));
+        p.vy = Math.min(p.vy, -580);
+      } else if (slot.id === 'orb_magnet') {
+        // Immediately magnet-lock all visible orbs + spawn 4 harmonic bonus orbs around the player!
+        for (let i = 0; i < sim.orbs.length; i++) {
+          if (!sim.orbs[i].collected) {
+            sim.orbs[i].magnetLocked = true;
+          }
+        }
+        for (let k = 0; k < 4; k++) {
+          const angle = (Math.PI * 2 * k) / 4;
+          sim.orbs.push({
+            id: sim.nextPlatformId++,
+            x: Math.max(45, Math.min(555, p.x + 12 + Math.cos(angle) * 110)),
+            y: p.y - 60 + Math.sin(angle) * 70,
+            baseY: p.y - 60 + Math.sin(angle) * 70,
+            radius: 6,
+            collected: false,
+            freq: biome.scale[k % biome.scale.length] || 523.25,
+            color: '#fbbf24',
+            phase: k * 0.9,
+            magnetLocked: true,
+          });
+        }
+      } else if (slot.id === 'rhythm_aura') {
+        // Boost Flow Energy immediately + emit harmonic shockwave
+        sim.flowEnergy = Math.min(45, sim.flowEnergy + 1.5);
+        syncFlowStateFromEnergy(sim);
+      } else if (slot.id === 'chrono_slow') {
+        // Disarm nearby spikes & slow all moving entities
+        for (let i = 0; i < sim.platforms.length; i++) {
+          if (Math.abs(sim.platforms[i].y - p.y) < 550) {
+            sim.platforms[i].hasHazard = false;
+          }
+        }
+      } else if (slot.id === 'dash_capacitor' || slot.id === 'dash_turbine') {
+        p.dashCool = 0;
+        sim.inputs.dashJustPressed = true;
+      } else if (slot.id === 'dash_shockwave') {
+        p.dashCool = 0;
+        const empRadius = Math.max(220, slot.powerValue);
+        spawnShockwave(p.x + p.w * 0.5, p.y + p.h * 0.5, '#ffffff', empRadius * 0.75);
+        spawnShockwave(p.x + p.w * 0.5, p.y + p.h * 0.5, '#f472b6', empRadius);
+        spawnShockwave(p.x + p.w * 0.5, p.y + p.h * 0.5, biome.horizonColor, empRadius * 1.35);
+        sim.shake = 7.5;
+        sim.aberration = 0.92;
+        p.vy = Math.min(p.vy, -560);
+
+        // Vaporize all visible aerial drones and award bonus score
+        for (let i = 0; i < sim.aerialHazards.length; i++) {
+          const ah = sim.aerialHazards[i];
+          if (ah.active && Math.hypot(ah.x - (p.x + 12), ah.y - (p.y + 12)) <= empRadius * 2.2) {
+            ah.active = false;
+            sim.score += 10;
+            sim.particles.burst(ah.x, ah.y, '#f472b6', 16, 6.5, 'spark');
+          }
+        }
+        // Clear platform spikes and stabilize fragile/phase platforms on screen
+        for (let i = 0; i < sim.platforms.length; i++) {
+          const pl = sim.platforms[i];
+          if (Math.abs(pl.y - p.y) <= empRadius * 2.2) {
+            if (pl.hasHazard) {
+              pl.hasHazard = false;
+              sim.particles.burst(pl.x + pl.w * 0.5, pl.y, '#38bdf8', 8, 4, 'spark');
+            }
+            if (pl.type === 'crumble' || pl.type === 'phase') {
+              pl.type = 'normal';
+              pl.broken = false;
+              pl.crumbleTimer = 0;
+              pl.disguisedFragile = false;
+            }
+          }
+        }
+        // Magnet-lock all orbs on screen
+        for (let i = 0; i < sim.orbs.length; i++) {
+          const o = sim.orbs[i];
+          if (!o.collected) {
+            o.magnetLocked = true;
+          }
+        }
+      } else if (slot.id === 'star_rain') {
+        const count = Math.round(slot.powerValue);
+        for (let k = 0; k < count; k++) {
+          sim.orbs.push({
+            id: sim.nextPlatformId++,
+            x: 65 + ((k * 92 + Math.random() * 45) % 470),
+            y: p.y - 120 - k * 42,
+            baseY: p.y - 120 - k * 42,
+            radius: 6,
+            collected: false,
+            freq: biome.scale[k % biome.scale.length] || 523.25,
+            color: '#f472b6',
+            phase: k * 0.8,
+            magnetLocked: true,
+          });
+        }
+      } else if (
+        slot.id === 'jetpack_white' ||
+        slot.id === 'jetpack_gold' ||
+        slot.id === 'jetpack_prism'
+      ) {
+        p.vy = -slot.powerValue;
+        p.grounded = false;
+        p.scaleX = 0.68;
+        p.scaleY = 1.38;
+        sim.shake = 5.5;
+        sim.aberration = 0.82;
+        sim.jetpackNoteTimer = 0;
+        generateWorldUpTo(p.y - 1100);
+      }
+
+      if (!sim.isMuted) {
+        audioRef.current.sfxLevelUp(biome, sim.cfg);
+      }
+      spawnShockwave(p.x + p.w * 0.5, p.y + p.h * 0.5, slot.accentColor, 105);
+      spawnFloatingText(
+        `${slot.icon} ${slot.name} LV.${slot.level}`,
+        300,
+        p.y - 34,
+        slot.accentColor,
+        1.0,
+        `${slot.usesLeft}/${slot.maxUses} LEFT`
+      );
+    },
+    [getScaleByIndex, spawnFloatingText, spawnShockwave]
+  );
+
   /**
    * Generates strictly ONE clean platform per vertical step.
-   * Uses `exactVerticalStep = isStageMode` and `fine.wideLeapSpawnRate` so:
-   * 1. Long stage notes never skip or overshoot platforms.
-   * 2. Wide opposite-direction platform leaps spawn more frequently as Flow increases.
+   * Integrates:
+   * 1. Curated Melody Mode (3 melodies per biome, harmonically synchronized Gate Chords & Triplets)
+   * 2. Fragile Platform Streaks at high Flow (`fragileSpawnRate`, `fragileStreakChance`, `fragileStreakMaxLen`)
+   * 3. Configurable Enemy & Moving Platform Speed + Patrol Range (`enemyMoveSpeedMult`, `enemyMoveRangeMult`)
    */
   const generateWorldUpTo = useCallback(
     (minY: number) => {
@@ -829,6 +1592,8 @@ export default function App() {
       const currentCfg = sim.cfg;
       const fine = currentCfg.fineTune || DEFAULT_FINE_TUNE;
       const charPerks = getCharacterById(currentCfg.playerShape).perks;
+      const isCuratedMelodyMode =
+        sim.mode === 'STANDARD' && (currentCfg.melodyMode ?? 'curated') === 'curated';
 
       let lastPlat =
         sim.platforms.length > 0
@@ -855,19 +1620,53 @@ export default function App() {
       while (lastY > minY - Math.max(420, sim.viewH * 0.55)) {
         const diff = computeFlowDynamicDifficulty(sim.flowEnergy, fine);
         sim.platformsGeneratedCount++;
+        sim.biomeStepsGenerated++;
 
-        if (
-          !isStageMode &&
-          sim.chordGatePlan.nextGateStepIndex < 0 &&
-          sim.combo >= FLOW_THRESHOLDS.SUBDIVISION
-        ) {
-          if (sim.chordGatePlan.cooldownSteps > 0) {
-            sim.chordGatePlan.cooldownSteps--;
-          } else {
-            sim.chordGatePlan.nextGateStepIndex = sim.platformsGeneratedCount + 2;
+        const biomeDurationSteps = Math.max(18, Math.round(fine.biomePlatformDuration ?? 55));
+        const firstSeqTriggerStep = Math.max(6, Math.round(biomeDurationSteps * 0.34));
+        const secondSeqTriggerStep = Math.max(firstSeqTriggerStep + 14, Math.round(biomeDurationSteps * 0.72));
+
+        // 2 Chord Gate sequences per biome:
+        // - Sequence 1 spawns around the middle of the biome (~34% of biomePlatformDuration)
+        // - Sequence 2 spawns in the second half (~72% of biomePlatformDuration), and completing its 4th gate shifts to the next biome!
+        if (!isStageMode && sim.chordGatePlan.nextGateStepIndex < 0) {
+          if (
+            sim.chordSequencesSpawnedInBiome === 0 &&
+            sim.biomeStepsGenerated >= firstSeqTriggerStep
+          ) {
+            sim.chordSequencesSpawnedInBiome = 1;
+            sim.chordGatePlan.nextGateStepIndex = sim.platformsGeneratedCount + 1;
             sim.chordGatePlan.nextGateChordIdx = 0;
-            sim.chordGatePlan.progressionVariant = Math.floor(Math.random() * 4);
+            sim.chordGatePlan.progressionVariant = isCuratedMelodyMode
+              ? sim.activeCuratedMelody?.chordVariant ?? 0
+              : Math.floor(Math.random() * 4);
             sim.chordGatePlan.prevGatePlatId = undefined;
+            sim.chordGatePlan.sequenceNumberInBiome = 1;
+          } else if (
+            sim.chordSequencesSpawnedInBiome === 1 &&
+            sim.biomeStepsGenerated >= secondSeqTriggerStep
+          ) {
+            sim.chordSequencesSpawnedInBiome = 2;
+            sim.chordGatePlan.nextGateStepIndex = sim.platformsGeneratedCount + 1;
+            sim.chordGatePlan.nextGateChordIdx = 0;
+            sim.chordGatePlan.progressionVariant = isCuratedMelodyMode
+              ? ((sim.activeCuratedMelody?.chordVariant ?? 0) + 1) % 4
+              : Math.floor(Math.random() * 4);
+            sim.chordGatePlan.prevGatePlatId = undefined;
+            sim.chordGatePlan.sequenceNumberInBiome = 2;
+          } else if (sim.chordSequencesSpawnedInBiome >= 2) {
+            if (sim.chordGatePlan.cooldownSteps > 0) {
+              sim.chordGatePlan.cooldownSteps--;
+            } else {
+              // If player missed the 2nd sequence, re-offer Sequence 2 after cooldown so they can trigger the biome shift!
+              sim.chordGatePlan.nextGateStepIndex = sim.platformsGeneratedCount + 2;
+              sim.chordGatePlan.nextGateChordIdx = 0;
+              sim.chordGatePlan.progressionVariant = isCuratedMelodyMode
+                ? sim.activeCuratedMelody?.chordVariant ?? 0
+                : Math.floor(Math.random() * 4);
+              sim.chordGatePlan.prevGatePlatId = undefined;
+              sim.chordGatePlan.sequenceNumberInBiome = 2;
+            }
           }
         }
 
@@ -917,12 +1716,34 @@ export default function App() {
         prevCenterX = placed.centerX;
 
         const altitudePx = Math.abs(lastY - 782);
-        const themeIdx = Math.floor(altitudePx / BIOME_ALTITUDE_SPAN);
+        const themeIdx = sim.activeBiomeIdx;
+        const allBiomes = getAllBiomes(currentCfg.customBiomes);
         const biome =
           stageStepData?.biomeId !== undefined
-            ? MASTER_SCALES.find((b) => b.id === stageStepData.biomeId) ||
+            ? allBiomes.find((b) => b.id === stageStepData.biomeId) ||
               getScaleByIndex(themeIdx, currentCfg)
             : getScaleByIndex(themeIdx, currentCfg);
+
+        // Evaluate Curated Melody step if active
+        let curatedStepOut: ReturnType<typeof evaluateCuratedMelodyStep> | undefined = undefined;
+        if (isCuratedMelodyMode) {
+          const melodyForBiome =
+            sim.activeCuratedMelody?.biomeId === biome.id
+              ? sim.activeCuratedMelody
+              : pickRandomCuratedMelodyForBiome(
+                  biome.id,
+                  currentCfg.disabledMelodies,
+                  undefined,
+                  currentCfg.customBiomes
+                );
+          curatedStepOut = evaluateCuratedMelodyStep(
+            melodyForBiome,
+            biome,
+            sim.curatedMelodyStepCursor++,
+            sim.combo,
+            currentCfg
+          );
+        }
 
         let type: PlatformArchetype = 'normal';
         let chordGateIndex: 0 | 1 | 2 | 3 | undefined = undefined;
@@ -932,29 +1753,43 @@ export default function App() {
         if (isChordGateStep) {
           type = 'chord_gate';
           chordGateIndex = sim.chordGatePlan.nextGateChordIdx;
-          chordProgressionVariant = sim.chordGatePlan.progressionVariant;
+          chordProgressionVariant =
+            curatedStepOut?.chordProgressionVariant ??
+            sim.chordGatePlan.progressionVariant;
           const prog = pickBiomeChordProgression(biome, chordProgressionVariant);
           chordNameOverride = prog.chordNames[chordGateIndex];
         } else if (!isStageMode) {
-          const roll = Math.random();
-          if (roll < diff.movingPlatformChance) {
-            type = 'moving';
-          } else if (altitudePx > 450 && roll < diff.movingPlatformChance + 0.09) {
-            type = 'bounce';
-          } else if (
-            altitudePx > 900 &&
-            prevType !== 'crumble' &&
-            prevType !== 'phase' &&
-            roll < diff.movingPlatformChance + 0.16
-          ) {
+          // Check active consecutive Fragile Streak first!
+          if (sim.fragileStreakRemaining > 0 && altitudePx > 600) {
             type = 'crumble';
-          } else if (
-            altitudePx > 1400 &&
-            prevType !== 'phase' &&
-            prevType !== 'crumble' &&
-            roll < diff.movingPlatformChance + 0.21
-          ) {
-            type = 'phase';
+            sim.fragileStreakRemaining--;
+          } else {
+            const roll = Math.random();
+            if (roll < diff.movingPlatformChance) {
+              type = 'moving';
+            } else if (altitudePx > 450 && roll < diff.movingPlatformChance + 0.09) {
+              type = 'bounce';
+            } else if (
+              altitudePx > 650 &&
+              prevType !== 'phase' &&
+              roll < diff.movingPlatformChance + 0.09 + diff.fragilePlatformChance
+            ) {
+              type = 'crumble';
+              if (
+                diff.fragileStreakMaxLen >= 2 &&
+                Math.random() < diff.fragileStreakChance
+              ) {
+                sim.fragileStreakRemaining =
+                  1 + Math.floor(Math.random() * (diff.fragileStreakMaxLen - 1));
+              }
+            } else if (
+              altitudePx > 1400 &&
+              prevType !== 'phase' &&
+              prevType !== 'crumble' &&
+              roll < diff.movingPlatformChance + 0.09 + diff.fragilePlatformChance + 0.06
+            ) {
+              type = 'phase';
+            }
           }
         } else {
           const roll = Math.random();
@@ -968,9 +1803,13 @@ export default function App() {
           (sim.nextPlatformId * 3 + Math.floor(x / 50)) % Math.max(1, biome.noteNames.length)
         );
         const noteName =
-          stageStepData?.label || biome.noteNames[noteScaleIdx] || 'C4';
+          stageStepData?.label ||
+          curatedStepOut?.label ||
+          biome.noteNames[noteScaleIdx] ||
+          'C4';
         const noteFreq =
           stageStepData?.freqs?.[0] ||
+          curatedStepOut?.freqs?.[0] ||
           biome.scale[noteScaleIdx % Math.max(1, biome.scale.length)] ||
           261.63;
 
@@ -979,6 +1818,11 @@ export default function App() {
           w >= 104 &&
           altitudePx > 1100 &&
           Math.random() < diff.platformHazardChance;
+
+        const moveSpeedMult = Math.max(0.3, fine.enemyMoveSpeedMult ?? 1.35);
+        const moveRangeMult = Math.max(0.3, fine.enemyMoveRangeMult ?? 1.3);
+        const movePlatSpeed = Number((1.15 * moveSpeedMult).toFixed(2));
+        const movePlatHalfRange = Math.round(70 * moveRangeMult);
 
         const platId = sim.nextPlatformId++;
         const plat: PlatformEntity = {
@@ -990,10 +1834,10 @@ export default function App() {
           centerX: prevCenterX,
           h: 14,
           type,
-          vx: type === 'moving' ? (Math.random() > 0.5 ? 1.15 : -1.15) : 0,
+          vx: type === 'moving' ? (Math.random() > 0.5 ? movePlatSpeed : -movePlatSpeed) : 0,
           vy: 0,
-          minX: Math.max(18, x - 70),
-          maxX: Math.min(582 - w, x + 70),
+          minX: Math.max(14, x - movePlatHalfRange),
+          maxX: Math.min(586 - w, x + movePlatHalfRange),
           hit: false,
           repeatBounces: 0,
           themeIdx,
@@ -1013,12 +1857,15 @@ export default function App() {
           customStepY: stageNoteKin?.stepY,
           customJumpVelocityPxPerSec: stageNoteKin?.jumpVelocityPxPerSec,
           customGravityPxPerSec2: stageNoteKin?.gravityPxPerSec2,
-          customClusterFreqs: stageStepData?.freqs,
+          customClusterFreqs: stageStepData?.freqs || curatedStepOut?.freqs,
+          tripletFreqs: curatedStepOut?.tripletFreqs,
           customSynthFreqs: stageStepData?.synthFreqs,
           customSynthDurationSec: stageStepData
             ? stageStepData.synthDurationBeats * (60 / Math.max(60, sim.activeStage?.bpm || 100))
             : undefined,
           customBiomeId: stageStepData?.biomeId,
+          disguisedFragile:
+            type === 'crumble' && Math.random() < diff.disguisedFragileChance,
         };
 
         if (isChordGateStep) {
@@ -1044,7 +1891,9 @@ export default function App() {
           } else {
             sim.chordGatePlan.nextGateStepIndex = -1;
             sim.chordGatePlan.nextGateChordIdx = 0;
-            sim.chordGatePlan.progressionVariant = Math.floor(Math.random() * 4);
+            sim.chordGatePlan.progressionVariant = isCuratedMelodyMode
+              ? sim.activeCuratedMelody?.chordVariant ?? 0
+              : Math.floor(Math.random() * 4);
             sim.chordGatePlan.prevGatePlatId = undefined;
             sim.chordGatePlan.cooldownSteps = Math.max(
               4,
@@ -1069,9 +1918,9 @@ export default function App() {
             id: sim.nextPlatformId++,
             x: hazardX,
             y: hazardY,
-            vx: (Math.random() < 0.5 ? 1 : -1) * (42 + diff.flowFactor * 55),
-            minX: Math.max(36, hazardX - 65),
-            maxX: Math.min(564, hazardX + 65),
+            vx: (Math.random() < 0.5 ? 1 : -1) * diff.enemySpeedPxPerSec,
+            minX: Math.max(24, hazardX - diff.enemyHalfRangePx),
+            maxX: Math.min(576, hazardX + diff.enemyHalfRangePx),
             radius: 11,
             active: true,
             phase: Math.random() * Math.PI * 2,
@@ -1080,7 +1929,9 @@ export default function App() {
 
         const orbChance = Math.max(0, Math.min(1, fine.orbSpawnRate));
         if (Math.random() < orbChance) {
-          const orbFreq = biome.scale[Math.floor(Math.random() * biome.scale.length)];
+          const orbFreq =
+            curatedStepOut?.tripletFreqs?.[1] ||
+            biome.scale[Math.floor(Math.random() * biome.scale.length)];
           const spread = Math.max(0.1, Math.min(1.0, fine.orbScatterSpread));
           const offsetRatio = 0.5 + (Math.random() - 0.5) * spread;
           sim.orbs.push({
@@ -1147,14 +1998,29 @@ export default function App() {
 
       const fine = sim.cfg.fineTune || DEFAULT_FINE_TUNE;
       const charPerks = getCharacterById(sim.cfg.playerShape).perks;
+      const dashMods = computePassiveDashUpgrades(
+        sim.cfg.powerUpLevels,
+        sim.cfg.equippedPowerUps
+      );
 
       if (activeMode === 'STAGE' && sim.activeStage) {
         sim.biomeOrder = [sim.activeStage.biomeId];
         sim.activeSoundBankId = sim.activeStage.soundBankId;
       } else {
-        const enabledScales = sim.cfg.enabledScales.length ? sim.cfg.enabledScales : [0];
-        sim.biomeOrder = shuffleArray(enabledScales);
-        sim.activeSoundBankId = pickRandomEnabledSoundBankId(sim.cfg);
+        const customBiomeIds = (sim.cfg.customBiomes || []).map((cb) => cb.id);
+        const enabledScales = Array.from(
+          new Set([
+            ...(sim.cfg.enabledScales.length ? sim.cfg.enabledScales : [0]),
+            ...customBiomeIds,
+          ])
+        );
+        const menuMelBiomeId =
+          sim.activeCuratedMelody && enabledScales.includes(sim.activeCuratedMelody.biomeId)
+            ? sim.activeCuratedMelody.biomeId
+            : enabledScales[0];
+        const otherBiomes = shuffleArray(enabledScales.filter((id) => id !== menuMelBiomeId));
+        sim.biomeOrder = [menuMelBiomeId, ...otherBiomes];
+        sim.activeSoundBankId = sim.activeSoundBankId || pickRandomEnabledSoundBankId(sim.cfg);
       }
 
       const baseBpm =
@@ -1164,6 +2030,15 @@ export default function App() {
       const kin = computeBpmLockedKinematics(baseBpm, 1.0);
       const startBiome = getScaleByIndex(0, sim.cfg);
       const initialDiff = computeFlowDynamicDifficulty(0, fine);
+      const startMelody =
+        sim.activeCuratedMelody && sim.activeCuratedMelody.biomeId === startBiome.id
+          ? sim.activeCuratedMelody
+          : pickRandomCuratedMelodyForBiome(
+              startBiome.id,
+              sim.cfg.disabledMelodies,
+              undefined,
+              sim.cfg.customBiomes
+            );
 
       sim.score = 0;
       sim.maxFlowThisRun = 0;
@@ -1180,6 +2055,9 @@ export default function App() {
       sim.shake = 0;
       sim.aberration = 0;
       sim.activeBiomeIdx = 0;
+      sim.activeCuratedMelody = startMelody;
+      sim.curatedMelodyStepCursor = sim.menuMelodyCursor || 0;
+      sim.fragileStreakRemaining = 0;
       sim.biomeDissolve = {
         active: false,
         progress: 1,
@@ -1209,13 +2087,59 @@ export default function App() {
       };
       sim.recentPlayedPlatformNotes = [startBiome.scale[0] || 261.63];
       sim.platformsGeneratedCount = 0;
+      sim.biomeStepsGenerated = 0;
+      sim.chordSequencesSpawnedInBiome = 0;
+      sim.chordSequencesCompletedInBiome = 0;
       sim.chordGatePlan = {
         nextGateStepIndex: -1,
         nextGateChordIdx: 0,
-        progressionVariant: Math.floor(Math.random() * 4),
+        progressionVariant: startMelody.chordVariant ?? Math.floor(Math.random() * 4),
         prevGatePlatId: undefined,
         cooldownSteps: Math.max(4, Math.round(fine.chordGateCooldownSteps * 0.6)),
+        sequenceNumberInBiome: 1,
       };
+
+      // Initialize Equipped ACTIVE Power-Up Loadout Slots (PASSIVE items apply automatically without needing a button!)
+      const maxSlots = computeUnlockedPowerUpSlots(stats.highScore, sim.cfg.playerLevel);
+      const equippedIds = (
+        sim.cfg.equippedPowerUps && sim.cfg.equippedPowerUps.length > 0
+          ? sim.cfg.equippedPowerUps
+          : (['orb_magnet', 'combo_shield', 'jetpack_white'] as PowerUpItemId[])
+      ).slice(0, maxSlots);
+
+      sim.equippedSlotRuntimes = equippedIds
+        .map((id, idx): EquippedPowerUpSlotRuntime | null => {
+          const item = getPowerUpItemById(id);
+          if (!item || item.activationMode === 'PASSIVE') return null;
+          const lv = Math.max(1, Number(sim.cfg.powerUpLevels?.[id] || 1));
+          const st = getPowerUpLevelStats(id, lv);
+          const initialChargeTime = Math.max(
+            2.0,
+            Number((st.cooldownSec * 0.34 + idx * 0.5).toFixed(2))
+          );
+          return {
+            id: item.id,
+            name: item.name,
+            icon: item.icon,
+            accentColor: item.accentColor,
+            activationMode: item.activationMode,
+            level: lv,
+            usesLeft: st.usesPerRun,
+            maxUses: st.usesPerRun,
+            phase: 'charging',
+            chargeProgress: 0,
+            chargeTimeSec: initialChargeTime,
+            cooldownSec: st.cooldownSec,
+            durationSec: st.durationSec,
+            activeRemainingSec: 0,
+            powerValue: st.powerValue,
+          };
+        })
+        .filter((x): x is EquippedPowerUpSlotRuntime => x !== null);
+
+      sim.jetpackGlitters = [];
+      sim.jetpackNoteTimer = 0;
+      sim.jetpackStepCounter = 0;
 
       sim.player.x = 288;
       sim.player.y = 782 - sim.player.h;
@@ -1227,12 +2151,14 @@ export default function App() {
       sim.player.scaleY = 1.32;
       sim.player.impactSquashTimer = 0;
       sim.player.dashCool = 0;
-      sim.player.dashMaxCool = 1.8 * charPerks.dashCooldownMultiplier;
+      sim.player.dashMaxCool =
+        1.8 * charPerks.dashCooldownMultiplier * dashMods.cooldownMultiplier;
       sim.player.dashAct = 0;
       sim.player.hasShield = charPerks.startWithShield;
       sim.player.doubleJumpReady = charPerks.permanentAirJump;
       sim.player.damageGlitchTimer = 0;
       sim.player.airJumpsLeft = charPerks.permanentAirJump ? 1 : 0;
+      sim.player.wallDashGraceTimer = 0;
       sim.player.trail = [];
       sim.player.scarfNodes = Array.from({ length: 6 }, () => ({ x: 300, y: 760 }));
 
@@ -1249,8 +2175,10 @@ export default function App() {
       sim.inputs.left = false;
       sim.inputs.right = false;
       sim.inputs.tiltX = 0;
+      sim.inputs.touchSteerX = 0;
       sim.inputs.upJustPressed = false;
       sim.inputs.dashJustPressed = false;
+      touchDragRef.current.active = false;
 
       const firstStepW = initialDiff.targetPlatformWidth + charPerks.platformWidthBonusPx;
       const firstStepX = Math.random() < 0.5 ? 95 : 325;
@@ -1282,6 +2210,20 @@ export default function App() {
             customBiomeId: firstStep.biomeId,
           };
         }
+      } else if (activeMode === 'STANDARD' && (sim.cfg.melodyMode ?? 'curated') === 'curated') {
+        const step0 = evaluateCuratedMelodyStep(
+          sim.activeCuratedMelody,
+          startBiome,
+          sim.curatedMelodyStepCursor++,
+          0,
+          sim.cfg
+        );
+        firstStagePlatFields = {
+          noteLabel: step0.label,
+          noteFreq: step0.freqs[0] || 311.13,
+          customClusterFreqs: step0.freqs,
+          tripletFreqs: step0.tripletFreqs,
+        };
       }
 
       sim.platforms = [
@@ -1359,7 +2301,7 @@ export default function App() {
       }
       setScreen('playing');
     },
-    [generateWorldUpTo, getScaleByIndex, pickRandomEnabledSoundBankId]
+    [generateWorldUpTo, getScaleByIndex, pickRandomEnabledSoundBankId, stats.highScore]
   );
 
   useEffect(() => {
@@ -1398,7 +2340,7 @@ export default function App() {
 
       if (e.code === 'Escape' || e.code === 'KeyP') {
         if (sim.state === 'playing') {
-          audioRef.current.suspend();
+          audioRef.current.stopChoir();
           setScreen('paused');
         } else if (sim.state === 'paused') {
           if (!sim.isMuted) audioRef.current.resume();
@@ -1416,6 +2358,14 @@ export default function App() {
       }
 
       if (sim.state !== 'playing') return;
+
+      if (e.code.startsWith('Digit')) {
+        const digit = parseInt(e.code.replace('Digit', ''), 10);
+        if (digit >= 1 && digit <= 7) {
+          activateEquippedPowerUpSlot(digit - 1);
+          return;
+        }
+      }
 
       if (e.key === 'ArrowLeft' || e.code === 'KeyA') sim.inputs.left = true;
       if (e.key === 'ArrowRight' || e.code === 'KeyD') sim.inputs.right = true;
@@ -1438,8 +2388,10 @@ export default function App() {
       const sim = simRef.current;
       sim.inputs.left = false;
       sim.inputs.right = false;
+      sim.inputs.touchSteerX = 0;
       sim.inputs.upJustPressed = false;
       sim.inputs.dashJustPressed = false;
+      touchDragRef.current.active = false;
     };
 
     let lastAccelTime = 0;
@@ -1552,27 +2504,12 @@ export default function App() {
       }
 
       const currentBiomeIdx =
-        sim.mode === 'STAGE' && sim.activeStage
-          ? 0
-          : Math.floor(Math.abs(sim.camY) / BIOME_ALTITUDE_SPAN);
+        sim.mode === 'STAGE' && sim.activeStage ? 0 : sim.activeBiomeIdx;
       const biome = getScaleByIndex(currentBiomeIdx, c);
 
-      // Trigger Seamless Bottom-to-Top Dual-Biome Pixelated Dissolve + Random Sound Bank Shift
-      if (sim.mode !== 'STAGE' && currentBiomeIdx !== sim.activeBiomeIdx) {
-        const prevBiome = getScaleByIndex(sim.activeBiomeIdx, c);
-        sim.activeBiomeIdx = currentBiomeIdx;
-        sim.activeSoundBankId = pickRandomEnabledSoundBankId(c, sim.activeSoundBankId);
-        sim.biomeDissolve = {
-          active: true,
-          progress: 0,
-          fromBiome: prevBiome,
-          toBiome: biome,
-        };
-        grantTemporaryPowerUp(biome, `BIOME · ${biome.name}`);
-      }
-
       if (sim.biomeDissolve.active) {
-        sim.biomeDissolve.progress += dt * 0.56;
+        const shiftSpeedMult = Math.max(0.2, fine.biomeShiftSpeed ?? 1.2);
+        sim.biomeDissolve.progress += dt * 0.56 * shiftSpeedMult;
         if (sim.biomeDissolve.progress >= 1) {
           sim.biomeDissolve.progress = 1;
           sim.biomeDissolve.active = false;
@@ -1614,7 +2551,7 @@ export default function App() {
       const p = sim.player;
       const nowMs = performance.now();
       let targetEyeX = p.facing * 0.45;
-      let targetEyeY = Math.max(-0.85, Math.min(0.85, p.vy / 650));
+      let targetEyeY = Math.max(-0.85, Math.min(0.85, Number(p.vy) / 650));
 
       if (nowMs < pointerEyeRef.current.activeUntil) {
         const screenPlayerY = p.y - sim.camY;
@@ -1623,8 +2560,10 @@ export default function App() {
         const dist = Math.hypot(dx, dy) || 1;
         targetEyeX = Math.max(-1, Math.min(1, (dx / dist) * Math.min(1, dist / 60)));
         targetEyeY = Math.max(-1, Math.min(1, (dy / dist) * Math.min(1, dist / 60)));
-      } else if (Math.abs(sim.inputs.tiltX) > 0.05) {
-        targetEyeX = sim.inputs.tiltX;
+      } else if (Math.abs(sim.inputs.touchSteerX) > 0.04) {
+        targetEyeX = sim.inputs.touchSteerX;
+      } else if (Math.abs(Number(sim.inputs.tiltX)) > 0.05) {
+        targetEyeX = Number(sim.inputs.tiltX);
       }
 
       p.eyeLookX = (p.eyeLookX ?? 0) + (targetEyeX - (p.eyeLookX ?? 0)) * Math.min(1, dt * 14);
@@ -1634,17 +2573,50 @@ export default function App() {
         p.impactSquashTimer = Math.max(0, (p.impactSquashTimer ?? 0) - dt);
       }
 
-      // Title / Menu screen idle animation
+      // Continuous Muffled + Lush Reverb Background Melody on Menu, Pause, and Game Over screens!
+      if (
+        sim.state !== 'playing' &&
+        sim.state !== 'stage_creator' &&
+        sim.state !== 'sequencer'
+      ) {
+        sim.menuMelodyTimer += dt;
+        if (sim.menuMelodyTimer >= 0.84) {
+          sim.menuMelodyTimer = 0;
+          if (!sim.isMuted && audioRef.current.ctx && audioRef.current.ctx.state === 'running') {
+            const activeMel = sim.activeCuratedMelody || ALL_CURATED_MELODIES[0];
+            const melBiome =
+              MASTER_SCALES.find((s) => s.id === activeMel.biomeId) || MASTER_SCALES[0];
+            const stepEval = evaluateCuratedMelodyStep(
+              activeMel,
+              melBiome,
+              sim.menuMelodyCursor,
+              0,
+              c
+            );
+            sim.menuMelodyCursor = (sim.menuMelodyCursor + 1) % 72;
+            audioRef.current.playMenuMuffledMelodyNote(
+              stepEval.freqs[0] || 261.63,
+              c,
+              getActiveSoundBank(c)
+            );
+          }
+        }
+      }
+
+      // Title / Menu screen or First-Time Tutorial idle animation
       if (
         sim.state === 'title' ||
         sim.state === 'sequencer' ||
         sim.state === 'settings' ||
         sim.state === 'store' ||
         sim.state === 'characters' ||
-        sim.state === 'stage_creator'
+        sim.state === 'stage_creator' ||
+        sim.tutorialActive
       ) {
+        const menuBpm = Math.max(65, Math.min(160, fine.baseJumpTempo || 100));
+        const hopHz = (menuBpm / 60) * Math.PI;
         sim.player.x = 288 + Math.sin(sim.gameTime * 1.4) * 45;
-        const bouncePhase = Math.abs(Math.sin(sim.gameTime * 2.2));
+        const bouncePhase = Math.abs(Math.sin(sim.gameTime * hopHz));
         sim.player.y = 758 - bouncePhase * 55;
         if (bouncePhase < 0.08) {
           sim.player.scaleX = 1.32;
@@ -1688,16 +2660,15 @@ export default function App() {
         }
 
         if (sim.dyingSequence.phase === 'falling') {
-          // 1-Second Camera-Tracked Downward Fall
+          // 1-Second Camera-Tracked Downward Fall (gentle drift toward center, explode wherever the character is!)
           p.vy = Math.max(p.vy, 640) + 980 * dt;
           p.y += p.vy * dt;
-          // Gently pull player horizontally toward center X (288) so explosion happens dead-center!
-          p.x += (288 - p.x) * Math.min(1, dt * 5.0);
+          p.x += (288 - p.x) * Math.min(1, dt * 1.1);
+          p.x = Math.max(28, Math.min(572 - p.w, p.x));
           p.scaleX = 0.76;
           p.scaleY = 1.32;
           p.damageGlitchTimer = 0.4;
 
-          // Follow player downward keeping them centered vertically on screen!
           const centerOffsetY = (sim.viewH || 800) * 0.485;
           const targetFallCamY = p.y - centerOffsetY;
           sim.camY += (targetFallCamY - sim.camY) * Math.min(1, dt * 16);
@@ -1714,8 +2685,8 @@ export default function App() {
             sim.dyingSequence.phase = 'exploding';
             sim.dyingSequence.timer = 0;
 
-            // Snap to exact center of screen & burst into 96 sparkling glitters!
-            p.x = 288;
+            // Explode right at the character's current horizontal & vertical position!
+            p.x = Math.max(28, Math.min(572 - p.w, p.x));
             p.y = sim.camY + centerOffsetY;
             const centerX = p.x + p.w * 0.5;
             const centerY = p.y + p.h * 0.5;
@@ -1760,7 +2731,6 @@ export default function App() {
             sim.dyingSequence.glitters = glitters;
           }
         } else if (sim.dyingSequence.phase === 'exploding') {
-          // Update sparkling glitters outward from center of screen
           for (let i = 0; i < sim.dyingSequence.glitters.length; i++) {
             const g = sim.dyingSequence.glitters[i];
             g.x += g.vx * dt;
@@ -1788,6 +2758,50 @@ export default function App() {
             const finalAlt = Math.floor(Math.abs(Math.min(0, sim.highestPlatformY - 782)) / 100);
             const styleRank = calculateStyleRank(sim.maxFlowThisRun, sim.styleMeter).rank;
 
+            // Calculate XP Gained & 15-Level Progression Rewards!
+            const xpGained = Math.max(
+              25,
+              Math.round(sim.score * 1.2 + sim.orbsThisRun * 8 + sim.maxFlowThisRun * 6)
+            );
+            const prevLvInfo = computePlayerLevelInfo(c.playerXp || 0);
+            const nextLvInfo = computePlayerLevelInfo((c.playerXp || 0) + xpGained);
+            const levelRewards = getLevelUpRewardsBetween(prevLvInfo.level, nextLvInfo.level);
+            const cumUnlocks = getCumulativeUnlocksForLevel(nextLvInfo.level);
+
+            setCfg((prev) => ({
+              ...prev,
+              playerXp: nextLvInfo.totalXp,
+              playerLevel: nextLvInfo.level,
+              unlockedScales: Array.from(
+                new Set([...prev.unlockedScales, ...cumUnlocks.unlockedScales])
+              ),
+              enabledScales: Array.from(
+                new Set([
+                  ...prev.enabledScales,
+                  ...levelRewards
+                    .map((r) => r.scaleId)
+                    .filter((id): id is number => id !== undefined),
+                ])
+              ),
+              unlockedSoundBanks: Array.from(
+                new Set([...prev.unlockedSoundBanks, ...cumUnlocks.unlockedSoundBanks])
+              ),
+              enabledSoundBanks: Array.from(
+                new Set([
+                  ...prev.enabledSoundBanks,
+                  ...levelRewards
+                    .map((r) => r.soundBankId)
+                    .filter((id): id is string => id !== undefined),
+                ])
+              ),
+              unlockedAvatars: Array.from(
+                new Set([
+                  ...prev.unlockedAvatars,
+                  ...cumUnlocks.unlockedSecretAvatars,
+                ])
+              ),
+            }));
+
             setStats((prev) => {
               const isNew = sim.score > prev.highScore;
               const next: PersistentStats = {
@@ -1804,6 +2818,13 @@ export default function App() {
                 altitude: finalAlt,
                 orbsCollected: sim.orbsThisRun,
                 rank: styleRank,
+                xpGained,
+                prevLevel: prevLvInfo.level,
+                newLevel: nextLvInfo.level,
+                progressRatio: nextLvInfo.progressRatio,
+                xpIntoLevel: nextLvInfo.xpIntoLevel,
+                xpNeededForNext: nextLvInfo.xpNeededForNext,
+                levelRewards,
               });
               return next;
             });
@@ -1883,7 +2904,71 @@ export default function App() {
         p.hasShield = false;
       }
 
-      generateWorldUpTo(sim.camY);
+      // Tick Equipped Right-Side Power-Up Loadout Slots (Initial Empty -> Charge -> Ready -> Active -> Cooldown)
+      let activeJetpackSlot: EquippedPowerUpSlotRuntime | undefined = undefined;
+      let jetpackJustFinished = false;
+      for (let s = 0; s < sim.equippedSlotRuntimes.length; s++) {
+        const slot = sim.equippedSlotRuntimes[s];
+        if (slot.phase === 'charging') {
+          slot.chargeProgress = Math.min(
+            1,
+            slot.chargeProgress + dt / Math.max(0.5, slot.chargeTimeSec)
+          );
+          if (slot.chargeProgress >= 1) {
+            slot.chargeProgress = 1;
+            slot.phase = 'ready';
+          }
+        } else if (slot.phase === 'active') {
+          const isJetpack =
+            slot.id === 'jetpack_white' ||
+            slot.id === 'jetpack_gold' ||
+            slot.id === 'jetpack_prism';
+          slot.activeRemainingSec = Math.max(0, slot.activeRemainingSec - dt);
+          if (isJetpack && slot.activeRemainingSec > 0) {
+            activeJetpackSlot = slot;
+          }
+          if (slot.activeRemainingSec <= 0) {
+            if (isJetpack) {
+              jetpackJustFinished = true;
+            }
+            if (slot.usesLeft > 0) {
+              slot.phase = 'cooldown';
+              slot.chargeProgress = 0;
+              slot.chargeTimeSec = slot.cooldownSec;
+            } else {
+              slot.phase = 'depleted';
+              slot.chargeProgress = 0;
+            }
+          }
+        } else if (slot.phase === 'cooldown') {
+          slot.chargeProgress = Math.min(
+            1,
+            slot.chargeProgress + dt / Math.max(0.5, slot.cooldownSec)
+          );
+          if (slot.chargeProgress >= 1) {
+            slot.chargeProgress = 1;
+            slot.phase = 'ready';
+          }
+        }
+      }
+
+      // Update Fading Jetpack Glitter Particles
+      if (sim.jetpackGlitters.length > 0) {
+        const nextGlitters: GlitterParticle[] = [];
+        for (let i = 0; i < sim.jetpackGlitters.length; i++) {
+          const g = sim.jetpackGlitters[i];
+          g.x += g.vx * dt;
+          g.y += g.vy * dt;
+          g.vy += 110 * dt;
+          g.life -= dt;
+          if (g.life > 0) {
+            nextGlitters.push(g);
+          }
+        }
+        sim.jetpackGlitters = nextGlitters;
+      }
+
+      generateWorldUpTo(Math.min(sim.camY, p.y - 600));
 
       const flowDiff = computeFlowDynamicDifficulty(sim.flowEnergy, fine);
       const baseBpm =
@@ -1892,6 +2977,38 @@ export default function App() {
           : fine.baseJumpTempo || 100;
       const kin = computeBpmLockedKinematics(baseBpm, 1.0);
       const activeBank = getActiveSoundBank(c);
+      const dashMods = computePassiveDashUpgrades(c.powerUpLevels, c.equippedPowerUps);
+
+      if (jetpackJustFinished) {
+        p.vy = kin.bouncePadVelocityPxPerSec * 0.92;
+        sim.activeJumpGravity = kin.gravityPxPerSec2;
+        // Spawn a safety platform right beneath the player's apex so Jetpack end is always smooth
+        const safeW = Math.max(120, flowDiff.targetPlatformWidth + 24);
+        const safeX = Math.max(24, Math.min(576 - safeW, p.x + p.w * 0.5 - safeW * 0.5));
+        sim.platforms.push({
+          id: sim.nextPlatformId++,
+          x: safeX,
+          y: p.y + 42,
+          w: safeW,
+          targetW: safeW,
+          centerX: safeX + safeW * 0.5,
+          h: 14,
+          type: 'normal',
+          vx: 0,
+          vy: 0,
+          minX: 0,
+          maxX: 600,
+          hit: false,
+          repeatBounces: 0,
+          themeIdx: sim.activeBiomeIdx,
+          noteLabel: biome.noteNames[0] || 'C4',
+          noteFreq: biome.scale[0] || 261.63,
+          crumbleTimer: 0,
+          broken: false,
+          respawnTimer: 0,
+          phaseSolid: true,
+        });
+      }
 
       // Dynamically adapt upper platform widths when Flow rises or drops
       for (let i = 0; i < sim.platforms.length; i++) {
@@ -1915,52 +3032,87 @@ export default function App() {
         }
       }
 
-      // Check if player missed an active Chord Gate while descending past it -> downgrade to normal platforms!
-      if (p.vy > 0) {
-        for (let i = 0; i < sim.platforms.length; i++) {
-          const pl = sim.platforms[i];
-          if (pl.type === 'chord_gate' && !pl.hit) {
-            const isTargetGate =
-              sim.activeChordChainTargetId !== undefined &&
-              pl.id === sim.activeChordChainTargetId;
-            const passedBelowGate = p.y > pl.y + 38 && p.y - p.vy * dt <= pl.y + 38;
-            if ((isTargetGate && p.y > pl.y + 35) || passedBelowGate) {
-              downgradeRemainingChordGates(sim, biome.horizonColor);
-              break;
-            }
-          }
+      // Chord Gate Rule: ONLY fade/downgrade an unhit Chord Gate if its FIRST platform (chordGateIndex === 0) exits the bottom of the screen!
+      const screenBottomY = sim.camY + (sim.viewH || 800);
+      for (let i = 0; i < sim.platforms.length; i++) {
+        const pl = sim.platforms[i];
+        if (pl.type === 'chord_gate' && pl.chordGateIndex === 0 && !pl.hit && pl.y > screenBottomY) {
+          downgradeRemainingChordGates(sim, biome.horizonColor);
+          break;
         }
       }
 
       const inp = sim.inputs;
 
-      // Dash Cooldown & Flow Tier 4 Overdrive + Character Perk Bonus
+      // Dash Cooldown & Flow Tier 4 Overdrive + Character Perk Bonus + Dash Capacitor Passive Upgrade
       const flowDashBonus = sim.combo >= FLOW_THRESHOLDS.OVERDRIVE ? 0.68 : 1.0;
       const maxDashCool =
-        (hasPowerUp('dash_capacitor') ? 1.0 : 1.8) *
+        (hasPowerUp('dash_capacitor') ? 0.85 : 1.8) *
         flowDashBonus *
-        charPerks.dashCooldownMultiplier;
+        charPerks.dashCooldownMultiplier *
+        dashMods.cooldownMultiplier;
       p.dashMaxCool = maxDashCool;
       if (p.dashCool > 0) p.dashCool = Math.max(0, p.dashCool - dt);
+      if (p.wallDashGraceTimer > 0) {
+        p.wallDashGraceTimer = Math.max(0, p.wallDashGraceTimer - dt);
+      }
 
+      // UPGRADED PHASE DASH BOOST: High-velocity horizontal burst + anti-gravity upward rescue lift + Wall-Bounce window!
       if (inp.dashJustPressed && p.dashCool <= 0) {
-        p.dashAct = 0.18;
+        const activeTurbineMult = hasPowerUp('dash_turbine') ? 1.28 : 1.0;
+        const dashPowerMult =
+          Math.max(0.5, fine.dashBoostPowerMult ?? 1.25) *
+          dashMods.dashPowerMultiplier *
+          activeTurbineMult;
+        p.dashAct = 0.25;
+        p.wallDashGraceTimer = 0.34;
         p.dashCool = maxDashCool;
-        const dir = inp.left ? -1 : inp.right ? 1 : p.facing;
+        const touchDir =
+          Math.abs(inp.touchSteerX) > 0.08 ? (inp.touchSteerX > 0 ? 1 : -1) : 0;
+        const dir = inp.left
+          ? -1
+          : inp.right
+          ? 1
+          : touchDir !== 0
+          ? touchDir
+          : p.facing;
         p.facing = dir;
-        p.vx = dir * 560;
-        p.scaleX = 1.42;
-        p.scaleY = 0.64;
-        sim.aberration = 0.65;
-        sim.shake = 3.5;
+        p.vx = dir * Math.round(760 * dashPowerMult);
+        p.vy = Math.min(p.vy, -Math.round(255 * dashPowerMult));
+        p.scaleX = 1.48;
+        p.scaleY = 0.6;
+        sim.aberration = 0.78;
+        sim.shake = 4.5;
         if (!sim.isMuted) audioRef.current.sfxDash(biome, c);
+
+        const shockwaveRadius =
+          (hasPowerUp('dash_capacitor') || hasPowerUp('dash_shockwave') ? 115 : 85) +
+          dashMods.shockwaveRadiusBonusPx;
         spawnShockwave(
           p.x + p.w * 0.5,
           p.y + p.h * 0.5,
           biome.horizonColor,
-          hasPowerUp('dash_capacitor') ? 95 : 65
+          shockwaveRadius
         );
-        sim.particles.burst(p.x + p.w * 0.5, p.y + p.h * 0.5, biome.fg, 8, 5, 'spark');
+        sim.particles.burst(p.x + p.w * 0.5, p.y + p.h * 0.5, biome.fg, 12, 6, 'spark');
+
+        // If Dash Shockwave is unlocked (or active), clear nearby drones & magnet-lock nearby orbs on every Dash!
+        if (dashMods.shockwaveRadiusBonusPx > 0 || hasPowerUp('dash_shockwave')) {
+          const empR = 85 + dashMods.shockwaveRadiusBonusPx;
+          for (let i = 0; i < sim.aerialHazards.length; i++) {
+            const ah = sim.aerialHazards[i];
+            if (ah.active && Math.hypot(ah.x - (p.x + 12), ah.y - (p.y + 12)) <= empR) {
+              ah.active = false;
+              sim.particles.burst(ah.x, ah.y, '#f472b6', 12, 5.5, 'spark');
+            }
+          }
+          for (let i = 0; i < sim.orbs.length; i++) {
+            const o = sim.orbs[i];
+            if (!o.collected && Math.hypot(o.x - (p.x + 12), o.y - (p.y + 12)) <= empR * 1.35) {
+              o.magnetLocked = true;
+            }
+          }
+        }
       }
       inp.dashJustPressed = false;
 
@@ -1982,7 +3134,96 @@ export default function App() {
         }
       }
 
-      // Constant Horizontal Steering Speed
+      // 3-TIER JETPACK THRUST + FADING GLITTER TRAIL (BLUE / GOLD / 7-COLOR PRISM) + RAPID BIOME MICRO-NOTES!
+      if (activeJetpackSlot) {
+        const tier: 'white' | 'gold' | 'prism' =
+          activeJetpackSlot.id === 'jetpack_prism'
+            ? 'prism'
+            : activeJetpackSlot.id === 'jetpack_gold'
+            ? 'gold'
+            : 'white';
+        // Force strong upward ascent so Jetpack NEVER gets stuck in mid-air!
+        p.vy = -Math.max(880, activeJetpackSlot.powerValue);
+        p.grounded = false;
+        p.scaleX = 0.78;
+        p.scaleY = 1.28;
+        sim.timeSinceLastClimb = 0;
+        if (p.y < sim.highestPlatformY) {
+          sim.highestPlatformY = p.y;
+        }
+        // Keep camera locked onto Jetpack ascent and continuously generate upper platforms!
+        const viewHJet = sim.viewH || 800;
+        const jetCamTarget = p.y - viewHJet * 0.48;
+        if (jetCamTarget < sim.camY) {
+          sim.camY = jetCamTarget;
+        }
+        generateWorldUpTo(sim.camY - 900);
+
+        const whiteBluePalette = ['#38bdf8', '#7dd3fc', '#e0f2fe', '#0284c7'];
+        const goldPalette = ['#fbbf24', '#fde047', '#fef08a', '#f59e0b'];
+        const prismPalette = [
+          '#ff2a85',
+          '#ff7a00',
+          '#fde047',
+          '#00ff88',
+          '#00d4ff',
+          '#8b5cf6',
+          '#f472b6',
+        ];
+        const palette =
+          tier === 'prism'
+            ? prismPalette
+            : tier === 'gold'
+            ? goldPalette
+            : whiteBluePalette;
+
+        for (let g = 0; g < 3; g++) {
+          const maxLife = 0.34 + Math.random() * 0.24;
+          const col =
+            palette[(sim.jetpackStepCounter + g + Math.floor(Math.random() * palette.length)) % palette.length];
+          sim.jetpackGlitters.push({
+            x: p.x + p.w * 0.5 + (Math.random() - 0.5) * 18,
+            y: p.y + p.h + Math.random() * 8,
+            vx: -p.vx * 0.14 + (Math.random() - 0.5) * 85,
+            vy: 140 + Math.random() * 160,
+            size: tier === 'prism' ? 4 + (g % 3) : 3 + (g % 3),
+            color: col,
+            life: maxLife,
+            maxLife,
+            twinklePhase: Math.random() * Math.PI * 2,
+          });
+        }
+        if (sim.jetpackGlitters.length > 140) {
+          sim.jetpackGlitters.splice(0, sim.jetpackGlitters.length - 140);
+        }
+
+        const noteInterval = tier === 'prism' ? 0.055 : tier === 'gold' ? 0.064 : 0.074;
+        sim.jetpackNoteTimer += dt;
+        if (sim.jetpackNoteTimer >= noteInterval) {
+          sim.jetpackNoteTimer = 0;
+          const stepIdx = sim.jetpackStepCounter++;
+          if (!sim.isMuted) {
+            audioRef.current.playJetpackGlitterNote(biome, stepIdx, tier, c);
+          }
+        }
+
+        // Credit platforms passed during Jetpack flight so Flow & Score climb smoothly!
+        for (let i = 0; i < sim.platforms.length; i++) {
+          const plat = sim.platforms[i];
+          if (!plat.hit && plat.y >= p.y && plat.y <= p.y + 110) {
+            plat.hit = true;
+            sim.flowEnergy = Math.min(
+              45,
+              sim.flowEnergy + (0.45 * fine.flowGainRate) / FLOW_PLATFORMS_PER_STEP
+            );
+            syncFlowStateFromEnergy(sim);
+            if (sim.combo > sim.maxFlowThisRun) sim.maxFlowThisRun = sim.combo;
+            sim.score += Math.max(2, Math.round(2 * charPerks.scoreMultiplier));
+          }
+        }
+      }
+
+      // Constant Horizontal Steering Speed (Touch Finger Overrides Gravity Tilt 100% while touching screen!)
       if (p.dashAct > 0) {
         p.dashAct = Math.max(0, p.dashAct - dt);
         sim.particles.spawn(
@@ -1991,37 +3232,56 @@ export default function App() {
           -p.vx * 0.01,
           (Math.random() - 0.5) * 2,
           biome.horizonColor,
-          3.5,
-          0.25,
+          3.8,
+          0.26,
           'spark'
         );
       } else {
         const keyAxis = (inp.right ? 1 : 0) - (inp.left ? 1 : 0);
-        const tiltAxis = c.tiltControlEnabled !== false ? inp.tiltX : 0;
-        const isTiltActive = keyAxis === 0 && Math.abs(tiltAxis) > 0.01;
-        const combinedAxis = Math.max(-1, Math.min(1, keyAxis !== 0 ? keyAxis : tiltAxis));
-        const tiltSpeedBoost = isTiltActive ? 1.38 : 1.0;
-        const targetVx = combinedAxis * flowDiff.moveSpeedPxPerSec * tiltSpeedBoost;
+        const touchAxis = Number(inp.touchSteerX) || 0;
+        const tiltAxis = c.tiltControlEnabled !== false ? Number(inp.tiltX) || 0 : 0;
+        // While finger is touching the screen (`touchDragRef.current.active`), gravity tilt is completely disabled!
+        const isTouchActive =
+          keyAxis === 0 && (touchDragRef.current.active || Math.abs(touchAxis) > 0.01);
+        const isTiltActive = keyAxis === 0 && !isTouchActive && Math.abs(tiltAxis) > 0.01;
+
+        const combinedAxis = Math.max(
+          -1,
+          Math.min(
+            1,
+            keyAxis !== 0 ? keyAxis : isTouchActive ? touchAxis : tiltAxis
+          )
+        );
+        const speedBoost = isTouchActive ? 1.32 : isTiltActive ? 1.38 : 1.0;
+        const targetVx = combinedAxis * flowDiff.moveSpeedPxPerSec * speedBoost;
         const isReversing = p.vx * targetVx < 0;
-        const steerRate = isTiltActive
-          ? isReversing
-            ? 52
-            : 38
-          : Math.abs(combinedAxis) > 0.05
-          ? 16
-          : 11;
+        const steerRate =
+          isTouchActive || isTiltActive
+            ? isReversing
+              ? 54
+              : 42
+            : Math.abs(combinedAxis) > 0.05
+            ? 16
+            : 11;
         p.vx += (targetVx - p.vx) * Math.min(1, dt * steerRate);
         if (combinedAxis < -0.05) p.facing = -1;
         if (combinedAxis > 0.05) p.facing = 1;
       }
 
-      const activeGravity =
+      const baseGravity =
         sim.mode === 'STAGE' && sim.activeJumpGravity > 100
           ? sim.activeJumpGravity
           : kin.gravityPxPerSec2;
+      const activeGravity = activeJetpackSlot
+        ? 0
+        : p.dashAct > 0
+        ? baseGravity * 0.25
+        : baseGravity;
 
-      p.vy += activeGravity * dt;
-      p.vy = Math.min(p.vy, Math.abs(kin.jumpVelocityPxPerSec) * 1.35);
+      if (!activeJetpackSlot) {
+        p.vy += activeGravity * dt;
+        p.vy = Math.min(p.vy, Math.abs(kin.jumpVelocityPxPerSec) * 1.35);
+      }
 
       p.x += p.vx * dt;
       p.y += p.vy * dt;
@@ -2037,35 +3297,125 @@ export default function App() {
         p.trail.shift();
       }
 
-      // Gentle Wall-Bounce on Left/Right Boundaries
+      // 30°–45° UPWARD WALL-BOUNCE BACK WHEN DASHING INTO LEFT/RIGHT WALL BOUNDARIES
+      // (Requires the 4-Level Passive Power-Up `wall_bounce` to be unlocked & equipped; scales with Character Tier `wallBounceElasticity`!)
       p.wallSlideDir = 0;
-      if (p.x <= 6) {
-        p.x = 6;
-        p.vx = Math.abs(p.vx) * 0.75 + 140;
-        p.facing = 1;
-        sim.particles.burst(8, p.y + p.h * 0.5, biome.fg, 5, 3.5, 'dust');
-      } else if (p.x + p.w >= 594) {
-        p.x = 594 - p.w;
-        p.vx = -Math.abs(p.vx) * 0.75 - 140;
-        p.facing = -1;
-        sim.particles.burst(592, p.y + p.h * 0.5, biome.fg, 5, 3.5, 'dust');
+      const isDashingIntoWall = p.dashAct > 0 || p.wallDashGraceTimer > 0;
+      const canWallBounceDash = isDashingIntoWall && dashMods.wallBounceUnlocked;
+      const charElasticity = charPerks.wallBounceElasticity || 1.0;
+
+      if (p.x <= 8) {
+        p.x = 8;
+        if (canWallBounceDash) {
+          p.dashAct = 0;
+          p.wallDashGraceTimer = 0;
+          const activeTurbineMult = hasPowerUp('dash_turbine') ? 1.2 : 1.0;
+          const totalElasticMult =
+            dashMods.wallBounceLiftMultiplier * charElasticity * activeTurbineMult;
+          // 30°–45° angle bounce-back: strong horizontal rebound away from wall + upward launch!
+          const bounceBackVx = Math.round(540 * totalElasticMult);
+          const bounceUpVy = kin.jumpVelocityPxPerSec * 0.98 * totalElasticMult;
+          p.vx = bounceBackVx;
+          p.vy = bounceUpVy;
+          p.facing = 1;
+          p.scaleX = 0.62;
+          p.scaleY = 1.44;
+          p.dashCool = Math.min(p.dashCool, p.dashMaxCool * 0.45);
+          p.airJumpsLeft = Math.max(p.airJumpsLeft, 1);
+          sim.timeSinceLastClimb = 0;
+          sim.flowEnergy = Math.min(
+            45,
+            sim.flowEnergy + (0.55 * fine.flowGainRate) / FLOW_PLATFORMS_PER_STEP
+          );
+          syncFlowStateFromEnergy(sim);
+          sim.styleMeter = Math.min(100, sim.styleMeter + 10);
+          sim.shake = 5.5;
+          sim.aberration = 0.85;
+          if (!sim.isMuted) audioRef.current.sfxBouncePad(biome, c);
+          spawnShockwave(10, p.y + p.h * 0.5, '#38bdf8', 95);
+          sim.particles.burst(10, p.y + p.h * 0.5, '#38bdf8', 14, 5.5, 'spark');
+          spawnFloatingText(
+            `⚡ WALL BOUNCE LV.${dashMods.wallBounceLevel}!`,
+            165,
+            p.y - 24,
+            '#38bdf8',
+            0.95,
+            '38° REBOUND'
+          );
+        } else {
+          p.vx = Math.abs(p.vx) * 0.75 + 140;
+          p.facing = 1;
+          sim.particles.burst(8, p.y + p.h * 0.5, biome.fg, 5, 3.5, 'dust');
+        }
+      } else if (p.x + p.w >= 592) {
+        p.x = 592 - p.w;
+        if (canWallBounceDash) {
+          p.dashAct = 0;
+          p.wallDashGraceTimer = 0;
+          const activeTurbineMult = hasPowerUp('dash_turbine') ? 1.2 : 1.0;
+          const totalElasticMult =
+            dashMods.wallBounceLiftMultiplier * charElasticity * activeTurbineMult;
+          const bounceBackVx = -Math.round(540 * totalElasticMult);
+          const bounceUpVy = kin.jumpVelocityPxPerSec * 0.98 * totalElasticMult;
+          p.vx = bounceBackVx;
+          p.vy = bounceUpVy;
+          p.facing = -1;
+          p.scaleX = 0.62;
+          p.scaleY = 1.44;
+          p.dashCool = Math.min(p.dashCool, p.dashMaxCool * 0.45);
+          p.airJumpsLeft = Math.max(p.airJumpsLeft, 1);
+          sim.timeSinceLastClimb = 0;
+          sim.flowEnergy = Math.min(
+            45,
+            sim.flowEnergy + (0.55 * fine.flowGainRate) / FLOW_PLATFORMS_PER_STEP
+          );
+          syncFlowStateFromEnergy(sim);
+          sim.styleMeter = Math.min(100, sim.styleMeter + 10);
+          sim.shake = 5.5;
+          sim.aberration = 0.85;
+          if (!sim.isMuted) audioRef.current.sfxBouncePad(biome, c);
+          spawnShockwave(590, p.y + p.h * 0.5, '#38bdf8', 95);
+          sim.particles.burst(590, p.y + p.h * 0.5, '#38bdf8', 14, 5.5, 'spark');
+          spawnFloatingText(
+            `⚡ WALL BOUNCE LV.${dashMods.wallBounceLevel}!`,
+            435,
+            p.y - 24,
+            '#38bdf8',
+            0.95,
+            '38° REBOUND'
+          );
+        } else {
+          p.vx = -Math.abs(p.vx) * 0.75 - 140;
+          p.facing = -1;
+          sim.particles.burst(592, p.y + p.h * 0.5, biome.fg, 5, 3.5, 'dust');
+        }
       }
 
       const sq = stepSquashStretch(p.scaleX, p.scaleY, dt);
       p.scaleX = sq.scaleX;
       p.scaleY = sq.scaleY;
 
+      // Chrono Slow dilation factor for enemies and moving platforms
+      const chronoSlot = sim.equippedSlotRuntimes.find(
+        (s) => s.id === 'chrono_slow' && s.phase === 'active'
+      );
+      const hazardTimeScale = chronoSlot
+        ? chronoSlot.powerValue
+        : hasPowerUp('chrono_slow')
+        ? 0.45
+        : 1.0;
+
       // Update Mid-Air Obstacles & Check Collision
       for (let i = 0; i < sim.aerialHazards.length; i++) {
         const ah = sim.aerialHazards[i];
         if (!ah.active) continue;
-        ah.x += ah.vx * dt;
+        ah.x += ah.vx * dt * hazardTimeScale;
         if (ah.x < ah.minX || ah.x > ah.maxX) {
           ah.vx *= -1;
           ah.x = Math.max(ah.minX, Math.min(ah.maxX, ah.x));
         }
 
-        if (p.dashAct <= 0) {
+        if (p.dashAct <= 0 && !activeJetpackSlot) {
           const dx = p.x + p.w * 0.5 - ah.x;
           const dy = p.y + p.h * 0.5 - ah.y;
           if (Math.hypot(dx, dy) < p.w * 0.5 + ah.radius - 2) {
@@ -2100,7 +3450,7 @@ export default function App() {
         const plat = sim.platforms[i];
 
         if (plat.type === 'moving') {
-          plat.x += plat.vx * frameScale;
+          plat.x += plat.vx * frameScale * hazardTimeScale;
           if (plat.x < plat.minX || plat.x > plat.maxX) {
             plat.vx *= -1;
             plat.x = Math.max(plat.minX, Math.min(plat.maxX, plat.x));
@@ -2175,7 +3525,8 @@ export default function App() {
               plat.hasHazard &&
               plat.hazardWidth &&
               plat.hazardXOffset !== undefined &&
-              p.dashAct <= 0
+              p.dashAct <= 0 &&
+              !activeJetpackSlot
             ) {
               const hx = plat.x + plat.hazardXOffset;
               if (p.x + p.w > hx + 2 && p.x < hx + plat.hazardWidth - 2) {
@@ -2204,11 +3555,22 @@ export default function App() {
             // AUTO-BOUNCE + Elastic Impact Squash-and-Stretch
             p.y = plat.y - p.h;
             p.impactSquashTimer = 0.095;
-            p.airJumpsLeft =
-              hasPowerUp('double_jump') || charPerks.permanentAirJump ? 1 : 0;
+            const djSlot = sim.equippedSlotRuntimes.find(
+              (s) => s.id === 'double_jump' && s.phase === 'active'
+            );
+            p.airJumpsLeft = djSlot
+              ? Math.round(djSlot.powerValue)
+              : hasPowerUp('double_jump') || charPerks.permanentAirJump
+              ? 1
+              : 0;
 
             if (plat.type === 'crumble' && plat.crumbleTimer <= 0) {
               plat.crumbleTimer = 0.15;
+              if (plat.disguisedFragile) {
+                plat.disguisedFragile = false;
+                sim.particles.burst(plat.x + plat.w * 0.5, plat.y, '#fbbf24', 10, 4.5, 'spark');
+                spawnFloatingText('! TRAP', plat.x + plat.w * 0.5, plat.y - 20, '#fbbf24', 0.85);
+              }
             }
 
             // 4-GATE HARMONIC CHORD PROGRESSION PORTAL TRIGGER
@@ -2273,9 +3635,11 @@ export default function App() {
                     activePlatBiome,
                     sim.combo,
                     c,
-                    undefined,
+                    plat.customClusterFreqs,
                     activeBank,
-                    true
+                    true,
+                    1.0,
+                    plat.tripletFreqs
                   );
                   res.subdivisionRingDelaysSec.forEach((delaySec, idx) => {
                     sim.pendingRhythmRings.push({
@@ -2288,10 +3652,20 @@ export default function App() {
               }
 
               if (gateIdx === 3) {
+                sim.chordSequencesCompletedInBiome++;
                 if (charPerks.chordGateBonusOrbs > 0) {
                   sim.orbsThisRun += charPerks.chordGateBonusOrbs;
                 }
-                grantTemporaryPowerUp(activePlatBiome, `4-GATE CADENCE`);
+                // If this was the 2nd Chord Gate sequence of the biome, completing it shifts immediately to the next biome!
+                if (
+                  sim.mode !== 'STAGE' &&
+                  (sim.chordSequencesCompletedInBiome >= 2 ||
+                    sim.chordSequencesSpawnedInBiome >= 2)
+                ) {
+                  triggerNextBiomeShift(sim);
+                } else {
+                  grantTemporaryPowerUp(activePlatBiome, `4-GATE CADENCE (1/2)`);
+                }
                 if (charPerks.chordGateDoublePowerUp) {
                   grantTemporaryPowerUp(
                     activePlatBiome,
@@ -2335,13 +3709,15 @@ export default function App() {
               break;
             }
 
+            // If a Chord Gate sequence was started (completedCount >= 1) and the player lands on a non-chord_gate platform,
+            // immediately break the sequence and convert remaining chord_gate platforms to normal platforms!
             if (
-              sim.activeChordChainTargetId !== undefined ||
-              sim.platforms.some(
-                (pl) => pl.type === 'chord_gate' && !pl.hit && pl.y >= plat.y - 20
-              )
+              sim.chordComboHud.active &&
+              sim.chordComboHud.completedCount >= 1 &&
+              sim.chordComboHud.completedCount < 4
             ) {
-              downgradeRemainingChordGates(sim, activePlatBiome.horizonColor);
+              downgradeRemainingChordGates(sim, '#fb7185');
+              spawnFloatingText('CHORD BROKEN', 300, plat.y - 32, '#fb7185', 0.9);
             }
 
             // Launch velocity & duration-proportional gravity
@@ -2373,6 +3749,7 @@ export default function App() {
             if (!plat.hit) {
               plat.hit = true;
               plat.repeatBounces = 0;
+              sim.menuMelodyCursor = (sim.menuMelodyCursor + 1) % 72;
 
               const isClimbingUp = plat.y <= sim.highestPlatformY + 25;
               if (plat.y < sim.highestPlatformY) {
@@ -2399,7 +3776,14 @@ export default function App() {
                 if (sim.combo > sim.maxFlowThisRun) sim.maxFlowThisRun = sim.combo;
                 sim.styleMeter = Math.min(100, sim.styleMeter + 3 * stepGain);
 
-                const auraMult = hasPowerUp('rhythm_aura') ? 1.5 : 1.0;
+                const auraSlot = sim.equippedSlotRuntimes.find(
+                  (s) => s.id === 'rhythm_aura' && s.phase === 'active'
+                );
+                const auraMult = auraSlot
+                  ? auraSlot.powerValue
+                  : hasPowerUp('rhythm_aura')
+                  ? 1.5
+                  : 1.0;
                 const styleInfo = calculateStyleRank(sim.combo, sim.styleMeter);
                 const rawStepPoints =
                   (0.7 + Math.min(1.5, sim.combo * 0.12)) *
@@ -2507,13 +3891,23 @@ export default function App() {
                   );
                   sim.seqIdx = (sim.seqIdx + 1) % Math.max(1, sim.seqData.length);
                 } else {
+                  const curatedCluster =
+                    (c.melodyMode ?? 'curated') === 'curated'
+                      ? plat.customClusterFreqs
+                      : undefined;
+                  const curatedTriplets =
+                    (c.melodyMode ?? 'curated') === 'curated'
+                      ? plat.tripletFreqs
+                      : undefined;
                   res = audioRef.current.playPlatformNote(
                     activePlatBiome,
                     sim.combo,
                     c,
-                    undefined,
+                    curatedCluster,
                     activeBank,
-                    didFlowLevelUp
+                    didFlowLevelUp,
+                    1.0,
+                    curatedTriplets
                   );
                 }
                 if (res.notes[0]) {
@@ -2595,11 +3989,15 @@ export default function App() {
                     false
                   );
                 } else {
+                  const curatedCluster =
+                    (c.melodyMode ?? 'curated') === 'curated'
+                      ? plat.customClusterFreqs
+                      : undefined;
                   audioRef.current.playPlatformNote(
                     activePlatBiome,
                     sim.combo,
                     c,
-                    undefined,
+                    curatedCluster,
                     activeBank,
                     false
                   );
@@ -2612,24 +4010,64 @@ export default function App() {
         }
       }
 
-      // Collectible Harmonic Orbs & Magnet Power-Up + Avatar Perks
+      // Collectible Harmonic Orbs & Guaranteed High-Speed Magnet Homing + Progressive Character Orb Yield Bonus!
+      const magnetSlot = sim.equippedSlotRuntimes.find(
+        (s) => s.id === 'orb_magnet' && s.phase === 'active'
+      );
       const magnetRadius =
-        (hasPowerUp('orb_magnet') ? 175 : 42) + charPerks.bonusMagnetRadiusPx;
+        (magnetSlot ? magnetSlot.powerValue : hasPowerUp('orb_magnet') ? 175 : 42) +
+        charPerks.bonusMagnetRadiusPx +
+        (activeJetpackSlot ? 135 : 0);
+
+      const auraSlotForOrbs = sim.equippedSlotRuntimes.find(
+        (s) => s.id === 'rhythm_aura' && s.phase === 'active'
+      );
+      const auraOrbMult = auraSlotForOrbs
+        ? auraSlotForOrbs.powerValue
+        : hasPowerUp('rhythm_aura')
+        ? 1.35
+        : 1.0;
+
       for (let i = 0; i < sim.orbs.length; i++) {
         const orb = sim.orbs[i];
         if (orb.collected) continue;
-        const dx = p.x + p.w * 0.5 - orb.x;
-        const dy = p.y + p.h * 0.5 - orb.y;
+        const pCenterX = p.x + p.w * 0.5;
+        const pCenterY = p.y + p.h * 0.5;
+        const dx = pCenterX - orb.x;
+        const dy = pCenterY - orb.y;
         const dist = Math.hypot(dx, dy);
 
-        if (dist < magnetRadius && dist > 1) {
-          orb.x += (dx / dist) * 390 * dt;
-          orb.y += (dy / dist) * 390 * dt;
+        if (dist < magnetRadius) {
+          orb.magnetLocked = true;
         }
 
-        if (dist < p.w * 0.8 + orb.radius) {
+        if (orb.magnetLocked && dist > 0.5) {
+          const playerSpeed = Math.hypot(p.vx, p.vy);
+          const pullSpeed = Math.max(660, playerSpeed * 1.5 + 460);
+          const stepMove = pullSpeed * dt;
+          if (stepMove >= dist) {
+            orb.x = pCenterX;
+            orb.y = pCenterY;
+          } else {
+            orb.x += (dx / dist) * stepMove + p.vx * dt * 0.35;
+            orb.y += (dy / dist) * stepMove + p.vy * dt * 0.35;
+          }
+        }
+
+        const newDist = Math.hypot(pCenterX - orb.x, pCenterY - orb.y);
+        if (newDist < p.w * 0.85 + orb.radius) {
           orb.collected = true;
-          const orbGain = Math.random() < charPerks.doubleOrbChance ? 2 : 1;
+          // Progressive Character Orb Bonus (% extra orb yield + doubleOrbChance + Rhythm Aura)
+          const charBonusFactor = 1 + (charPerks.orbBonusPct || 0) / 100;
+          const baseOrbRoll = Math.random() < charPerks.doubleOrbChance ? 2 : 1;
+          const exactGain = baseOrbRoll * charBonusFactor * auraOrbMult;
+          const guaranteedOrbs = Math.floor(exactGain);
+          const fractionalChance = exactGain - guaranteedOrbs;
+          const orbGain = Math.max(
+            1,
+            guaranteedOrbs + (Math.random() < fractionalChance ? 1 : 0)
+          );
+
           sim.orbsThisRun += orbGain;
           sim.flowEnergy = Math.min(
             45,
@@ -2642,7 +4080,7 @@ export default function App() {
           if (!sim.isMuted) audioRef.current.sfxOrbCollect(biome, c);
           sim.particles.burst(orb.x, orb.y, biome.horizonColor, 10, 4.5, 'spark');
 
-          if (sim.orbsThisRun % 6 === 0) {
+          if (sim.orbsThisRun % 7 === 0) {
             grantTemporaryPowerUp(biome, 'ORB BONUS');
           }
         }
@@ -2757,6 +4195,21 @@ export default function App() {
           : `${activeBank.name}`;
         biomeTagDomRef.current.style.color = c.useBiomes ? biome.fg : c.fixedColor;
       }
+      if (melodyHudDomRef.current) {
+        if (sim.mode === 'STAGE' && sim.activeStage) {
+          melodyHudDomRef.current.textContent = `🎹 STAGE · ${sim.activeStage.name}`;
+          melodyHudDomRef.current.style.color = '#f472b6';
+        } else if ((c.melodyMode || 'curated') === 'curated') {
+          const activeMel = sim.activeCuratedMelody;
+          melodyHudDomRef.current.textContent = activeMel
+            ? `🎼 CURATED · ${activeMel.title}`
+            : '🎼 CURATED MELODY';
+          melodyHudDomRef.current.style.color = c.useBiomes ? biome.fg : '#00ff88';
+        } else {
+          melodyHudDomRef.current.textContent = '🎲 RANDOM · GENERATIVE';
+          melodyHudDomRef.current.style.color = '#38bdf8';
+        }
+      }
 
       return ambientPulse;
     };
@@ -2803,7 +4256,8 @@ export default function App() {
         sim.biomeDissolve,
         sim.aerialHazards,
         sim.chordComboHud,
-        sim.dyingSequence
+        sim.dyingSequence,
+        sim.jetpackGlitters
       );
     };
 
@@ -2893,8 +4347,91 @@ export default function App() {
     }
   };
 
+  // Unlock (Lv.0 -> Lv.1) or Upgrade (Lv.1 -> maxLevel) a Power-Up Store Item
+  const handleBuyOrUpgradePowerUp = (item: PowerUpStoreItemDef) => {
+    const maxLv = item.maxLevel || 10;
+    const currentLv = Math.max(0, Math.min(maxLv, Math.floor(cfg.powerUpLevels?.[item.id] ?? 0)));
+    if (currentLv >= maxLv) return;
+    const cost = getPowerUpUpgradeCost(item, currentLv);
+    if (stats.totalOrbs < cost) return;
+
+    const nextLv = currentLv + 1;
+    const maxSlots = computeUnlockedPowerUpSlots(stats.highScore, cfg.playerLevel);
+    setStats((prev) => ({ ...prev, totalOrbs: prev.totalOrbs - cost }));
+    setCfg((prev) => {
+      const prevEquipped = prev.equippedPowerUps || ['orb_magnet', 'combo_shield', 'jetpack_white'];
+      const shouldAutoEquip =
+        currentLv === 0 &&
+        !prevEquipped.includes(item.id) &&
+        prevEquipped.length < maxSlots;
+      return {
+        ...prev,
+        powerUpLevels: {
+          ...(prev.powerUpLevels || {}),
+          [item.id]: nextLv,
+        },
+        equippedPowerUps: shouldAutoEquip ? [...prevEquipped, item.id] : prevEquipped,
+      };
+    });
+    if (!isMuted) {
+      audioRef.current.sfxLevelUp(MASTER_SCALES[0], cfg);
+    }
+  };
+
+  // Equip or Unequip an unlocked Power-Up into the player's available Loadout Slots
+  const handleToggleEquipPowerUp = (itemId: PowerUpItemId) => {
+    const currentLv = Number(cfg.powerUpLevels?.[itemId] || 0);
+    if (currentLv <= 0) return;
+    const maxSlots = computeUnlockedPowerUpSlots(stats.highScore, cfg.playerLevel);
+
+    setCfg((prev) => {
+      const current = prev.equippedPowerUps || [];
+      if (current.includes(itemId)) {
+        return {
+          ...prev,
+          equippedPowerUps: current.filter((id) => id !== itemId),
+        };
+      }
+      if (current.length >= maxSlots) {
+        return {
+          ...prev,
+          equippedPowerUps: [...current.slice(1), itemId],
+        };
+      }
+      return {
+        ...prev,
+        equippedPowerUps: [...current, itemId],
+      };
+    });
+    if (!isMuted) {
+      audioRef.current.sfxUiClick(MASTER_SCALES[0], cfg);
+    }
+  };
+
   const handleSetExactOrbs = (orbs: number) => {
     setStats((prev) => ({ ...prev, totalOrbs: Math.max(0, Math.round(orbs)) }));
+  };
+
+  // Beta Reset All Save / Stats / Progression back to Level 1 & fresh tutorial
+  const handleResetAllSaveData = () => {
+    try {
+      localStorage.removeItem('omni_cfg_v8');
+      localStorage.removeItem('omni_stats_v4');
+    } catch {
+      // ignore
+    }
+    setStats({ highScore: 0, maxCombo: 0, totalOrbs: 60, runsPlayed: 0 });
+    setCfg({
+      ...DEFAULT_CFG,
+      fineTune: { ...DEFAULT_FINE_TUNE },
+      playerXp: 0,
+      playerLevel: 1,
+      betaUnlockSecretSkins: false,
+      tutorialSeen: false,
+      customBiomes: [],
+    });
+    setTutorialStep(0);
+    setDevBundleStatus('ALL SAVE DATA & STATS RESET TO LEVEL 1!');
   };
 
   const toggleSeqCell = (stepIdx: number, noteKey: string) => {
@@ -2978,22 +4515,61 @@ export default function App() {
     }
   };
 
-  // --- DEVELOPER CONFIG + CUSTOM STAGES BUNDLE EXPORT / IMPORT ---
-  const buildDeveloperBundleObject = () => ({
-    bundleType: 'NEON_ASCENT_OMNI_DEV_BUNDLE_V1',
-    exportedAt: new Date().toISOString(),
-    fineTune: cfg.fineTune || DEFAULT_FINE_TUNE,
-    audioMixer: {
-      volMaster: cfg.volMaster,
-      volNotes: cfg.volNotes,
-      volIntervals: cfg.volIntervals,
-      volChords: cfg.volChords,
-      volBass: cfg.volBass,
-      volChoir: cfg.volChoir,
-    },
-    playerShape: cfg.playerShape,
-    customStages,
-  });
+  // --- CURATED MELODY PREVIEW & TOGGLE HANDLERS ---
+  const handlePreviewCuratedMelody = (melody: CuratedBiomeMelody) => {
+    const biome = MASTER_SCALES.find((s) => s.id === melody.biomeId) || MASTER_SCALES[0];
+    const ext = buildExtendedScale(biome.scale);
+    const previewFreqs = melody.degrees.slice(0, 8).map((deg: number) => {
+      const idx = Math.max(0, Math.min(ext.length - 1, 7 + deg));
+      return ext[idx] || 261.63;
+    });
+    audioRef.current.previewMelodySequence(previewFreqs, cfg, getActiveSoundBank(cfg));
+  };
+
+  const handleToggleCuratedMelody = (melodyId: string, enabled: boolean) => {
+    setCfg((prev) => {
+      const prevDisabled = prev.disabledMelodies || [];
+      const nextDisabled = enabled
+        ? prevDisabled.filter((id) => id !== melodyId)
+        : Array.from(new Set([...prevDisabled, melodyId]));
+      return {
+        ...prev,
+        disabledMelodies: nextDisabled,
+      };
+    });
+  };
+
+  // --- DEVELOPER CONFIG + CUSTOM STAGES + CURATED MELODIES BUNDLE EXPORT / IMPORT ---
+  const buildDeveloperBundleObject = () => {
+    const disabledSet = new Set(cfg.disabledMelodies || []);
+    const keptMelodies = ALL_CURATED_MELODIES.filter((m) => !disabledSet.has(m.id)).map((m) => ({
+      id: m.id,
+      biomeId: m.biomeId,
+      biomeName: m.biomeName,
+      title: m.title,
+      styleTag: m.styleTag,
+      chordVariant: m.chordVariant,
+    }));
+    return {
+      bundleType: 'NEON_ASCENT_OMNI_DEV_BUNDLE_V2',
+      exportedAt: new Date().toISOString(),
+      fineTune: cfg.fineTune || DEFAULT_FINE_TUNE,
+      melodyMode: cfg.melodyMode || 'curated',
+      disabledMelodies: cfg.disabledMelodies || [],
+      enabledMelodiesCount: keptMelodies.length,
+      enabledMelodies: keptMelodies,
+      audioMixer: {
+        volMaster: cfg.volMaster,
+        volNotes: cfg.volNotes,
+        volIntervals: cfg.volIntervals,
+        volChords: cfg.volChords,
+        volBass: cfg.volBass,
+        volChoir: cfg.volChoir,
+      },
+      playerShape: cfg.playerShape,
+      customStages,
+    };
+  };
 
   const handleExportDevBundleFile = () => {
     const bundle = buildDeveloperBundleObject();
@@ -3007,8 +4583,9 @@ export default function App() {
     a.click();
     a.remove();
     URL.revokeObjectURL(url);
+    const keptCount = ALL_CURATED_MELODIES.length - (cfg.disabledMelodies?.length || 0);
     setDevBundleStatus(
-      `EXPORTED DEV BUNDLE (${customStages.length} STAGES + 16 FINE-TUNE PARAMS)`
+      `EXPORTED (${customStages.length} STAGES · ${keptCount}/81 MELODIES · 22 FINE-TUNE)`
     );
   };
 
@@ -3028,16 +4605,21 @@ export default function App() {
     try {
       const text = await file.text();
       const parsed = JSON.parse(text);
-      if (parsed.fineTune) {
-        setCfg((prev) => ({
-          ...prev,
-          fineTune: {
-            ...DEFAULT_FINE_TUNE,
-            ...parsed.fineTune,
-          },
-          ...(parsed.audioMixer || {}),
-        }));
-      }
+      setCfg((prev) => ({
+        ...prev,
+        fineTune: {
+          ...DEFAULT_FINE_TUNE,
+          ...(parsed.fineTune || prev.fineTune || {}),
+        },
+        melodyMode:
+          parsed.melodyMode === 'random' || parsed.melodyMode === 'curated'
+            ? parsed.melodyMode
+            : prev.melodyMode || 'curated',
+        disabledMelodies: Array.isArray(parsed.disabledMelodies)
+          ? parsed.disabledMelodies
+          : prev.disabledMelodies || [],
+        ...(parsed.audioMixer || {}),
+      }));
       if (Array.isArray(parsed.customStages) && parsed.customStages.length > 0) {
         setCustomStages(parsed.customStages);
         setActiveStageId(parsed.customStages[0].id);
@@ -3050,14 +4632,37 @@ export default function App() {
   };
 
   const selectedAvatarDef = getCharacterById(cfg.playerShape);
-  const uniqueTraditions = ['ALL', ...Array.from(new Set(MASTER_SCALES.map((s) => s.tradition)))];
+  const allAvailableBiomes = getAllBiomes(cfg.customBiomes);
+  const uniqueTraditions = [
+    'ALL',
+    ...Array.from(new Set(allAvailableBiomes.map((s) => s.tradition))),
+  ];
   const filteredScales =
     traditionFilter === 'ALL'
-      ? MASTER_SCALES
-      : MASTER_SCALES.filter((s) => s.tradition === traditionFilter);
+      ? allAvailableBiomes
+      : allAvailableBiomes.filter((s) => s.tradition === traditionFilter);
+
+  const visibleFineTuneSliders =
+    fineTuneCategory === 'ALL'
+      ? FINE_TUNE_SLIDERS
+      : FINE_TUNE_SLIDERS.filter((sl) => sl.category === fineTuneCategory);
+
+  const filteredCuratedMelodies =
+    melodyBiomeFilter === 'ALL'
+      ? ALL_CURATED_MELODIES
+      : ALL_CURATED_MELODIES.filter((m) => m.biomeId === melodyBiomeFilter);
+
+  const keptMelodiesCount =
+    ALL_CURATED_MELODIES.length - (cfg.disabledMelodies?.length || 0);
+  const isFa = cfg.language === 'fa';
+  const playerLvInfo = computePlayerLevelInfo(cfg.playerXp || 0);
 
   return (
-    <main className="fixed inset-0 w-full h-full bg-[#04050a] flex items-center justify-center overflow-hidden select-none font-pixel">
+    <main
+      className={`fixed inset-0 w-full h-full bg-[#04050a] flex items-center justify-center overflow-hidden select-none ${
+        isFa ? 'font-fa' : 'font-pixel'
+      }`}
+    >
       {/* Core Game Viewport: Fullscreen Edge-to-Edge on Mobile, 600x800 Cabinet on Desktop */}
       <div
         ref={containerRef}
@@ -3070,6 +4675,80 @@ export default function App() {
             y: ((e.clientY - rect.top) / Math.max(1, rect.height)) * vh,
             activeUntil: performance.now() + 2500,
           };
+        }}
+        onTouchStart={(e) => {
+          const sim = simRef.current;
+          if (sim.state !== 'playing') return;
+          const targetEl = e.target as HTMLElement | null;
+          if (targetEl && targetEl.closest('button, input, label, select')) {
+            return;
+          }
+          const touch = e.changedTouches[0];
+          if (!touch) return;
+          touchDragRef.current = {
+            active: true,
+            touchId: touch.identifier,
+            anchorX: touch.clientX,
+            lastX: touch.clientX,
+          };
+          sim.inputs.touchSteerX = 0;
+        }}
+        onTouchMove={(e) => {
+          const sim = simRef.current;
+          const td = touchDragRef.current;
+          if (!td.active || sim.state !== 'playing') return;
+          let matchedTouch: React.Touch | undefined = undefined;
+          for (let i = 0; i < e.touches.length; i++) {
+            if (e.touches[i].identifier === td.touchId) {
+              matchedTouch = e.touches[i];
+              break;
+            }
+          }
+          if (!matchedTouch && e.touches.length > 0) {
+            matchedTouch = e.touches[0];
+          }
+          if (!matchedTouch) return;
+
+          const curX = matchedTouch.clientX;
+          const stepDx = curX - td.lastX;
+          const totalDx = curX - td.anchorX;
+
+          // Dynamic floating anchor: if finger reverses direction, slide anchor closer so direction change is instant!
+          if ((totalDx > 16 && stepDx < -1.5) || (totalDx < -16 && stepDx > 1.5)) {
+            td.anchorX = curX - stepDx * 5;
+          } else if (Math.abs(totalDx) > 64) {
+            td.anchorX = curX - Math.sign(totalDx) * 64;
+          }
+          td.lastX = curX;
+
+          const rawNorm = (curX - td.anchorX) / 48;
+          const deadzone = 0.05;
+          if (Math.abs(rawNorm) <= deadzone) {
+            sim.inputs.touchSteerX = 0;
+          } else {
+            const sign = rawNorm > 0 ? 1 : -1;
+            const mag = Math.min(1, (Math.abs(rawNorm) - deadzone) / (1 - deadzone));
+            sim.inputs.touchSteerX = Number((sign * Math.pow(mag, 0.8)).toFixed(3));
+          }
+        }}
+        onTouchEnd={(e) => {
+          const td = touchDragRef.current;
+          if (!td.active) return;
+          let stillTouching = false;
+          for (let i = 0; i < e.touches.length; i++) {
+            if (e.touches[i].identifier === td.touchId) {
+              stillTouching = true;
+              break;
+            }
+          }
+          if (!stillTouching) {
+            td.active = false;
+            simRef.current.inputs.touchSteerX = 0;
+          }
+        }}
+        onTouchCancel={() => {
+          touchDragRef.current.active = false;
+          simRef.current.inputs.touchSteerX = 0;
         }}
         className="relative w-full h-full md:max-w-[600px] md:max-h-[800px] md:border md:border-slate-800 bg-[#04050a] shadow-[0_0_90px_rgba(0,0,0,0.9)] overflow-hidden"
       >
@@ -3134,6 +4813,18 @@ export default function App() {
                 style={{ width: '0%' }}
               />
             </div>
+
+            {/* Compact Top-Corner Active Melody Mode & Title Indicator */}
+            <div
+              ref={melodyHudDomRef}
+              id="melody-hud-indicator"
+              data-testid="melody-hud-indicator"
+              className="text-[8px] tracking-wider uppercase text-emerald-300 drop-shadow-[0_1px_0_#000] whitespace-nowrap mt-0.5"
+            >
+              {(cfg.melodyMode || 'curated') === 'curated'
+                ? `🎼 CURATED · ${simRef.current.activeCuratedMelody?.title || 'Neon Cyber Odyssey'}`
+                : '🎲 RANDOM · GENERATIVE'}
+            </div>
           </div>
 
           {/* Compact Top-Right Grade Badge & System Icon Buttons */}
@@ -3174,7 +4865,7 @@ export default function App() {
                 onClick={(e) => {
                   e.currentTarget.blur();
                   if (screen === 'playing') {
-                    audioRef.current.suspend();
+                    audioRef.current.stopChoir();
                     setScreen('paused');
                   } else if (screen === 'paused') {
                     if (!isMuted) audioRef.current.resume();
@@ -3207,6 +4898,13 @@ export default function App() {
             </div>
           </div>
 
+          {/* Middle-Right Clickable Equipped ACTIVE Power-Up Loadout Slots (PASSIVE items apply automatically!) */}
+          <RightSidePowerUpSlotsHud
+            slotsCount={simRef.current.equippedSlotRuntimes.length}
+            getSlotRuntime={(idx) => simRef.current.equippedSlotRuntimes[idx]}
+            onActivateSlot={activateEquippedPowerUpSlot}
+          />
+
           {/* Bottom-Right Compact Biome & Key Indicator */}
           <div
             ref={biomeTagDomRef}
@@ -3216,71 +4914,281 @@ export default function App() {
             NEON GRID · C Minor Nine
           </div>
 
-          {/* Mobile Touch Controls */}
-          <div className="pointer-events-auto md:hidden absolute bottom-12 inset-x-4 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                aria-label="Move Left"
-                onTouchStart={(e) => {
-                  e.preventDefault();
-                  simRef.current.inputs.left = true;
-                }}
-                onTouchEnd={(e) => {
-                  e.preventDefault();
-                  simRef.current.inputs.left = false;
-                }}
-                className="w-16 h-14 bg-slate-900/80 border border-slate-600 active:border-emerald-400 text-white text-sm flex items-center justify-center"
-              >
-                ◀
-              </button>
-              <button
-                type="button"
-                aria-label="Move Right"
-                onTouchStart={(e) => {
-                  e.preventDefault();
-                  simRef.current.inputs.right = true;
-                }}
-                onTouchEnd={(e) => {
-                  e.preventDefault();
-                  simRef.current.inputs.right = false;
-                }}
-                className="w-16 h-14 bg-slate-900/80 border border-slate-600 active:border-emerald-400 text-white text-sm flex items-center justify-center"
-              >
-                ▶
-              </button>
+          {/* Mobile Touch Controls: Full-Screen Hold & Drag Steer Hint + Circular Pixel-Cooldown Dash Button */}
+          <div className="md:hidden absolute bottom-9 inset-x-4 flex items-center justify-between">
+            <div className="pointer-events-none px-2.5 py-1.5 bg-slate-950/65 border border-slate-800/80 text-[7px] text-slate-400 uppercase">
+              ⇄ TOUCH &amp; DRAG TO STEER
             </div>
-            <button
-              type="button"
-              aria-label="Phase Dash"
-              onTouchStart={(e) => {
-                e.preventDefault();
+            <CircularPixelDashButton
+              getDashCooldownState={() => {
+                const s = simRef.current;
+                const b = MASTER_SCALES[s.activeBiomeIdx] || MASTER_SCALES[0];
+                return {
+                  dashCool: s.player.dashCool,
+                  dashMaxCool: s.player.dashMaxCool,
+                  dashAct: s.player.dashAct,
+                  primaryColor: b.fg || '#00ff88',
+                  horizonColor: b.bgAccent || '#00d4ff',
+                };
+              }}
+              onTriggerDash={() => {
                 simRef.current.inputs.dashJustPressed = true;
               }}
-              className="w-20 h-14 bg-slate-900/80 border border-emerald-500 active:bg-emerald-500/30 text-emerald-300 text-[10px] flex items-center justify-center"
-            >
-              ⚡DASH
-            </button>
+            />
           </div>
         </div>
+
+        {/* --- FIRST-TIME 3-STEP ANIMATED PIXEL-HAND TUTORIAL OVERLAY --- */}
+        {screen === 'playing' && tutorialStep > 0 && (
+          <div
+            id="pixel-hand-tutorial-overlay"
+            data-testid="pixel-hand-tutorial-overlay"
+            onClick={() => {
+              if (!isMuted) audioRef.current.sfxUiClick(MASTER_SCALES[0], cfg);
+              if (tutorialStep < 3) {
+                setTutorialStep((prev) => (prev + 1) as 1 | 2 | 3);
+              } else {
+                setCfg((prev) => ({ ...prev, tutorialSeen: true }));
+                setTutorialStep(0);
+              }
+            }}
+            className="pointer-events-auto absolute inset-0 z-40 bg-[#04050a]/85 flex flex-col items-center justify-between py-8 px-6 text-center cursor-pointer"
+          >
+            <div className="px-3 py-1 bg-slate-900/95 border border-emerald-400/70 text-[9px] text-emerald-300 uppercase tracking-wider">
+              {isFa
+                ? `آموزش سریع · گام ${tutorialStep} از ۳`
+                : `HOW TO PLAY · STEP ${tutorialStep} OF 3`}
+            </div>
+
+            {/* Interactive Animated Pixel-Art Stage Demonstration */}
+            <div className="my-auto w-full max-w-xs bg-slate-950/95 border-2 border-cyan-400/70 p-5 shadow-[0_0_35px_rgba(0,212,255,0.22)] flex flex-col items-center gap-4">
+              {tutorialStep === 1 && (
+                <>
+                  <div className="text-xs text-white uppercase">
+                    {isFa ? '۱. کشیدن انگشت به چپ و راست' : '1. SLIDE LEFT & RIGHT'}
+                  </div>
+                  <div className="text-[8px] text-slate-300 leading-relaxed">
+                    {isFa
+                      ? 'انگشت خود را روی صفحه نگه دارید و به چپ و راست بکشید تا کاراکتر روی پلتفرم‌های نئونی هدایت شود.'
+                      : 'Hold and slide your finger left & right anywhere on screen to steer your avatar across harmonic platforms.'}
+                  </div>
+                  <div className="relative w-full h-32 bg-slate-900/90 border border-slate-800 overflow-hidden flex items-center justify-center">
+                    <style>{`
+                      @keyframes tutSlideX {
+                        0%, 100% { transform: translateX(-62px); }
+                        50% { transform: translateX(62px); }
+                      }
+                    `}</style>
+                    {/* Neon Platform */}
+                    <div className="absolute bottom-9 w-36 h-2.5 bg-emerald-400 shadow-[0_0_12px_#00ff88]" />
+                    {/* Synchronized Moving Character + Pixel Hand */}
+                    <div
+                      style={{ animation: 'tutSlideX 2.1s ease-in-out infinite' }}
+                      className="flex flex-col items-center gap-2"
+                    >
+                      <SelectedAvatarMiniBadge
+                        avatarId={cfg.playerShape}
+                        primaryColor="#00ff88"
+                        horizonColor="#00d4ff"
+                      />
+                      {/* Pixel Hand Icon */}
+                      <svg
+                        viewBox="0 0 16 16"
+                        className="w-8 h-8 drop-shadow-[0_0_8px_#00d4ff]"
+                        style={{ shapeRendering: 'crispEdges' }}
+                      >
+                        <rect x="6" y="1" width="3" height="7" fill="#ffffff" />
+                        <rect x="4" y="6" width="8" height="6" fill="#ffffff" />
+                        <rect x="3" y="7" width="2" height="4" fill="#cbd5e1" />
+                        <rect x="5" y="12" width="6" height="3" fill="#e2e8f0" />
+                        <rect x="7" y="1" width="1" height="2" fill="#38bdf8" />
+                      </svg>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {tutorialStep === 2 && (
+                <>
+                  <div className="text-xs text-amber-300 uppercase">
+                    {isFa ? '۲. ضربه روی دکمه دش (⚡)' : '2. TAP CIRCULAR DASH (⚡)'}
+                  </div>
+                  <div className="text-[8px] text-slate-300 leading-relaxed">
+                    {isFa
+                      ? 'روی دکمه دایره‌ای ⚡ ضربه بزنید تا کاراکتر با دنباله روح‌مانند در جهت نگاهش جهش کند!'
+                      : 'Tap the circular ⚡ button to Phase Dash in your facing direction with a spectral ghost trail!'}
+                  </div>
+                  <div className="relative w-full h-32 bg-slate-900/90 border border-slate-800 overflow-hidden flex items-center justify-between px-5">
+                    <style>{`
+                      @keyframes tutDashBurst {
+                        0%, 35% { transform: translate(0px, 8px) scale(1); opacity: 1; }
+                        60%, 85% { transform: translate(68px, -18px) scale(1.15, 0.85); opacity: 1; }
+                        100% { transform: translate(0px, 8px) scale(1); opacity: 1; }
+                      }
+                      @keyframes tutHandTap {
+                        0%, 30%, 100% { transform: translate(12px, 14px) scale(1); }
+                        45%, 60% { transform: translate(0px, 0px) scale(0.88); }
+                      }
+                    `}</style>
+                    {/* Ghost Trail + Character Launching */}
+                    <div className="relative flex items-center">
+                      <div className="opacity-30 -mr-4 scale-90">
+                        <SelectedAvatarMiniBadge
+                          avatarId={cfg.playerShape}
+                          primaryColor="#00d4ff"
+                          horizonColor="#00ff88"
+                        />
+                      </div>
+                      <div className="opacity-55 -mr-3 scale-95">
+                        <SelectedAvatarMiniBadge
+                          avatarId={cfg.playerShape}
+                          primaryColor="#00d4ff"
+                          horizonColor="#00ff88"
+                        />
+                      </div>
+                      <div style={{ animation: 'tutDashBurst 2.0s ease-in-out infinite' }}>
+                        <SelectedAvatarMiniBadge
+                          avatarId={cfg.playerShape}
+                          primaryColor="#00ff88"
+                          horizonColor="#00d4ff"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Circular Dash Button + Tapping Pixel Hand */}
+                    <div className="relative flex items-center justify-center">
+                      <div className="w-12 h-12 rounded-full border-2 border-emerald-400 bg-emerald-500/30 flex items-center justify-center text-base text-white shadow-[0_0_16px_#00ff88]">
+                        ⚡
+                      </div>
+                      <svg
+                        viewBox="0 0 16 16"
+                        style={{
+                          animation: 'tutHandTap 2.0s ease-in-out infinite',
+                          shapeRendering: 'crispEdges',
+                        }}
+                        className="absolute -bottom-3 -right-2 w-8 h-8 drop-shadow-[0_0_8px_#fde047]"
+                      >
+                        <rect x="6" y="1" width="3" height="7" fill="#ffffff" />
+                        <rect x="4" y="6" width="8" height="6" fill="#ffffff" />
+                        <rect x="5" y="12" width="6" height="3" fill="#fde047" />
+                      </svg>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {tutorialStep === 3 && (
+                <>
+                  <div className="text-xs text-pink-300 uppercase">
+                    {isFa ? '۳. فعال‌سازی پاورآپ‌ها' : '3. ACTIVATE POWER-UPS'}
+                  </div>
+                  <div className="text-[8px] text-slate-300 leading-relaxed">
+                    {isFa
+                      ? 'وقتی دایره پاورآپ‌های سمت راست پر شد، روی آن‌ها بزنید تا جت‌پک، سپر یا مگنت فعال شود!'
+                      : 'When the right-side Power-Up circles fill up, tap them to unleash Jetpacks, Shields, or Magnets!'}
+                  </div>
+                  <div className="relative w-full h-32 bg-slate-900/90 border border-slate-800 overflow-hidden flex items-center justify-around px-5">
+                    <div className="relative p-2 rounded-full border-2 border-amber-300 bg-amber-400/20 shadow-[0_0_20px_#fde047]">
+                      <SelectedAvatarMiniBadge
+                        avatarId={cfg.playerShape}
+                        primaryColor="#fde047"
+                        horizonColor="#f472b6"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-2 relative">
+                      <div className="w-10 h-10 rounded-full border-2 border-sky-400 bg-sky-500/35 flex items-center justify-center text-xs shadow-[0_0_14px_#38bdf8]">
+                        🚀
+                      </div>
+                      <div className="w-10 h-10 rounded-full border-2 border-emerald-400 bg-emerald-500/35 flex items-center justify-center text-xs">
+                        🛡
+                      </div>
+                      <svg
+                        viewBox="0 0 16 16"
+                        style={{ shapeRendering: 'crispEdges' }}
+                        className="absolute -top-1 -right-3 w-8 h-8 animate-bounce drop-shadow-[0_0_8px_#f472b6]"
+                      >
+                        <rect x="6" y="1" width="3" height="7" fill="#ffffff" />
+                        <rect x="4" y="6" width="8" height="6" fill="#ffffff" />
+                        <rect x="5" y="12" width="6" height="3" fill="#f472b6" />
+                      </svg>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+
+            <div className="px-5 py-2.5 bg-emerald-400 text-slate-950 text-[10px] uppercase tracking-wider animate-pulse shadow-[0_0_20px_rgba(0,255,136,0.4)]">
+              {isFa
+                ? tutorialStep < 3
+                  ? 'برای ادامه ضربه بزنید ◄'
+                  : 'شروع بازی! ◄'
+                : tutorialStep < 3
+                ? 'TAP TO CONTINUE >'
+                : 'TAP TO START GAME >'}
+            </div>
+          </div>
+        )}
 
         {/* --- MINIMAL ICON-FIRST TITLE SCREEN OVERLAY --- */}
         {screen === 'title' && (
           <div
             id="start-screen"
-            className="absolute inset-0 z-30 bg-[#04050a]/84 flex flex-col items-center justify-between py-6 px-5 text-center"
+            className="absolute inset-0 z-30 bg-[#04050a]/84 flex flex-col items-center justify-between py-5 px-5 text-center"
           >
-            {/* Top Minimal Icon Bar */}
-            <div className="w-full flex items-center justify-between text-[9px] text-slate-300 border-b border-slate-800/80 pb-3">
-              <span title="High Score">
-                BEST <strong className="text-amber-400">{stats.highScore}</strong>
-              </span>
-              <span title="Max Flow">
-                FLOW <strong className="text-emerald-400">x{stats.maxCombo}</strong>
-              </span>
-              <span title="Harmonic Orbs">
-                ORBS <strong className="text-cyan-400">{stats.totalOrbs}</strong>
-              </span>
+            {/* Top Minimal Icon Bar + Level Badge + Radiant Orb Icon + Mute & Language Buttons */}
+            <div className="w-full flex flex-wrap items-center justify-between gap-2 text-[8px] text-slate-300 border-b border-slate-800/80 pb-2.5">
+              <div className="flex items-center gap-2.5">
+                <span
+                  data-testid="title-level-badge"
+                  className="px-1.5 py-0.5 bg-emerald-500/20 border border-emerald-400 text-emerald-300"
+                  title="Player Level"
+                >
+                  LV.{playerLvInfo.level}
+                </span>
+                <span title="High Score">
+                  {isFa ? 'رکورد' : 'BEST'}{' '}
+                  <strong className="text-amber-400">{stats.highScore}</strong>
+                </span>
+                <span title="Max Flow">
+                  {isFa ? 'فلو' : 'FLOW'}{' '}
+                  <strong className="text-emerald-400">x{stats.maxCombo}</strong>
+                </span>
+                <span className="inline-flex items-center gap-1" title="Harmonic Orbs">
+                  <RadiantOrbIcon size={13} />
+                  <strong className="text-amber-300">{stats.totalOrbs}</strong>
+                </span>
+              </div>
+
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  data-testid="title-mute-btn"
+                  aria-label={isMuted ? 'Unmute Audio' : 'Mute Audio'}
+                  onClick={() => setIsMuted((m) => !m)}
+                  className={`px-2 py-1 border text-[8px] cursor-pointer transition-colors ${
+                    isMuted
+                      ? 'bg-rose-950/60 border-rose-400 text-rose-300'
+                      : 'bg-slate-900 border-slate-700 hover:border-white text-emerald-300'
+                  }`}
+                  title="Mute / Unmute [M]"
+                >
+                  {isMuted ? '🔇 MUTE' : '🔊 AUDIO'}
+                </button>
+                <button
+                  type="button"
+                  data-testid="title-lang-btn"
+                  onClick={() =>
+                    setCfg((prev) => ({
+                      ...prev,
+                      language: prev.language === 'fa' ? 'en' : 'fa',
+                    }))
+                  }
+                  className="px-2 py-1 bg-slate-900 border border-cyan-400/70 hover:border-cyan-300 text-cyan-300 text-[8px] cursor-pointer"
+                  title="Switch Language (English / فارسی)"
+                >
+                  🌐 {isFa ? 'EN' : 'فارسی'}
+                </button>
+              </div>
             </div>
 
             <div className="my-auto flex flex-col items-center max-w-xs w-full">
@@ -3334,25 +5242,68 @@ export default function App() {
               </svg>
 
               <div className="flex flex-col items-center gap-2 w-full mt-1">
-                {/* Primary Play Action */}
+                {/* Primary Play Action (Triggers 3-Step Pixel-Hand Tutorial on First Run!) */}
                 <button
                   type="button"
                   data-start="true"
                   data-testid="start-play-btn"
-                  onClick={() => startNewRun('STANDARD')}
+                  onClick={() => {
+                    startNewRun('STANDARD');
+                    if (!cfg.tutorialSeen) {
+                      setTutorialStep(1);
+                    }
+                  }}
                   className="w-full py-3.5 px-6 bg-emerald-400 hover:bg-emerald-300 text-slate-950 text-xs tracking-wider uppercase transition-transform active:scale-95 cursor-pointer shadow-[0_0_25px_rgba(0,255,136,0.35)]"
                 >
-                  &gt; PLAY
+                  {isFa ? '▶ شروع بازی (PLAY)' : '> PLAY'}
                 </button>
 
-                {/* Compact Selected Character Button */}
+                {/* Quick Melody Mode Switch (Curated vs. Random) on Main Menu */}
+                <div
+                  data-testid="title-melody-mode-switch"
+                  className="grid grid-cols-2 gap-1.5 w-full bg-slate-950/90 p-1 border border-slate-800"
+                >
+                  <button
+                    type="button"
+                    data-testid="title-mode-curated-btn"
+                    onClick={() => {
+                      if (!isMuted) audioRef.current.sfxUiClick(MASTER_SCALES[0], cfg);
+                      setCfg((prev) => ({ ...prev, melodyMode: 'curated' }));
+                    }}
+                    className={`py-2 px-2 text-[8px] uppercase whitespace-nowrap transition-colors cursor-pointer border ${
+                      (cfg.melodyMode || 'curated') === 'curated'
+                        ? 'bg-emerald-500/20 border-emerald-400 text-emerald-300 shadow-[0_0_12px_rgba(0,255,136,0.2)]'
+                        : 'bg-slate-900/70 border-slate-800 text-slate-400 hover:text-slate-200'
+                    }`}
+                  >
+                    🎼 {isFa ? 'ملودی منتخب' : 'CURATED'}
+                  </button>
+                  <button
+                    type="button"
+                    data-testid="title-mode-random-btn"
+                    onClick={() => {
+                      if (!isMuted) audioRef.current.sfxUiClick(MASTER_SCALES[0], cfg);
+                      setCfg((prev) => ({ ...prev, melodyMode: 'random' }));
+                    }}
+                    className={`py-2 px-2 text-[8px] uppercase whitespace-nowrap transition-colors cursor-pointer border ${
+                      cfg.melodyMode === 'random'
+                        ? 'bg-cyan-500/20 border-cyan-400 text-cyan-300 shadow-[0_0_12px_rgba(0,212,255,0.2)]'
+                        : 'bg-slate-900/70 border-slate-800 text-slate-400 hover:text-slate-200'
+                    }`}
+                  >
+                    🎲 {isFa ? 'ملودی تصادفی' : 'RANDOM'}
+                  </button>
+                </div>
+
+                {/* Compact Selected Character Button -> Opens Store with AVATARS tab active so all Shop tabs remain at top! */}
                 <button
                   type="button"
                   id="open-characters-btn"
                   data-testid="open-characters-btn"
                   onClick={() => {
                     if (!isMuted) audioRef.current.sfxUiClick(MASTER_SCALES[0], cfg);
-                    setScreen('characters');
+                    setStoreTab('characters');
+                    setScreen('store');
                   }}
                   className="w-full py-2 px-3 bg-slate-900/95 hover:bg-slate-800 border border-cyan-400/75 hover:border-cyan-300 transition-colors cursor-pointer flex items-center justify-between gap-2 text-left"
                 >
@@ -3386,7 +5337,7 @@ export default function App() {
                     }}
                     className="py-2.5 px-3 bg-slate-900/95 hover:bg-slate-800 border border-emerald-400/80 hover:border-emerald-300 text-emerald-300 text-[9px] uppercase transition-colors cursor-pointer flex items-center justify-between"
                   >
-                    <span>🎹 DAW</span>
+                    <span>🎹 {isFa ? 'ساخت مرحله' : 'DAW'}</span>
                     <span className="text-[8px] text-slate-400">{customStages.length}</span>
                   </button>
 
@@ -3400,8 +5351,11 @@ export default function App() {
                     }}
                     className="py-2.5 px-3 bg-slate-900/95 hover:bg-slate-800 border border-amber-400/80 hover:border-amber-300 text-amber-300 text-[9px] uppercase transition-colors cursor-pointer flex items-center justify-between"
                   >
-                    <span>🛒 SHOP</span>
-                    <span className="text-[8px] text-cyan-300">{stats.totalOrbs}</span>
+                    <span>🛒 {isFa ? 'فروشگاه' : 'SHOP'}</span>
+                    <span className="inline-flex items-center gap-1 text-[8px] text-amber-300">
+                      <RadiantOrbIcon size={12} />
+                      {stats.totalOrbs}
+                    </span>
                   </button>
 
                   <button
@@ -3430,8 +5384,8 @@ export default function App() {
                   />
                 </div>
 
-                {/* Config / Export / Install Row */}
-                <div className="flex items-center justify-center gap-2 w-full">
+                {/* Config / Export / Beta Reset / Install Row */}
+                <div className="flex items-center justify-center gap-1.5 w-full">
                   <button
                     type="button"
                     id="open-settings-btn"
@@ -3440,15 +5394,25 @@ export default function App() {
                       if (!isMuted) audioRef.current.sfxUiClick(MASTER_SCALES[0], cfg);
                       setScreen('settings');
                     }}
-                    className="flex-1 py-2 px-2.5 bg-transparent hover:bg-slate-900 border border-slate-700 hover:border-white text-slate-300 text-[8px] uppercase transition-colors cursor-pointer"
+                    className="flex-1 py-2 px-2 bg-transparent hover:bg-slate-900 border border-slate-700 hover:border-white text-slate-300 text-[8px] uppercase transition-colors cursor-pointer"
                   >
-                    # FINE-TUNE
+                    ⚙ {isFa ? 'تنظیمات' : 'FINE-TUNE'}
+                  </button>
+
+                  <button
+                    type="button"
+                    data-testid="beta-reset-save-btn"
+                    onClick={handleResetAllSaveData}
+                    className="py-2 px-2 bg-transparent hover:bg-rose-950/50 border border-rose-500/60 hover:border-rose-400 text-rose-300 text-[8px] uppercase transition-colors cursor-pointer"
+                    title="Beta: Reset All Save Data & Stats to Zero"
+                  >
+                    ↺ {isFa ? 'ریست' : 'RESET'}
                   </button>
 
                   <button
                     type="button"
                     onClick={handleExportDevBundleFile}
-                    className="py-2 px-2.5 bg-transparent hover:bg-slate-900 border border-slate-700 hover:border-amber-400 text-amber-300 text-[8px] uppercase transition-colors cursor-pointer"
+                    className="py-2 px-2 bg-transparent hover:bg-slate-900 border border-slate-700 hover:border-amber-400 text-amber-300 text-[8px] uppercase transition-colors cursor-pointer"
                     title="Export Dev Bundle (.JSON)"
                   >
                     .JSON
@@ -3462,7 +5426,7 @@ export default function App() {
                         await deferredInstallPrompt.userChoice;
                         setDeferredInstallPrompt(null);
                       }}
-                      className="py-2 px-2.5 bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-400 text-emerald-300 text-[8px] uppercase cursor-pointer"
+                      className="py-2 px-2 bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-400 text-emerald-300 text-[8px] uppercase cursor-pointer"
                       title="Install App on Android / Desktop"
                     >
                       📲 APP
@@ -3478,9 +5442,9 @@ export default function App() {
 
             {/* Minimal Icon Legend */}
             <div className="flex items-center justify-center gap-4 text-[8px] text-slate-400">
-              <span>&lt;&gt; STEER</span>
-              <span>TILT</span>
-              <span>SHIFT DASH</span>
+              <span>⇄ {isFa ? 'کشیدن انگشت' : 'DRAG/STEER'}</span>
+              <span>{isFa ? 'ژیروسکوپ' : 'TILT'}</span>
+              <span>⚡ {isFa ? 'دش' : 'DASH'}</span>
             </div>
           </div>
         )}
@@ -3493,6 +5457,7 @@ export default function App() {
             totalOrbs={stats.totalOrbs}
             primaryColor="#00ff88"
             horizonColor="#00d4ff"
+            bpm={cfg.fineTune?.baseJumpTempo || 100}
             onSelectAvatar={handleSelectAvatar}
             onUnlockAvatar={handleUnlockAvatar}
             onSetOrbs={handleSetExactOrbs}
@@ -3500,7 +5465,7 @@ export default function App() {
           />
         )}
 
-        {/* --- CREATE STAGE (DAW PIANO ROLL & STAGE MANAGER) MODAL --- */}
+        {/* --- CREATE STAGE (DAW PIANO ROLL, CUSTOM BIOME BUILDER & STAGE MANAGER) MODAL --- */}
         {screen === 'stage_creator' && (
           <StageCreatorModal
             stages={customStages}
@@ -3512,6 +5477,18 @@ export default function App() {
               setCustomStages(nextStages);
               if (nextActiveId) setActiveStageId(nextActiveId);
             }}
+            onSaveCustomBiomes={(nextCustomBiomes) => {
+              setCfg((prev) => ({
+                ...prev,
+                customBiomes: nextCustomBiomes,
+                unlockedScales: Array.from(
+                  new Set([...prev.unlockedScales, ...nextCustomBiomes.map((b) => b.id)])
+                ),
+                enabledScales: Array.from(
+                  new Set([...prev.enabledScales, ...nextCustomBiomes.map((b) => b.id)])
+                ),
+              }));
+            }}
             onPlayStage={(stage) => {
               setActiveStageId(stage.id);
               startNewRun('STAGE', undefined, true, stage);
@@ -3521,210 +5498,435 @@ export default function App() {
         )}
 
         {/* --- MINIMAL ICON-DRIVEN HARMONIC STORE MODAL --- */}
-        {screen === 'store' && (
-          <div
-            id="store-screen"
-            className="absolute inset-0 z-30 bg-[#05070f]/96 flex flex-col justify-between p-4 overflow-hidden text-[9px]"
-          >
-            <div className="flex items-center justify-between border-b border-slate-800 pb-2.5">
-              <div className="flex items-center gap-2">
-                <span className="text-amber-400">🛒</span>
-                <h2 className="text-xs text-white tracking-wider uppercase">
-                  SHOP
-                </h2>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="px-2 py-1 bg-slate-900 border border-amber-400/60 text-[9px] text-amber-300">
-                  ● <strong id="store-orb-count">{stats.totalOrbs}</strong>
+        {screen === 'store' && (() => {
+          const unlockedSlots = computeUnlockedPowerUpSlots(stats.highScore, cfg.playerLevel);
+          const nextSlotMilestone = getNextPowerUpSlotMilestone(stats.highScore);
+          const equippedList = (
+            cfg.equippedPowerUps && cfg.equippedPowerUps.length > 0
+              ? cfg.equippedPowerUps
+              : (['orb_magnet', 'combo_shield', 'jetpack_white'] as PowerUpItemId[])
+          ).slice(0, unlockedSlots);
+          const unlockedPowerUpCount = POWERUP_STORE_ITEMS.filter(
+            (it) => (cfg.powerUpLevels?.[it.id] || 0) > 0
+          ).length;
+          const visibleStorePowerUps = POWERUP_STORE_ITEMS.filter((it) =>
+            powerUpModeFilter === 'ALL' ? true : it.activationMode === powerUpModeFilter
+          );
+          const visibleAvatarTotal = CHARACTER_AVATARS.filter(
+            (a) => !a.isSecret || cfg.unlockedAvatars.includes(a.id)
+          ).length;
+
+          return (
+            <div
+              id="store-screen"
+              className="absolute inset-0 z-30 bg-[#05070f]/96 flex flex-col justify-between p-4 overflow-hidden text-[9px]"
+            >
+              <div className="flex items-center justify-between border-b border-slate-800 pb-2.5">
+                <div className="flex items-center gap-2">
+                  <span className="text-amber-400">🛒</span>
+                  <h2 className="text-xs text-white tracking-wider uppercase">
+                    {isFa ? 'فروشگاه نئونی' : 'SHOP'}
+                  </h2>
+                  <span className="px-1.5 py-0.5 bg-emerald-500/20 border border-emerald-400 text-[7px] text-emerald-300">
+                    LV.{playerLvInfo.level}/15
+                  </span>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setScreen('title')}
-                  className="px-3 py-1.5 bg-emerald-400 text-slate-950 text-[9px] uppercase cursor-pointer"
-                >
-                  ✕
-                </button>
-              </div>
-            </div>
-
-            {/* Store Category Tabs + Orb Set / Reset Input */}
-            <div className="flex flex-wrap items-center justify-between gap-2 my-2">
-              <div className="flex items-center gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => setStoreTab('banks')}
-                  className={`px-2 py-1.5 text-[8px] uppercase border cursor-pointer ${
-                    storeTab === 'banks'
-                      ? 'bg-cyan-500/20 border-cyan-400 text-cyan-200'
-                      : 'bg-slate-900 border-slate-700 text-slate-400 hover:text-white'
-                  }`}
-                >
-                  🔊 SYNTH ({cfg.unlockedSoundBanks.length}/{SOUND_BANKS.length})
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setStoreTab('scales')}
-                  className={`px-2 py-1.5 text-[8px] uppercase border cursor-pointer ${
-                    storeTab === 'scales'
-                      ? 'bg-emerald-500/20 border-emerald-400 text-emerald-200'
-                      : 'bg-slate-900 border-slate-700 text-slate-400 hover:text-white'
-                  }`}
-                >
-                  ♫ KEYS ({cfg.unlockedScales.length}/{MASTER_SCALES.length})
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setStoreTab('characters')}
-                  className={`px-2 py-1.5 text-[8px] uppercase border cursor-pointer ${
-                    storeTab === 'characters'
-                      ? 'bg-amber-500/20 border-amber-400 text-amber-200'
-                      : 'bg-slate-900 border-slate-700 text-slate-400 hover:text-white'
-                  }`}
-                >
-                  ◈ AVATARS ({cfg.unlockedAvatars.length}/{CHARACTER_AVATARS.length})
-                </button>
+                <div className="flex items-center gap-2">
+                  <div className="px-2.5 py-1 bg-slate-900 border border-amber-400/60 text-[9px] text-amber-300 flex items-center gap-1.5">
+                    <RadiantOrbIcon size={14} />
+                    <strong id="store-orb-count">{stats.totalOrbs}</strong>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setScreen('title')}
+                    className="px-3 py-1.5 bg-emerald-400 text-slate-950 text-[9px] uppercase cursor-pointer"
+                  >
+                    ✕
+                  </button>
+                </div>
               </div>
 
-              <div className="flex items-center gap-1">
-                <input
-                  type="number"
-                  min={0}
-                  max={999999}
-                  placeholder="Orbs..."
-                  value={storeOrbInput}
-                  onChange={(e) => setStoreOrbInput(e.target.value)}
-                  className="w-20 px-1.5 py-1 bg-slate-950 border border-slate-700 text-[8px] text-amber-300"
-                />
-                <button
-                  type="button"
-                  onClick={() => {
-                    const val = parseInt(storeOrbInput, 10);
-                    if (!Number.isNaN(val)) {
-                      handleSetExactOrbs(val);
-                      setStoreOrbInput('');
-                    }
-                  }}
-                  className="px-2 py-1 bg-amber-400 hover:bg-amber-300 text-slate-950 text-[8px] uppercase cursor-pointer"
-                >
-                  SET
-                </button>
+              {/* Store Category Tabs (Stay visible even when entering Character Menu from Main Menu!) */}
+              <div className="flex flex-wrap items-center justify-between gap-2 my-2">
+                <div className="flex flex-wrap items-center gap-1">
+                  <button
+                    type="button"
+                    data-testid="store-tab-powerups"
+                    onClick={() => setStoreTab('powerups')}
+                    className={`px-2 py-1.5 text-[7px] uppercase border cursor-pointer ${
+                      storeTab === 'powerups'
+                        ? 'bg-pink-500/20 border-pink-400 text-pink-200'
+                        : 'bg-slate-900 border-slate-700 text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    ⚡ POWER-UPS ({unlockedPowerUpCount}/{POWERUP_STORE_ITEMS.length})
+                  </button>
+                  <button
+                    type="button"
+                    data-testid="store-tab-characters"
+                    onClick={() => setStoreTab('characters')}
+                    className={`px-2 py-1.5 text-[7px] uppercase border cursor-pointer ${
+                      storeTab === 'characters'
+                        ? 'bg-amber-500/20 border-amber-400 text-amber-200'
+                        : 'bg-slate-900 border-slate-700 text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    ◈ AVATARS ({cfg.unlockedAvatars.length}/{visibleAvatarTotal})
+                  </button>
+                  <button
+                    type="button"
+                    data-testid="store-tab-banks"
+                    onClick={() => setStoreTab('banks')}
+                    className={`px-2 py-1.5 text-[7px] uppercase border cursor-pointer ${
+                      storeTab === 'banks'
+                        ? 'bg-cyan-500/20 border-cyan-400 text-cyan-200'
+                        : 'bg-slate-900 border-slate-700 text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    🔊 SYNTH ({cfg.unlockedSoundBanks.length}/{SOUND_BANKS.length})
+                  </button>
+                  <button
+                    type="button"
+                    data-testid="store-tab-scales"
+                    onClick={() => setStoreTab('scales')}
+                    className={`px-2 py-1.5 text-[7px] uppercase border cursor-pointer ${
+                      storeTab === 'scales'
+                        ? 'bg-emerald-500/20 border-emerald-400 text-emerald-200'
+                        : 'bg-slate-900 border-slate-700 text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    ♫ KEYS ({cfg.unlockedScales.length}/{allAvailableBiomes.length})
+                  </button>
+                </div>
+
+                <div className="flex items-center gap-1">
+                  <input
+                    type="number"
+                    min={0}
+                    max={999999}
+                    placeholder="Orbs..."
+                    value={storeOrbInput}
+                    onChange={(e) => setStoreOrbInput(e.target.value)}
+                    className="w-20 px-1.5 py-1 bg-slate-950 border border-slate-700 text-[8px] text-amber-300"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const val = parseInt(storeOrbInput, 10);
+                      if (!Number.isNaN(val)) {
+                        handleSetExactOrbs(val);
+                        setStoreOrbInput('');
+                      }
+                    }}
+                    className="px-2 py-1 bg-amber-400 hover:bg-amber-300 text-slate-950 text-[8px] uppercase cursor-pointer"
+                  >
+                    SET
+                  </button>
+                </div>
               </div>
-            </div>
 
-            {storeTab === 'banks' ? (
-              <div className="flex-1 overflow-y-auto space-y-2 pr-1">
-                {SOUND_BANKS.map((bank) => {
-                  const unlocked = cfg.unlockedSoundBanks.includes(bank.id);
-                  const enabled = cfg.enabledSoundBanks.includes(bank.id);
-                  const canAfford = stats.totalOrbs >= bank.costOrbs;
-
-                  return (
-                    <div
-                      key={bank.id}
-                      className={`p-2.5 border flex items-center justify-between gap-2 ${
-                        unlocked
-                          ? 'bg-slate-900/75 border-slate-700'
-                          : 'bg-slate-950/80 border-slate-800/80'
-                      }`}
-                    >
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="text-[9px] text-white">{bank.name}</span>
-                          <span className="text-[7px] px-1 py-0.5 bg-slate-800 text-cyan-300 border border-slate-700">
-                            {bank.category}
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        <button
-                          type="button"
-                          onClick={() => audioRef.current.previewNote(329.63, cfg, bank)}
-                          className="px-2 py-1 bg-slate-800 hover:bg-slate-700 border border-slate-600 text-[8px] text-slate-200 cursor-pointer"
-                          title="Listen"
-                        >
-                          ▶
-                        </button>
-
-                        {unlocked ? (
-                          <label className="flex items-center gap-1 px-2 py-1 bg-slate-950 border border-emerald-500/50 text-[8px] text-emerald-300 cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={enabled}
-                              onChange={(e) => handleToggleSoundBank(bank.id, e.target.checked)}
-                              className="accent-emerald-400"
-                            />
-                            <span>ON</span>
-                          </label>
-                        ) : (
+              {storeTab === 'powerups' ? (
+                <div className="flex-1 flex flex-col overflow-hidden">
+                  {/* Loadout Slots Header (3 Base Slots + Unlocks via Level-Up LV.3/6/9/12 or Best Score) */}
+                  <div
+                    data-testid="powerup-loadout-bar"
+                    className="mb-2 p-2 bg-slate-900/90 border border-pink-400/50 flex flex-col gap-1.5 shrink-0"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[8px] text-pink-300 uppercase">
+                        LOADOUT SLOTS ({equippedList.length}/{unlockedSlots} EQUIPPED)
+                      </span>
+                      <span className="text-[7px] text-slate-400">
+                        {unlockedSlots < 7
+                          ? `UNLOCK MORE SLOTS VIA LEVEL-UP (LV.3/6/9/12) OR ${nextSlotMilestone} SCORE`
+                          : 'ALL 7 SLOTS UNLOCKED'}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      {Array.from({ length: 7 }, (_, slotIdx) => {
+                        const isSlotUnlocked = slotIdx < unlockedSlots;
+                        const eqId = equippedList[slotIdx];
+                        const eqItem = eqId ? getPowerUpItemById(eqId) : undefined;
+                        const reqLv = slotIdx === 3 ? 3 : slotIdx === 4 ? 6 : slotIdx === 5 ? 9 : 12;
+                        return (
                           <button
+                            key={slotIdx}
                             type="button"
-                            disabled={!canAfford}
-                            onClick={() => handleUnlockSoundBank(bank)}
-                            className={`px-2 py-1 text-[8px] border cursor-pointer ${
-                              canAfford
-                                ? 'bg-amber-400 hover:bg-amber-300 text-slate-950 border-amber-300'
-                                : 'bg-slate-900 text-slate-500 border-slate-800 cursor-not-allowed'
+                            disabled={!isSlotUnlocked || !eqItem}
+                            onClick={() => {
+                              if (eqItem) handleToggleEquipPowerUp(eqItem.id);
+                            }}
+                            title={
+                              !isSlotUnlocked
+                                ? `Locked Slot (Reach Player Level ${reqLv})`
+                                : eqItem
+                                ? `${eqItem.name} (${eqItem.activationMode}) — Click to unequip`
+                                : 'Empty Slot — Equip an Active or Passive Power-Up below'
+                            }
+                            className={`h-8 px-2 border flex items-center gap-1 text-[8px] transition-colors ${
+                              !isSlotUnlocked
+                                ? 'bg-slate-950/50 border-slate-800/70 text-slate-600 cursor-not-allowed'
+                                : eqItem
+                                ? 'bg-slate-950 border-emerald-400 text-white cursor-pointer hover:border-rose-400'
+                                : 'bg-slate-950/90 border-dashed border-slate-700 text-slate-500'
                             }`}
                           >
-                            {bank.costOrbs}●
+                            {!isSlotUnlocked ? (
+                              <span>🔒LV.{reqLv}</span>
+                            ) : eqItem ? (
+                              <>
+                                <span>{eqItem.icon}</span>
+                                <span className="text-[7px] text-emerald-300">
+                                  L{cfg.powerUpLevels?.[eqItem.id] || 1}
+                                </span>
+                              </>
+                            ) : (
+                              <span>#{slotIdx + 1} EMPTY</span>
+                            )}
                           </button>
-                        )}
-                      </div>
+                        );
+                      })}
                     </div>
-                  );
-                })}
-              </div>
-            ) : storeTab === 'scales' ? (
-              <div className="flex-1 flex flex-col overflow-hidden">
-                <div className="flex flex-wrap items-center gap-1 mb-2">
-                  {uniqueTraditions.map((tr) => (
+                  </div>
+
+                  {/* Two Power-Up Category Filter Buttons: ACTIVE (Button-Triggered) vs. PASSIVE (Innate Character Ability) */}
+                  <div className="flex items-center gap-1.5 mb-2 shrink-0">
                     <button
-                      key={tr}
                       type="button"
-                      onClick={() => setTraditionFilter(tr)}
-                      className={`px-1.5 py-0.5 text-[7px] border cursor-pointer ${
-                        traditionFilter === tr
-                          ? 'bg-emerald-500/20 border-emerald-400 text-emerald-200'
-                          : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white'
+                      data-testid="powerup-filter-all"
+                      onClick={() => setPowerUpModeFilter('ALL')}
+                      className={`px-2 py-1 text-[7px] border uppercase cursor-pointer ${
+                        powerUpModeFilter === 'ALL'
+                          ? 'bg-white/15 border-white text-white'
+                          : 'bg-slate-900 border-slate-700 text-slate-400'
                       }`}
                     >
-                      {tr}
+                      ALL ({POWERUP_STORE_ITEMS.length})
                     </button>
-                  ))}
-                </div>
+                    <button
+                      type="button"
+                      data-testid="powerup-filter-active"
+                      onClick={() => setPowerUpModeFilter('ACTIVE')}
+                      className={`px-2 py-1 text-[7px] border uppercase cursor-pointer ${
+                        powerUpModeFilter === 'ACTIVE'
+                          ? 'bg-emerald-500/20 border-emerald-400 text-emerald-200'
+                          : 'bg-slate-900 border-slate-700 text-slate-400'
+                      }`}
+                    >
+                      ⚡ ACTIVE · IN-GAME BUTTON (10)
+                    </button>
+                    <button
+                      type="button"
+                      data-testid="powerup-filter-passive"
+                      onClick={() => setPowerUpModeFilter('PASSIVE')}
+                      className={`px-2 py-1 text-[7px] border uppercase cursor-pointer ${
+                        powerUpModeFilter === 'PASSIVE'
+                          ? 'bg-cyan-500/20 border-cyan-400 text-cyan-200'
+                          : 'bg-slate-900 border-slate-700 text-slate-400'
+                      }`}
+                    >
+                      🧬 PASSIVE · INNATE ABILITY (3)
+                    </button>
+                  </div>
 
+                  {/* Scrollable Power-Ups Grid */}
+                  <div className="flex-1 overflow-y-auto space-y-2 pr-1">
+                    {visibleStorePowerUps.map((item) => {
+                      const maxLv = item.maxLevel || 10;
+                      const currentLv = Math.max(
+                        0,
+                        Math.min(maxLv, Math.floor(cfg.powerUpLevels?.[item.id] ?? 0))
+                      );
+                      const isUnlocked = currentLv > 0;
+                      const isMax = currentLv >= maxLv;
+                      const isEquipped = equippedList.includes(item.id);
+                      const upgradeCost = getPowerUpUpgradeCost(item, currentLv);
+                      const canAfford = !isMax && stats.totalOrbs >= upgradeCost;
+                      const previewStats = getPowerUpLevelStats(
+                        item.id,
+                        Math.max(1, currentLv)
+                      );
+                      const nextStats = !isMax
+                        ? getPowerUpLevelStats(item.id, currentLv + 1)
+                        : previewStats;
+
+                      return (
+                        <div
+                          key={item.id}
+                          data-testid={`powerup-card-${item.id}`}
+                          className={`p-2.5 border flex items-center justify-between gap-2 ${
+                            isEquipped
+                              ? 'bg-emerald-950/25 border-emerald-400/90'
+                              : isUnlocked
+                              ? 'bg-slate-900/80 border-slate-700'
+                              : 'bg-slate-950/85 border-slate-800/80'
+                          }`}
+                        >
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="text-sm">{item.icon}</span>
+                              <span
+                                className="text-[9px] uppercase"
+                                style={{ color: item.accentColor }}
+                              >
+                                {item.name}
+                              </span>
+                              <span className="px-1.5 py-0.5 bg-slate-950 border border-slate-700 text-[7px] text-amber-300">
+                                {isUnlocked ? `LV.${currentLv}/${maxLv}` : `LOCKED (0/${maxLv})`}
+                              </span>
+                              {item.activationMode === 'PASSIVE' ? (
+                                <span className="px-1.5 py-0.5 bg-cyan-950/90 border border-cyan-400/60 text-[6px] text-cyan-200">
+                                  🧬 PASSIVE · INNATE (NO BUTTON)
+                                </span>
+                              ) : (
+                                <span className="px-1.5 py-0.5 bg-emerald-950/90 border border-emerald-400/60 text-[6px] text-emerald-200">
+                                  ⚡ ACTIVE · HUD BUTTON
+                                </span>
+                              )}
+                            </div>
+
+                            <div className="text-[7px] text-slate-300 mt-1">
+                              {item.desc}
+                            </div>
+
+                            {item.activationMode === 'PASSIVE' ? (
+                              <div className="flex items-center gap-3 text-[7px] text-cyan-300 mt-1">
+                                <span>
+                                  INNATE POWER:{' '}
+                                  <strong className="text-white">
+                                    {(previewStats.powerValue * 100).toFixed(0)}%
+                                  </strong>
+                                  {!isMax
+                                    ? ` → ${(nextStats.powerValue * 100).toFixed(0)}%`
+                                    : ''}
+                                </span>
+                                <span className="text-slate-400">
+                                  Always active while equipped in a Loadout Slot
+                                </span>
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-3 text-[7px] text-slate-400 mt-1">
+                                <span>
+                                  USES:{' '}
+                                  <strong className="text-white">
+                                    {previewStats.usesPerRun}x
+                                  </strong>
+                                  {!isMax && nextStats.usesPerRun > previewStats.usesPerRun
+                                    ? ` → ${nextStats.usesPerRun}x`
+                                    : ''}
+                                </span>
+                                <span>
+                                  DUR:{' '}
+                                  <strong className="text-emerald-300">
+                                    {previewStats.durationSec}s
+                                  </strong>
+                                  {!isMax ? ` → ${nextStats.durationSec}s` : ''}
+                                </span>
+                                <span>
+                                  CD:{' '}
+                                  <strong className="text-cyan-300">
+                                    {previewStats.cooldownSec}s
+                                  </strong>
+                                </span>
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="flex flex-col items-end gap-1.5 shrink-0">
+                            {isUnlocked && (
+                              <button
+                                type="button"
+                                data-testid={`equip-powerup-${item.id}`}
+                                onClick={() => handleToggleEquipPowerUp(item.id)}
+                                className={`px-2.5 py-1 text-[7px] border uppercase cursor-pointer ${
+                                  isEquipped
+                                    ? 'bg-emerald-400 text-slate-950 border-emerald-300'
+                                    : 'bg-slate-800 hover:bg-slate-700 text-white border-slate-600'
+                                }`}
+                              >
+                                {isEquipped ? '✓ EQUIPPED' : '+ EQUIP'}
+                              </button>
+                            )}
+
+                            <button
+                              type="button"
+                              data-testid={`upgrade-powerup-${item.id}`}
+                              disabled={isMax || !canAfford}
+                              onClick={() => handleBuyOrUpgradePowerUp(item)}
+                              className={`px-2.5 py-1 text-[8px] border uppercase cursor-pointer inline-flex items-center gap-1 ${
+                                isMax
+                                  ? 'bg-slate-900 text-emerald-400 border-emerald-500/40 cursor-default'
+                                  : canAfford
+                                  ? 'bg-amber-400 hover:bg-amber-300 text-slate-950 border-amber-300'
+                                  : 'bg-slate-900 text-slate-500 border-slate-800 cursor-not-allowed'
+                              }`}
+                            >
+                              {isMax ? (
+                                `MAX LV.${maxLv}`
+                              ) : (
+                                <>
+                                  <span>{isUnlocked ? 'UPGRADE' : 'UNLOCK'}</span>
+                                  <RadiantOrbIcon size={10} />
+                                  <span>{upgradeCost}</span>
+                                </>
+                              )}
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : storeTab === 'characters' ? (
+                <div className="flex-1 flex flex-col overflow-hidden">
+                  <CharacterSelectModal
+                    embeddedInStore
+                    selectedAvatarId={cfg.playerShape}
+                    unlockedAvatars={cfg.unlockedAvatars}
+                    totalOrbs={stats.totalOrbs}
+                    primaryColor="#00ff88"
+                    horizonColor="#00d4ff"
+                    bpm={cfg.fineTune?.baseJumpTempo || 100}
+                    onSelectAvatar={handleSelectAvatar}
+                    onUnlockAvatar={handleUnlockAvatar}
+                    onSetOrbs={handleSetExactOrbs}
+                    onClose={() => setScreen('title')}
+                  />
+                </div>
+              ) : storeTab === 'banks' ? (
                 <div className="flex-1 overflow-y-auto space-y-2 pr-1">
-                  {filteredScales.map((sc) => {
-                    const unlocked = cfg.unlockedScales.includes(sc.id);
-                    const enabled = cfg.enabledScales.includes(sc.id);
-                    const canAfford = stats.totalOrbs >= sc.costOrbs;
+                  <div className="p-2 bg-slate-900/80 border border-cyan-500/40 text-[7px] text-cyan-200">
+                    🔊 Sound Banks unlock automatically as you level up from LV.1 to LV.15!
+                  </div>
+                  {SOUND_BANKS.map((bank) => {
+                    const unlocked = cfg.unlockedSoundBanks.includes(bank.id);
+                    const enabled = cfg.enabledSoundBanks.includes(bank.id);
+                    const reqLv = getRequiredLevelForSoundBank(bank.id);
 
                     return (
                       <div
-                        key={sc.id}
-                        className={`p-2 border flex items-center justify-between gap-2 ${
+                        key={bank.id}
+                        className={`p-2.5 border flex items-center justify-between gap-2 ${
                           unlocked
                             ? 'bg-slate-900/75 border-slate-700'
-                            : 'bg-slate-950/80 border-slate-800/80'
+                            : 'bg-slate-950/80 border-slate-800/80 opacity-75'
                         }`}
                       >
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
-                            <span style={{ color: sc.fg }} className="text-[9px]">
-                              {sc.name}
+                            <span className="text-[9px] text-white">{bank.name}</span>
+                            <span className="text-[7px] px-1 py-0.5 bg-slate-800 text-cyan-300 border border-slate-700">
+                              {bank.category}
                             </span>
-                            <span className="text-[7px] text-slate-300">{sc.subtitle}</span>
                           </div>
                         </div>
 
                         <div className="flex items-center gap-1.5 shrink-0">
                           <button
                             type="button"
-                            onClick={() =>
-                              audioRef.current.playChordGate(sc, 0, cfg, getActiveSoundBank(cfg))
-                            }
+                            onClick={() => audioRef.current.previewNote(329.63, cfg, bank)}
                             className="px-2 py-1 bg-slate-800 hover:bg-slate-700 border border-slate-600 text-[8px] text-slate-200 cursor-pointer"
+                            title="Listen"
                           >
                             ▶
                           </button>
@@ -3734,98 +5936,103 @@ export default function App() {
                               <input
                                 type="checkbox"
                                 checked={enabled}
-                                onChange={(e) => handleToggleScale(sc.id, e.target.checked)}
+                                onChange={(e) => handleToggleSoundBank(bank.id, e.target.checked)}
                                 className="accent-emerald-400"
                               />
                               <span>ON</span>
                             </label>
                           ) : (
-                            <button
-                              type="button"
-                              disabled={!canAfford}
-                              onClick={() => handleUnlockScale(sc)}
-                              className={`px-2 py-1 text-[8px] border cursor-pointer ${
-                                canAfford
-                                  ? 'bg-amber-400 hover:bg-amber-300 text-slate-950 border-amber-300'
-                                  : 'bg-slate-900 text-slate-500 border-slate-800 cursor-not-allowed'
-                              }`}
-                            >
-                              {sc.costOrbs}●
-                            </button>
+                            <span className="px-2 py-1 bg-slate-900 border border-slate-800 text-[7px] text-amber-300">
+                              🔒 LV.{reqLv}
+                            </span>
                           )}
                         </div>
                       </div>
                     );
                   })}
                 </div>
-              </div>
-            ) : (
-              <div className="flex-1 overflow-y-auto space-y-2 pr-1">
-                {CHARACTER_AVATARS.map((av) => {
-                  const unlocked = cfg.unlockedAvatars.includes(av.id);
-                  const isEquipped = cfg.playerShape === av.id;
-                  const canAfford = stats.totalOrbs >= av.costOrbs;
+              ) : (
+                <div className="flex-1 flex flex-col overflow-hidden">
+                  <div className="p-2 mb-2 bg-slate-900/80 border border-emerald-500/40 text-[7px] text-emerald-200">
+                    ♫ Biomes unlock automatically via Player Level (LV.1–15) or Custom Biome Creator in DAW!
+                  </div>
+                  <div className="flex flex-wrap items-center gap-1 mb-2">
+                    {uniqueTraditions.map((tr) => (
+                      <button
+                        key={tr}
+                        type="button"
+                        onClick={() => setTraditionFilter(tr)}
+                        className={`px-1.5 py-0.5 text-[7px] border cursor-pointer ${
+                          traditionFilter === tr
+                            ? 'bg-emerald-500/20 border-emerald-400 text-emerald-200'
+                            : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white'
+                        }`}
+                      >
+                        {tr}
+                      </button>
+                    ))}
+                  </div>
 
-                  return (
-                    <div
-                      key={av.id}
-                      className={`p-2 border flex items-center justify-between gap-2 ${
-                        isEquipped
-                          ? 'bg-emerald-950/30 border-emerald-400'
-                          : unlocked
-                          ? 'bg-slate-900/75 border-slate-700'
-                          : 'bg-slate-950/80 border-slate-800/80'
-                      }`}
-                    >
-                      <div className="flex items-center gap-2 min-w-0">
-                        <SelectedAvatarMiniBadge
-                          avatarId={av.id}
-                          primaryColor="#00ff88"
-                          horizonColor="#00d4ff"
-                        />
-                        <div className="min-w-0">
-                          <div className="text-[9px] text-white truncate">{av.name}</div>
-                          <div className="text-[7px] text-emerald-300 truncate mt-0.5">
-                            {av.perkTitle}
+                  <div className="flex-1 overflow-y-auto space-y-2 pr-1">
+                    {filteredScales.map((sc) => {
+                      const unlocked = sc.id >= 100 || cfg.unlockedScales.includes(sc.id);
+                      const enabled = cfg.enabledScales.includes(sc.id);
+                      const reqLv = getRequiredLevelForScale(sc.id);
+
+                      return (
+                        <div
+                          key={sc.id}
+                          className={`p-2 border flex items-center justify-between gap-2 ${
+                            unlocked
+                              ? 'bg-slate-900/75 border-slate-700'
+                              : 'bg-slate-950/80 border-slate-800/80 opacity-75'
+                          }`}
+                        >
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span style={{ color: sc.fg }} className="text-[9px]">
+                                {sc.name}
+                              </span>
+                              <span className="text-[7px] text-slate-300">{sc.subtitle}</span>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                audioRef.current.playChordGate(sc, 0, cfg, getActiveSoundBank(cfg))
+                              }
+                              className="px-2 py-1 bg-slate-800 hover:bg-slate-700 border border-slate-600 text-[8px] text-slate-200 cursor-pointer"
+                            >
+                              ▶
+                            </button>
+
+                            {unlocked ? (
+                              <label className="flex items-center gap-1 px-2 py-1 bg-slate-950 border border-emerald-500/50 text-[8px] text-emerald-300 cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={enabled}
+                                  onChange={(e) => handleToggleScale(sc.id, e.target.checked)}
+                                  className="accent-emerald-400"
+                                />
+                                <span>ON</span>
+                              </label>
+                            ) : (
+                              <span className="px-2 py-1 bg-slate-900 border border-slate-800 text-[7px] text-amber-300">
+                                🔒 LV.{reqLv}
+                              </span>
+                            )}
                           </div>
                         </div>
-                      </div>
-
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        {unlocked ? (
-                          <button
-                            type="button"
-                            onClick={() => handleSelectAvatar(av.id)}
-                            className={`px-2.5 py-1 text-[8px] border uppercase cursor-pointer ${
-                              isEquipped
-                                ? 'bg-emerald-400 text-slate-950 border-emerald-300'
-                                : 'bg-slate-800 hover:bg-slate-700 text-white border-slate-600'
-                            }`}
-                          >
-                            {isEquipped ? '✓' : 'USE'}
-                          </button>
-                        ) : (
-                          <button
-                            type="button"
-                            disabled={!canAfford}
-                            onClick={() => handleUnlockAvatar(av)}
-                            className={`px-2 py-1 text-[8px] border cursor-pointer ${
-                              canAfford
-                                ? 'bg-amber-400 hover:bg-amber-300 text-slate-950 border-amber-300'
-                                : 'bg-slate-900 text-slate-500 border-slate-800 cursor-not-allowed'
-                            }`}
-                          >
-                            {av.costOrbs}●
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        )}
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })()}
 
         {/* --- 16-STEP VISUAL PIANO ROLL SEQUENCER MODAL --- */}
         {screen === 'sequencer' && (
@@ -3935,7 +6142,7 @@ export default function App() {
           </div>
         )}
 
-        {/* --- SYSTEM CONFIG & DEVELOPER FINE-TUNE SLIDERS (FULL 16 SLIDERS PRESERVED) --- */}
+        {/* --- SYSTEM CONFIG, CURATED MELODY LIBRARY & CATEGORIZED FINE-TUNE SLIDERS --- */}
         {screen === 'settings' && (
           <div
             id="settings-screen"
@@ -3944,7 +6151,7 @@ export default function App() {
             <div className="flex items-center justify-between border-b border-slate-800 pb-2.5 shrink-0">
               <div>
                 <h2 className="text-xs text-white tracking-wider uppercase">
-                  ⚙ FINE-TUNE &amp; CONFIG
+                  ⚙ FINE-TUNE &amp; MELODIES
                 </h2>
               </div>
               <button
@@ -3957,14 +6164,14 @@ export default function App() {
             </div>
 
             <div className="space-y-3.5 my-2.5 text-[9px]">
-              {/* 01. Developer Bundle Export / Import */}
+              {/* 01. Developer Bundle Export / Import (Includes Fine-Tune + Kept Melodies + Custom Stages) */}
               <div className="bg-slate-900/80 border border-emerald-500/50 p-3 space-y-2">
                 <div className="flex items-center justify-between border-b border-slate-800 pb-1">
                   <span className="text-emerald-400 uppercase">
                     01. Dev Bundle (.JSON)
                   </span>
-                  <span className="text-[8px] text-slate-400">
-                    {customStages.length} Stages
+                  <span className="text-[7px] text-slate-400">
+                    {keptMelodiesCount}/81 Melodies · {customStages.length} Stages
                   </span>
                 </div>
                 <div className="flex flex-wrap items-center gap-1.5 pt-1">
@@ -4002,11 +6209,164 @@ export default function App() {
                 )}
               </div>
 
-              {/* 02. 16 Developer Fine-Tune Sliders */}
-              <div className="bg-slate-900/60 border border-slate-800 p-3 space-y-2">
+              {/* 02. Gameplay Melody Mode & Curated Biome Melody Library (81 Melodies · 3 Per Biome) */}
+              <div className="bg-slate-900/70 border border-cyan-500/50 p-3 space-y-2.5">
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 pb-1.5">
+                  <span className="text-cyan-300 uppercase">
+                    02. Gameplay Melody Engine &amp; Library ({keptMelodiesCount}/81 Kept)
+                  </span>
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      data-testid="melody-mode-curated-btn"
+                      onClick={() => setCfg((prev) => ({ ...prev, melodyMode: 'curated' }))}
+                      className={`px-2 py-1 text-[8px] border cursor-pointer ${
+                        (cfg.melodyMode ?? 'curated') === 'curated'
+                          ? 'bg-emerald-400 text-slate-950 border-emerald-300'
+                          : 'bg-slate-950 text-slate-400 border-slate-700 hover:text-white'
+                      }`}
+                    >
+                      🎼 CURATED
+                    </button>
+                    <button
+                      type="button"
+                      data-testid="melody-mode-random-btn"
+                      onClick={() => setCfg((prev) => ({ ...prev, melodyMode: 'random' }))}
+                      className={`px-2 py-1 text-[8px] border cursor-pointer ${
+                        cfg.melodyMode === 'random'
+                          ? 'bg-amber-400 text-slate-950 border-amber-300'
+                          : 'bg-slate-950 text-slate-400 border-slate-700 hover:text-white'
+                      }`}
+                    >
+                      🎲 RANDOM
+                    </button>
+                  </div>
+                </div>
+
+                <div className="text-[7px] text-slate-400 leading-relaxed">
+                  Each biome has 3 composed 72-step melodies (Anthem, Arpeggio, Nocturne) with
+                  synchronized 4-Gate Chords &amp; Triplets. Audition with ▶, uncheck any you
+                  dislike, and export your selection in the .JSON bundle.
+                </div>
+
+                {/* Biome Filter & Bulk Actions */}
+                <div className="flex flex-wrap items-center justify-between gap-1.5">
+                  <select
+                    aria-label="Filter Melodies by Biome"
+                    value={melodyBiomeFilter}
+                    onChange={(e) =>
+                      setMelodyBiomeFilter(
+                        e.target.value === 'ALL' ? 'ALL' : Number(e.target.value)
+                      )
+                    }
+                    className="px-2 py-1 bg-slate-950 border border-slate-700 text-[8px] text-emerald-300 cursor-pointer"
+                  >
+                    <option value="ALL">ALL 27 BIOMES (81 MELODIES)</option>
+                    {MASTER_SCALES.map((sc) => (
+                      <option key={sc.id} value={sc.id}>
+                        #{sc.id + 1} {sc.name} · {sc.subtitle}
+                      </option>
+                    ))}
+                  </select>
+
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => setCfg((prev) => ({ ...prev, disabledMelodies: [] }))}
+                      className="px-2 py-1 bg-slate-800 hover:bg-slate-700 border border-slate-600 text-[7px] text-emerald-300 cursor-pointer"
+                    >
+                      KEEP ALL
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (melodyBiomeFilter === 'ALL') return;
+                        const biomeIds = ALL_CURATED_MELODIES.filter(
+                          (m) => m.biomeId === melodyBiomeFilter
+                        ).map((m) => m.id);
+                        setCfg((prev) => ({
+                          ...prev,
+                          disabledMelodies: (prev.disabledMelodies || []).filter(
+                            (id) => !biomeIds.includes(id)
+                          ),
+                        }));
+                      }}
+                      className="px-2 py-1 bg-slate-800 hover:bg-slate-700 border border-slate-600 text-[7px] text-cyan-300 cursor-pointer"
+                    >
+                      ENABLE BIOME
+                    </button>
+                  </div>
+                </div>
+
+                {/* Scrollable Curated Melody List */}
+                <div
+                  id="curated-melody-list"
+                  className="max-h-56 overflow-y-auto space-y-1.5 pr-1 border border-slate-800 bg-slate-950/80 p-2"
+                >
+                  {filteredCuratedMelodies.map((mel) => {
+                    const biome =
+                      MASTER_SCALES.find((s) => s.id === mel.biomeId) || MASTER_SCALES[0];
+                    const isKept = !(cfg.disabledMelodies || []).includes(mel.id);
+                    const prog = pickBiomeChordProgression(biome, mel.chordVariant);
+                    return (
+                      <div
+                        key={mel.id}
+                        className={`p-2 border flex items-center justify-between gap-2 ${
+                          isKept
+                            ? 'bg-slate-900/80 border-slate-700'
+                            : 'bg-slate-950/60 border-slate-800/60 opacity-60'
+                        }`}
+                      >
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span
+                              style={{ color: biome.fg }}
+                              className="text-[8px] uppercase"
+                            >
+                              {biome.name}
+                            </span>
+                            <span className="text-[8px] text-white">{mel.title}</span>
+                            <span className="px-1 py-0.5 bg-slate-800 border border-slate-700 text-[6px] text-cyan-300">
+                              {mel.styleTag}
+                            </span>
+                          </div>
+                          <div className="text-[7px] text-slate-400 mt-0.5 truncate">
+                            {mel.subtitle} · Gates: {prog.chordNames.join(' → ')}
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => handlePreviewCuratedMelody(mel)}
+                            className="px-2 py-1 bg-slate-800 hover:bg-slate-700 border border-slate-600 text-[8px] text-emerald-300 cursor-pointer"
+                            title="Preview Melody"
+                          >
+                            ▶
+                          </button>
+                          <label className="flex items-center gap-1 px-2 py-1 bg-slate-950 border border-emerald-500/50 text-[7px] text-emerald-300 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={isKept}
+                              onChange={(e) =>
+                                handleToggleCuratedMelody(mel.id, e.target.checked)
+                              }
+                              className="accent-emerald-400"
+                            />
+                            <span>KEEP</span>
+                          </label>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* 03. Categorized Developer Fine-Tune Sliders (22 Sliders across 5 Categories) */}
+              <div className="bg-slate-900/60 border border-slate-800 p-3 space-y-2.5">
                 <div className="flex items-center justify-between border-b border-slate-800 pb-1">
                   <span className="text-cyan-400 uppercase">
-                    02. Fine-Tune Parameters (16 Sliders)
+                    03. Categorized Fine-Tune ({FINE_TUNE_SLIDERS.length} Sliders)
                   </span>
                   <button
                     type="button"
@@ -4015,16 +6375,35 @@ export default function App() {
                         ...prev,
                         fineTune: { ...DEFAULT_FINE_TUNE },
                       }));
-                      setDevBundleStatus('RESET ALL 16 SLIDERS TO DEFAULT');
+                      setDevBundleStatus('RESET ALL 22 SLIDERS TO DEFAULT');
                     }}
                     className="px-2 py-0.5 bg-slate-800 hover:bg-slate-700 border border-slate-600 text-[8px] text-amber-300 cursor-pointer"
                   >
-                    RESET
+                    RESET ALL
                   </button>
                 </div>
 
+                {/* Category Filter Tabs */}
+                <div className="flex flex-wrap items-center gap-1 pt-0.5">
+                  {FINE_TUNE_CATEGORIES.map((cat) => (
+                    <button
+                      key={cat.id}
+                      type="button"
+                      data-testid={`finetune-cat-${cat.id.toLowerCase()}`}
+                      onClick={() => setFineTuneCategory(cat.id)}
+                      className={`px-2 py-1 text-[7px] border uppercase cursor-pointer transition-colors ${
+                        fineTuneCategory === cat.id
+                          ? 'bg-cyan-500/25 border-cyan-400 text-cyan-200'
+                          : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      {cat.label}
+                    </button>
+                  ))}
+                </div>
+
                 <div className="space-y-2 pt-1">
-                  {FINE_TUNE_SLIDERS.map((sl) => {
+                  {visibleFineTuneSliders.map((sl) => {
                     const currentVal =
                       (cfg.fineTune && cfg.fineTune[sl.key]) ?? DEFAULT_FINE_TUNE[sl.key];
                     return (
@@ -4032,8 +6411,13 @@ export default function App() {
                         key={sl.key}
                         className="p-2 bg-slate-950/70 border border-slate-800/80 flex flex-col gap-1"
                       >
-                        <div className="flex items-center justify-between">
-                          <span className="text-white text-[8px]">{sl.label}</span>
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-1.5">
+                            <span className="px-1 py-0.5 bg-slate-900 border border-slate-700 text-[6px] text-cyan-300">
+                              {sl.category}
+                            </span>
+                            <span className="text-white text-[8px]">{sl.label}</span>
+                          </div>
                           <span className="text-emerald-300 text-[8px]">
                             {currentVal}
                             {sl.unit}
@@ -4064,10 +6448,10 @@ export default function App() {
                 </div>
               </div>
 
-              {/* 03. Harmonic Web Audio Mixer */}
+              {/* 04. Harmonic Web Audio Mixer */}
               <div className="bg-slate-900/60 border border-slate-800 p-3 space-y-2">
                 <div className="text-pink-400 uppercase border-b border-slate-800 pb-1">
-                  03. Audio Mixer
+                  04. Audio Mixer
                 </div>
                 <div className="flex items-center justify-between">
                   <span>Master Gain</span>
@@ -4137,10 +6521,39 @@ export default function App() {
                 </div>
               </div>
 
-              {/* 04. Cyber-Biomes, Sensors & Post-Processing */}
+              {/* 05. Cyber-Biomes, Sensors, Beta Secret Skins & Reset */}
               <div className="bg-slate-900/60 border border-slate-800 p-3 space-y-2">
                 <div className="text-amber-400 uppercase border-b border-slate-800 pb-1">
-                  04. Sensors &amp; Visuals
+                  05. Sensors, Beta &amp; Visuals
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-pink-300">
+                    ✨ Unlock 9 Secret Legendary Skins (Beta)
+                  </span>
+                  <input
+                    type="checkbox"
+                    data-testid="beta-unlock-secret-skins-toggle"
+                    checked={Boolean(cfg.betaUnlockSecretSkins)}
+                    onChange={(e) => {
+                      const checked = e.target.checked;
+                      setCfg((prev) => {
+                        const cum = getCumulativeUnlocksForLevel(prev.playerLevel || 1);
+                        const nextUnlocked = checked
+                          ? Array.from(new Set([...prev.unlockedAvatars, ...SECRET_AVATAR_IDS]))
+                          : prev.unlockedAvatars.filter(
+                              (id) =>
+                                !SECRET_AVATAR_IDS.includes(id) ||
+                                cum.unlockedSecretAvatars.includes(id)
+                            );
+                        return {
+                          ...prev,
+                          betaUnlockSecretSkins: checked,
+                          unlockedAvatars: nextUnlocked,
+                        };
+                      });
+                    }}
+                    className="w-4 h-4 accent-pink-400 cursor-pointer"
+                  />
                 </div>
                 <div className="flex items-center justify-between">
                   <span>Android Gravity Tilt</span>
@@ -4170,6 +6583,16 @@ export default function App() {
                     onChange={(e) => setCfg({ ...cfg, crtScanlines: e.target.checked })}
                     className="w-4 h-4 accent-emerald-400"
                   />
+                </div>
+                <div className="pt-1 border-t border-slate-800 flex items-center justify-between">
+                  <span className="text-rose-300">Reset All Save Data &amp; Stats (Beta)</span>
+                  <button
+                    type="button"
+                    onClick={handleResetAllSaveData}
+                    className="px-2.5 py-1 bg-rose-950/70 hover:bg-rose-900 border border-rose-500 text-rose-200 text-[8px] uppercase cursor-pointer"
+                  >
+                    ↺ RESET ALL
+                  </button>
                 </div>
               </div>
             </div>
@@ -4220,84 +6643,219 @@ export default function App() {
           </div>
         )}
 
-        {/* --- MINIMAL GAME OVER MODAL WITH FAST PIXELATED DISSOLVE REVEAL --- */}
-        {screen === 'gameover' && (
-          <div
-            id="game-over-screen"
-            data-testid="game-over-screen"
-            className="pixel-dissolve-enter absolute inset-0 z-30 bg-[#04050a]/92 flex flex-col items-center justify-center p-6 text-center"
-          >
-            <div className="w-full max-w-sm border-2 border-slate-700 bg-slate-950 p-5">
-              <h2
-                id="go-msg"
-                className={`text-base mb-5 ${
-                  endSnapshot.isNewRecord ? 'text-amber-400' : 'text-rose-500'
-                }`}
-              >
-                {endSnapshot.isNewRecord ? '* NEW RECORD!' : '* SHATTERED *'}
-              </h2>
+        {/* --- MINIMAL GAME OVER MODAL WITH ANIMATED LEVEL XP BAR, LEVEL-UP BANNER & SHOP RECOMMENDATION --- */}
+        {screen === 'gameover' && (() => {
+          const recItem = computePostDefeatShopRecommendation(
+            stats.totalOrbs,
+            cfg,
+            CHARACTER_AVATARS
+          );
+          const didLevelUp = endSnapshot.newLevel > endSnapshot.prevLevel;
 
-              <div className="grid grid-cols-3 gap-2 mb-5 text-[9px]">
-                <div className="bg-slate-900 border border-slate-800 p-2.5">
-                  <div className="text-[7px] text-slate-400">SCORE</div>
-                  <div id="go-score" className="text-sm text-white mt-1">
-                    {endSnapshot.score}
-                  </div>
-                  <div className="text-[7px] text-amber-400 mt-1">
-                    BEST {endSnapshot.best}
-                  </div>
-                </div>
-                <div className="bg-slate-900 border border-slate-800 p-2.5">
-                  <div className="text-[7px] text-slate-400">FLOW</div>
-                  <div className="text-sm text-emerald-400 mt-1">
-                    x{endSnapshot.maxFlow}
-                  </div>
-                  <div className="text-[7px] text-slate-400 mt-1">
-                    +{endSnapshot.altitude}M
-                  </div>
-                </div>
-                <div className="bg-slate-900 border border-slate-800 p-2.5">
-                  <div className="text-[7px] text-slate-400">RANK</div>
-                  <div className="text-sm text-cyan-400 mt-1">
-                    {endSnapshot.rank}
-                  </div>
-                  <div className="text-[7px] text-amber-300 mt-1">
-                    *{endSnapshot.orbsCollected}
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-2">
-                <button
-                  type="button"
-                  data-start="true"
-                  onClick={() =>
-                    startNewRun(gameMode, undefined, true, simRef.current.activeStage)
-                  }
-                  className="w-full py-3 bg-emerald-400 hover:bg-emerald-300 text-slate-950 text-[10px] uppercase cursor-pointer"
+          return (
+            <div
+              id="game-over-screen"
+              data-testid="game-over-screen"
+              className="pixel-dissolve-enter absolute inset-0 z-30 bg-[#04050a]/92 flex flex-col items-center justify-center p-4 text-center overflow-y-auto"
+            >
+              <div className="w-full max-w-sm border-2 border-slate-700 bg-slate-950 p-4">
+                <h2
+                  id="go-msg"
+                  className={`text-base mb-3 ${
+                    endSnapshot.isNewRecord ? 'text-amber-400' : 'text-rose-500'
+                  }`}
                 >
-                  &gt; RETRY
-                </button>
-                <div className="grid grid-cols-2 gap-2">
+                  {endSnapshot.isNewRecord ? '* NEW RECORD!' : '* SHATTERED *'}
+                </h2>
+
+                <div className="grid grid-cols-3 gap-2 mb-3 text-[9px]">
+                  <div className="bg-slate-900 border border-slate-800 p-2">
+                    <div className="text-[7px] text-slate-400">SCORE</div>
+                    <div id="go-score" className="text-sm text-white mt-1">
+                      {endSnapshot.score}
+                    </div>
+                    <div className="text-[7px] text-amber-400 mt-1">
+                      BEST {endSnapshot.best}
+                    </div>
+                  </div>
+                  <div className="bg-slate-900 border border-slate-800 p-2">
+                    <div className="text-[7px] text-slate-400">FLOW</div>
+                    <div className="text-sm text-emerald-400 mt-1">
+                      x{endSnapshot.maxFlow}
+                    </div>
+                    <div className="text-[7px] text-slate-400 mt-1">
+                      +{endSnapshot.altitude}M
+                    </div>
+                  </div>
+                  <div className="bg-slate-900 border border-slate-800 p-2">
+                    <div className="text-[7px] text-slate-400">RANK</div>
+                    <div className="text-sm text-cyan-400 mt-1">
+                      {endSnapshot.rank}
+                    </div>
+                    <div className="text-[7px] text-amber-300 mt-1 inline-flex items-center justify-center gap-1">
+                      <RadiantOrbIcon size={10} />
+                      <span>+{endSnapshot.orbsCollected}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Animated Post-Defeat 15-Level XP Bar + Level-Up Congratulations Banner */}
+                <div
+                  data-testid="gameover-xp-panel"
+                  className="mb-3 p-2.5 bg-slate-900/95 border border-cyan-400/60 text-left"
+                >
+                  <div className="flex items-center justify-between text-[8px] mb-1.5">
+                    <span className="text-cyan-300 uppercase">
+                      ⭐ PLAYER LV.{endSnapshot.newLevel}/15
+                    </span>
+                    <span className="text-emerald-300">
+                      +{endSnapshot.xpGained} XP ({endSnapshot.xpIntoLevel}/{endSnapshot.xpNeededForNext})
+                    </span>
+                  </div>
+                  <div className="w-full h-2.5 bg-slate-950 border border-slate-700 overflow-hidden">
+                    <div
+                      className="h-full bg-gradient-to-r from-emerald-400 via-cyan-400 to-pink-400 transition-all duration-700"
+                      style={{
+                        width: `${Math.max(6, Math.round(endSnapshot.progressRatio * 100))}%`,
+                      }}
+                    />
+                  </div>
+
+                  {didLevelUp && endSnapshot.levelRewards.length > 0 && (
+                    <div
+                      data-testid="level-up-congrats-banner"
+                      className="mt-2 p-2 bg-amber-500/15 border border-amber-400 text-[7px] text-amber-200 space-y-1"
+                    >
+                      <div className="text-[8px] text-amber-300 uppercase">
+                        🎉 LEVEL UP! LV.{endSnapshot.prevLevel} → LV.{endSnapshot.newLevel}
+                      </div>
+                      {endSnapshot.levelRewards.map((rw, rIdx) => (
+                        <div key={`${rw.level}_${rIdx}`} className="text-white">
+                          • <strong>LV.{rw.level}:</strong>{' '}
+                          {cfg.language === 'fa' ? rw.nameFa : rw.nameEn}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Smart Post-Defeat Item Purchase Recommendation (Shows Character Shape if Character!) */}
+                {recItem && (
+                  <div
+                    data-testid="post-defeat-recommendation"
+                    className={`mb-3 p-2.5 border text-left flex items-center justify-between gap-2.5 ${
+                      recItem.canAfford
+                        ? 'bg-emerald-950/35 border-emerald-400/80 shadow-[0_0_16px_rgba(0,255,136,0.18)]'
+                        : 'bg-slate-900/90 border-amber-400/50'
+                    }`}
+                  >
+                    {recItem.kind === 'character' && (
+                      <SelectedAvatarMiniBadge
+                        avatarId={recItem.id as CharacterAvatarDef['id']}
+                        primaryColor="#00ff88"
+                        horizonColor="#00d4ff"
+                      />
+                    )}
+
+                    <div className="min-w-0 flex-1">
+                      <div className="text-[7px] uppercase tracking-wider text-amber-300 inline-flex items-center gap-1">
+                        {recItem.canAfford ? (
+                          <>
+                            <span>✨ UNLOCK NOW</span>
+                            <RadiantOrbIcon size={10} />
+                            <span>{stats.totalOrbs}</span>
+                          </>
+                        ) : (
+                          <>
+                            <span>🎯 +{recItem.orbsNeeded}</span>
+                            <RadiantOrbIcon size={10} />
+                            <span>TO UNLOCK</span>
+                          </>
+                        )}
+                      </div>
+                      <div className="text-[9px] text-white uppercase truncate mt-1">
+                        {recItem.kind === 'character' ? '◈ ' : '⚡ '}
+                        {recItem.name}
+                      </div>
+                      <div
+                        className="text-[7px] truncate mt-0.5"
+                        style={{ color: recItem.accentColor }}
+                      >
+                        * {recItem.shortBenefit}
+                      </div>
+                    </div>
+
+                    {recItem.canAfford ? (
+                      <button
+                        type="button"
+                        data-testid="buy-recommended-item-btn"
+                        onClick={() => {
+                          if (recItem.kind === 'character') {
+                            const av = CHARACTER_AVATARS.find((a) => a.id === recItem.id);
+                            if (av) handleUnlockAvatar(av);
+                          } else if (recItem.kind === 'power_up') {
+                            const pu = POWERUP_STORE_ITEMS.find((p) => p.id === recItem.id);
+                            if (pu) handleBuyOrUpgradePowerUp(pu);
+                          }
+                        }}
+                        className="px-2.5 py-2 bg-amber-400 hover:bg-amber-300 text-slate-950 text-[8px] uppercase whitespace-nowrap shrink-0 cursor-pointer inline-flex items-center gap-1"
+                      >
+                        <span>BUY</span>
+                        <RadiantOrbIcon size={10} />
+                        <span>{recItem.costOrbs}</span>
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setStoreTab(
+                            recItem.kind === 'character' ? 'characters' : 'powerups'
+                          );
+                          setScreen('store');
+                        }}
+                        className="px-2.5 py-2 bg-slate-800 hover:bg-slate-700 border border-amber-400/60 text-amber-300 text-[8px] uppercase whitespace-nowrap shrink-0 cursor-pointer inline-flex items-center gap-1"
+                      >
+                        <RadiantOrbIcon size={10} />
+                        <span>{recItem.costOrbs} SHOP</span>
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                <div className="flex flex-col gap-2">
                   <button
                     type="button"
-                    onClick={() => setScreen('store')}
-                    className="py-2.5 bg-slate-900 hover:bg-slate-800 border border-amber-400/70 text-amber-300 text-[9px] uppercase cursor-pointer"
+                    data-start="true"
+                    onClick={() =>
+                      startNewRun(gameMode, undefined, true, simRef.current.activeStage)
+                    }
+                    className="w-full py-3 bg-emerald-400 hover:bg-emerald-300 text-slate-950 text-[10px] uppercase cursor-pointer"
                   >
-                    SHOP ({stats.totalOrbs})
+                    &gt; RETRY
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => setScreen('title')}
-                    className="py-2.5 bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-200 text-[9px] uppercase cursor-pointer"
-                  >
-                    MENU
-                  </button>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setScreen('store')}
+                      className="py-2.5 bg-slate-900 hover:bg-slate-800 border border-amber-400/70 text-amber-300 text-[9px] uppercase cursor-pointer inline-flex items-center justify-center gap-1.5"
+                    >
+                      <span>SHOP</span>
+                      <RadiantOrbIcon size={11} />
+                      <span>{stats.totalOrbs}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setScreen('title')}
+                      className="py-2.5 bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-200 text-[9px] uppercase cursor-pointer"
+                    >
+                      MENU
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
       </div>
     </main>
   );

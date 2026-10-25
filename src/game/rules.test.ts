@@ -26,10 +26,19 @@ import {
   DEFAULT_CFG,
   MASTER_SCALES,
   SOUND_BANKS,
+  computePostDefeatShopRecommendation,
+  UPGRADABLE_POWERUPS,
+  getPowerUpLevelStats,
+  computePlayerLevelInfo,
+  getCumulativeUnlocksForLevel,
+  getLevelUpRewardsBetween,
+  createCustomBiomeFromHsl,
+  getAllBiomes,
 } from './rules';
 import {
   CHARACTER_AVATARS,
   STARTER_UNLOCKED_AVATARS,
+  SECRET_AVATAR_IDS,
   getCharacterById,
 } from './characters';
 import {
@@ -37,6 +46,117 @@ import {
   buildBiomePianoRollRows,
   compileStageForGameplay,
 } from './stages';
+import {
+  ALL_CURATED_MELODIES,
+  getCuratedMelodiesForBiome,
+  pickRandomCuratedMelodyForBiome,
+  evaluateCuratedMelodyStep,
+} from './melodies';
+
+test('81 Curated Melodies provide 3 compositions per biome including iconic Classical & Minecraft melodies (Moonlight Sonata, Wet Hands, etc.)', () => {
+  assert.equal(
+    ALL_CURATED_MELODIES.length,
+    MASTER_SCALES.length * 3,
+    'Should have 81 curated melodies across 27 biomes (including iconic Classical & Minecraft pieces)'
+  );
+  assert.ok(
+    ALL_CURATED_MELODIES.some((m) => m.title.toLowerCase().includes('moonlight sonata')),
+    'Includes Beethoven Moonlight Sonata'
+  );
+  assert.ok(
+    ALL_CURATED_MELODIES.some((m) => m.title.toLowerCase().includes('wet hands')),
+    'Includes C418 Wet Hands'
+  );
+  assert.ok(
+    ALL_CURATED_MELODIES.some((m) => m.title.toLowerCase().includes('sweden')),
+    'Includes C418 Sweden'
+  );
+
+  for (const biome of MASTER_SCALES) {
+    const biomeMelodies = getCuratedMelodiesForBiome(biome.id);
+    assert.ok(biomeMelodies.length >= 3, `${biome.name} must have at least 3 curated melodies`);
+    for (const m of biomeMelodies) {
+      assert.equal(m.steps.length, 72, `${m.title} must span 72 steps to cover full biome duration`);
+      assert.ok(m.chordVariant >= 0 && m.chordVariant <= 3, `${m.title} has a valid synchronized gate chord variant`);
+    }
+
+    const picked = pickRandomCuratedMelodyForBiome(biome.id, [biomeMelodies[0].id]);
+    assert.notEqual(picked.id, biomeMelodies[0].id, 'Disabled melodies are excluded when picking a biome melody');
+
+    const stepEval = evaluateCuratedMelodyStep(picked, biome, 4, FLOW_THRESHOLDS.CHORD, DEFAULT_CFG);
+    assert.ok(stepEval.freqs.length >= 2, 'Evaluated curated step produces harmonic lead frequencies');
+    assert.equal(stepEval.tripletFreqs.length, 3, 'Evaluated curated step produces 3 synchronized triplet frequencies');
+    assert.equal(stepEval.gateChords.length, 4, 'Evaluated curated step produces 4 synchronized gate chord arrays');
+  }
+
+  const lowFlow = computeFlowDynamicDifficulty(0);
+  const highFlow = computeFlowDynamicDifficulty(30);
+  assert.ok(highFlow.fragilePlatformChance > 0.25, 'High Flow increases fragile platform spawn probability');
+  assert.ok(highFlow.fragileStreakChance > 0.3, 'High Flow enables consecutive fragile platform streaks');
+  assert.ok(highFlow.fragileStreakMaxLen >= 3, 'Fragile streaks allow 3+ consecutive fragile platforms');
+  assert.ok(
+    lowFlow.disguisedFragileChance < highFlow.disguisedFragileChance &&
+      highFlow.disguisedFragileChance > 0.12,
+    'Disguised fragile trap platforms are rare at low Flow and appear more at high Flow'
+  );
+  assert.ok(highFlow.enemySpeedPxPerSec >= 150 && highFlow.enemyHalfRangePx >= 150, 'Enemy speed and movement range scale with Fine-Tune');
+
+  const affordableRec = computePostDefeatShopRecommendation(85, DEFAULT_CFG, CHARACTER_AVATARS);
+  assert.ok(affordableRec !== null, 'Recommends a locked store item after defeat');
+  assert.equal(affordableRec.canAfford, true, 'Recommends an affordable item when player has 85 Orbs');
+  assert.ok(affordableRec.shortBenefit.length >= 3, 'Includes a concise 2-3 word benefit summary');
+
+  const goalRec = computePostDefeatShopRecommendation(5, DEFAULT_CFG, CHARACTER_AVATARS);
+  assert.ok(goalRec !== null && goalRec.canAfford === false && goalRec.orbsNeeded > 0, 'Shows needed orbs for closest locked item when orbs are low');
+});
+
+test('15-Level Progression, 4-Level Passive Wall-Bounce Power-Up, and Smart HSL Custom Biome Generator', () => {
+  // Verify 4-level passive Wall-Bounce power-up
+  const wallBounceDef = UPGRADABLE_POWERUPS.find((u) => u.id === 'wall_bounce');
+  assert.ok(wallBounceDef, 'wall_bounce power-up exists');
+  assert.equal(wallBounceDef.activationMode, 'PASSIVE');
+  assert.equal(wallBounceDef.maxLevel, 4);
+  const wbLv1 = getPowerUpLevelStats('wall_bounce', 1);
+  const wbLv4 = getPowerUpLevelStats('wall_bounce', 4);
+  assert.ok(wbLv4.powerValue > wbLv1.powerValue, 'Wall-bounce elasticity increases from Lv.1 to Lv.4');
+
+  // Verify Jetpack upward thrust values are >= 880 px/s
+  assert.ok(getPowerUpLevelStats('jetpack_white', 1).powerValue >= 880, 'White Jetpack launches upward strongly');
+  assert.ok(
+    getPowerUpLevelStats('jetpack_prism', 1).powerValue > getPowerUpLevelStats('jetpack_gold', 1).powerValue,
+    'Prism Jetpack has higher thrust than Gold Jetpack'
+  );
+
+  // Verify 15-Level XP progression & secret skin unlocks at Lv.5, Lv.10, Lv.15
+  const lv1 = computePlayerLevelInfo(0);
+  assert.equal(lv1.level, 1);
+  const lv15 = computePlayerLevelInfo(99999);
+  assert.equal(lv15.level, 15);
+  const unlocksLv5 = getCumulativeUnlocksForLevel(5);
+  const unlocksLv10 = getCumulativeUnlocksForLevel(10);
+  const unlocksLv15 = getCumulativeUnlocksForLevel(15);
+  assert.equal(unlocksLv5.unlockedSecretAvatars.length, 3, 'Lv.5 unlocks 3 White Secret Skins');
+  assert.equal(unlocksLv10.unlockedSecretAvatars.length, 6, 'Lv.10 unlocks +3 Gold Secret Skins (6 total)');
+  assert.equal(unlocksLv15.unlockedSecretAvatars.length, 9, 'Lv.15 unlocks all 9 Secret Skins');
+  assert.equal(SECRET_AVATAR_IDS.length, 9);
+  assert.ok(getLevelUpRewardsBetween(1, 5).length >= 4, 'Tracks rewards earned between Lv.1 and Lv.5');
+
+  // Verify Smart HSL Custom Biome Generator
+  const customBiome = createCustomBiomeFromHsl({
+    id: 101,
+    name: 'SOLAR PRISM',
+    hue: 280,
+    saturation: 85,
+    lightness: 58,
+  });
+  assert.equal(customBiome.id, 101);
+  assert.equal(customBiome.isCustom, true);
+  assert.equal(customBiome.scale.length, 12, 'Default custom biome enables all 12 chromatic notes');
+  assert.equal(customBiome.chords.length, 4, 'Custom biome builds 4 chord gates');
+  assert.equal(customBiome.tripletNotes?.length, 3, 'Custom biome has 3-note triplet configuration');
+  assert.equal(getAllBiomes([customBiome]).length, MASTER_SCALES.length + 1);
+});
+
 
 test('Color manipulation utilities properly lighten and darken hex colors (Bug Fix #2)', () => {
   const rgbShort = hexToRgb('#0f0');
@@ -181,8 +301,8 @@ test('Duration-Proportional Jump Kinematics locks flightDurationSec 1:1 to beat 
   }
 });
 
-test('24 Reactive-Eye Character Avatars include 3 free starters (Circle, Triangle, Square), Gold tier, and 7-Color Rainbow tier with perks', () => {
-  assert.equal(CHARACTER_AVATARS.length, 24, '8 geometric shapes across Standard, Gold, and Rainbow tiers');
+test('33 Reactive-Eye Character Avatars include 24 geometric shapes + 9 secret skins across Standard, Gold, and Rainbow tiers with wallBounceElasticity', () => {
+  assert.equal(CHARACTER_AVATARS.length, 33, '24 geometric shapes + 9 high-res secret skins across Standard, Gold, and Rainbow tiers');
   assert.deepEqual(STARTER_UNLOCKED_AVATARS, ['circle', 'triangle', 'square']);
 
   for (const starterId of STARTER_UNLOCKED_AVATARS) {
@@ -191,14 +311,25 @@ test('24 Reactive-Eye Character Avatars include 3 free starters (Circle, Triangl
     assert.equal(def.tier, 'standard');
   }
 
+  const stdCircle = getCharacterById('circle');
   const goldCircle = getCharacterById('circle_gold');
   assert.equal(goldCircle.tier, 'gold');
-  assert.ok(goldCircle.costOrbs >= 1000);
-  assert.ok(goldCircle.perks.bonusMagnetRadiusPx > 0 && goldCircle.perks.doubleOrbChance > 0);
+  assert.equal(goldCircle.costOrbs, 600, 'Gold Circle price is 40% cheaper (600 Orbs)');
+  assert.ok(
+    goldCircle.perks.bonusMagnetRadiusPx > 0 &&
+      goldCircle.perks.doubleOrbChance > 0 &&
+      goldCircle.perks.orbBonusPct >= 40,
+    'Characters grant progressive Orb yield bonus %'
+  );
 
   const rainbowHex = getCharacterById('hexagon_rainbow');
   assert.equal(rainbowHex.tier, 'rainbow');
-  assert.ok(rainbowHex.costOrbs >= 2000);
+  assert.ok(
+    rainbowHex.perks.wallBounceElasticity > goldCircle.perks.wallBounceElasticity &&
+      goldCircle.perks.wallBounceElasticity > stdCircle.perks.wallBounceElasticity,
+    'Higher tier characters have greater wallBounceElasticity'
+  );
+  assert.ok(rainbowHex.costOrbs >= 1200 && rainbowHex.perks.orbBonusPct >= 100);
   assert.equal(rainbowHex.perks.chordGateDoublePowerUp, true);
 });
 

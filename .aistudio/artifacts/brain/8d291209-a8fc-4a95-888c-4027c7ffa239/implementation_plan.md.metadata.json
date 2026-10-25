@@ -1,0 +1,6 @@
+{
+  "summary":  "Implementation plan for adding a quick Melody Mode switch (Curated vs. Random) on the Main Menu and a compact top-corner Melody Indicator in the Gameplay HUD showing the active mode and composed melody title.",
+  "updatedAt":  "2026-10-24T16:42:07.664547049Z",
+  "requestFeedback":  true,
+  "userFacing":  true
+}

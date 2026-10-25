@@ -4,7 +4,7 @@
  * with Exact Note Beat Durations for NEON ASCENT: OMNI.
  */
 
-import { MASTER_SCALES, ScaleBiome } from './rules';
+import { MASTER_SCALES, ScaleBiome, getAllBiomes } from './rules';
 
 export interface StageNoteEvent {
   id: string;
@@ -79,10 +79,15 @@ export const AVAILABLE_NOTE_DURATIONS: Array<{ label: string; beats: number }> =
   { label: '4B (4.0x)', beats: 4.0 },
 ];
 
-export function getBiomeForBar(stage: CustomStage, barIndex: number): ScaleBiome {
+export function getBiomeForBar(
+  stage: CustomStage,
+  barIndex: number,
+  customBiomes?: ScaleBiome[]
+): ScaleBiome {
   const rule = (stage.barFlowRules || []).find((r) => r.barIndex === barIndex);
   const targetId = rule?.biomeId !== undefined ? rule.biomeId : stage.biomeId;
-  return MASTER_SCALES.find((b) => b.id === targetId) || MASTER_SCALES[0];
+  const all = getAllBiomes(customBiomes);
+  return all.find((b) => b.id === targetId) || MASTER_SCALES[0];
 }
 
 /**

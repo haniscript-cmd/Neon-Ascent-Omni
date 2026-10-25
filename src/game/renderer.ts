@@ -95,6 +95,63 @@ function cellNoise(col: number, row: number): number {
   return n - Math.floor(n);
 }
 
+export function drawCircularPixelGauge(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  radius: number,
+  ratio: number,
+  fillColor: string,
+  topEdgeColor: string,
+  borderColor: string,
+  isReadyPulse = false,
+  isActiveGlow = false,
+  seedOffset = 0,
+  pxSize = 3
+): void {
+  const clamped = Math.max(0, Math.min(1, ratio));
+  ctx.save();
+  ctx.imageSmoothingEnabled = false;
+
+  ctx.fillStyle = 'rgba(4, 6, 14, 0.9)';
+  ctx.strokeStyle = borderColor;
+  ctx.lineWidth = isActiveGlow || isReadyPulse ? 2.4 : 1.8;
+  if (isActiveGlow || isReadyPulse) {
+    ctx.shadowBlur = isActiveGlow ? 12 : 8;
+    ctx.shadowColor = borderColor;
+  }
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius - 3, 0, Math.PI * 2);
+  ctx.clip();
+
+  const gridRadius = radius - 2;
+  const totalRows = Math.ceil((gridRadius * 2) / pxSize);
+  let rowIdx = 0;
+
+  for (let py = cy - gridRadius; py < cy + gridRadius; py += pxSize) {
+    const rowNormFromBottom = 1 - rowIdx / Math.max(1, totalRows);
+    let colIdx = 0;
+    for (let px = cx - gridRadius; px < cx + gridRadius; px += pxSize) {
+      const dither = (cellNoise(colIdx + seedOffset * 7, rowIdx) - 0.5) * 0.14;
+      if (clamped > 0.01 && rowNormFromBottom + dither <= clamped) {
+        const isTopEdge = clamped < 0.98 && rowNormFromBottom + dither > clamped - 0.14;
+        ctx.fillStyle = isTopEdge ? topEdgeColor : fillColor;
+        ctx.fillRect(Math.round(px), Math.round(py), pxSize - 1, pxSize - 1);
+      }
+      colIdx++;
+    }
+    rowIdx++;
+  }
+
+  ctx.restore();
+}
+
 export function renderGameFrame(
   ctx: CanvasRenderingContext2D,
   width: number,
@@ -117,7 +174,8 @@ export function renderGameFrame(
   biomeDissolve?: BiomeDissolveState,
   aerialHazards: AerialHazardEntity[] = [],
   chordComboHud?: ChordComboHudState,
-  dyingSequence?: DyingSequenceState
+  dyingSequence?: DyingSequenceState,
+  jetpackGlitters: GlitterParticle[] = []
 ): void {
   ctx.imageSmoothingEnabled = false;
 
@@ -307,6 +365,9 @@ export function renderGameFrame(
     let platHorizon: string;
     let seamOverlap = 0;
 
+    const visualType =
+      p.type === 'crumble' && p.disguisedFragile && p.crumbleTimer <= 0 ? 'normal' : p.type;
+
     if (isDissolving && biomeDissolve) {
       const screenY = p.y - camY;
       const bottomToTopNorm = Math.max(0, Math.min(1, 1 - screenY / height));
@@ -316,13 +377,13 @@ export function renderGameFrame(
       );
       const fromCol = getPlatformThemeColor(
         biomeDissolve.fromBiome,
-        p.type,
+        visualType,
         cfg.useBiomes,
         cfg.fixedColor
       );
       const toCol = getPlatformThemeColor(
         biomeDissolve.toBiome,
-        p.type,
+        visualType,
         cfg.useBiomes,
         cfg.fixedColor
       );
@@ -334,7 +395,7 @@ export function renderGameFrame(
       );
       seamOverlap = Math.max(0, 1 - Math.abs(waveCenter - bottomToTopNorm) / 0.16);
     } else {
-      col = getPlatformThemeColor(platBiome, p.type, cfg.useBiomes, cfg.fixedColor);
+      col = getPlatformThemeColor(platBiome, visualType, cfg.useBiomes, cfg.fixedColor);
       platHorizon = cfg.useBiomes ? platBiome.horizonColor : lighten(cfg.fixedColor, 0.45);
     }
 
@@ -433,7 +494,7 @@ export function renderGameFrame(
       ctx.fillStyle = '#ffffff';
       ctx.textAlign = 'center';
       ctx.fillText('▲▲', p.x + p.w * 0.5, p.y + 11);
-    } else if (p.type === 'crumble') {
+    } else if (p.type === 'crumble' && (!p.disguisedFragile || p.crumbleTimer > 0)) {
       ctx.strokeStyle = lighten(col, 0.35);
       ctx.beginPath();
       ctx.moveTo(p.x + p.w * 0.35, p.y);
@@ -508,22 +569,26 @@ export function renderGameFrame(
     ctx.restore();
   }
 
-  // --- 5. COLLECTIBLE HARMONIC ORBS ---
+  // --- 5. COLLECTIBLE HARMONIC ORBS (Circular Core + Pulsing Ring) ---
   for (let i = 0; i < orbs.length; i++) {
     const orb = orbs[i];
     if (orb.collected || orb.y < camY - 80 || orb.y > camY + height + 80) continue;
-    const bobY = Math.round(orb.y + Math.sin(gameTime * 4 + orb.phase) * 5);
-    const ox = Math.round(orb.x);
+    const bobY = orb.y + Math.sin(gameTime * 4 + orb.phase) * 5;
+    const ox = orb.x;
     ctx.save();
-    ctx.shadowBlur = 10;
+    ctx.shadowBlur = 12;
     ctx.shadowColor = primaryColor;
     ctx.fillStyle = '#ffffff';
-    ctx.fillRect(ox - orb.radius, bobY - orb.radius, orb.radius * 2, orb.radius * 2);
+    ctx.beginPath();
+    ctx.arc(ox, bobY, orb.radius, 0, Math.PI * 2);
+    ctx.fill();
 
     ctx.strokeStyle = horizonCol;
     ctx.lineWidth = 2;
-    const outerR = Math.round(orb.radius + 3 + ambientPulse * 1.5);
-    ctx.strokeRect(ox - outerR, bobY - outerR, outerR * 2, outerR * 2);
+    const outerR = orb.radius + 3.5 + ambientPulse * 2.0;
+    ctx.beginPath();
+    ctx.arc(ox, bobY, outerR, 0, Math.PI * 2);
+    ctx.stroke();
     ctx.restore();
   }
 
@@ -599,6 +664,31 @@ export function renderGameFrame(
     ctx.restore();
   }
 
+  // --- 6A2. JETPACK FADING GLITTER TRAIL (Blue / Gold / 7-Color Rainbow) ---
+  if (!isShattered && jetpackGlitters && jetpackGlitters.length > 0) {
+    ctx.save();
+    for (let i = 0; i < jetpackGlitters.length; i++) {
+      const g = jetpackGlitters[i];
+      if (g.life <= 0) continue;
+      const lifeRatio = Math.max(0, g.life / Math.max(0.05, g.maxLife));
+      const twinkle = 0.52 + 0.48 * Math.sin(gameTime * 42 + g.twinklePhase);
+      ctx.globalAlpha = Math.min(1, lifeRatio * 1.15 * twinkle);
+      ctx.fillStyle = g.color;
+
+      const gx = Math.round(g.x);
+      const gy = Math.round(g.y);
+      const sz = Math.max(2, Math.round(g.size * (0.55 + 0.45 * lifeRatio)));
+
+      ctx.fillRect(gx - sz * 0.5, gy - sz * 0.5, sz, sz);
+      if (twinkle > 0.72) {
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(gx - sz - 1, gy - 1, sz * 2 + 2, 2);
+        ctx.fillRect(gx - 1, gy - sz - 1, 2, sz * 2 + 2);
+      }
+    }
+    ctx.restore();
+  }
+
   // --- 6B. PIXEL-ART AVATAR WITH SOLID RECTANGULAR EYES + DAMAGE GLITCH ---
   if (!isShattered) {
     const isGlitching = player.damageGlitchTimer > 0;
@@ -649,9 +739,19 @@ export function renderGameFrame(
       );
 
       if (player.hasShield && !tintOverride) {
-        ctx.strokeStyle = activeAvatar.tier === 'gold' ? '#fde047' : horizonCol;
-        ctx.lineWidth = 2;
-        ctx.strokeRect(-4, -4, player.w + 8, player.h + 8);
+        const shieldCol = activeAvatar.tier === 'gold' ? '#fde047' : horizonCol;
+        const shieldRadius = Math.max(player.w, player.h) * 0.72 + Math.sin(gameTime * 6) * 1.5;
+        ctx.save();
+        ctx.strokeStyle = shieldCol;
+        ctx.fillStyle = withAlpha(shieldCol, 0.14);
+        ctx.lineWidth = 2.2;
+        ctx.shadowBlur = 10;
+        ctx.shadowColor = shieldCol;
+        ctx.beginPath();
+        ctx.arc(player.w * 0.5, player.h * 0.5, shieldRadius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.restore();
       }
 
       ctx.restore();
@@ -767,65 +867,8 @@ export function renderGameFrame(
     ctx.restore();
   }
 
-  // --- 10. SIDE-MOUNTED CIRCULAR POWER-UPS WITH DRAINING PIXEL INTERIOR ---
-  if (activePowerUps.length > 0) {
-    const cx = width - 32;
-    const startY = 124;
-    const spacing = 52;
-    const radius = 20;
-    const pxSize = 3;
-
-    for (let idx = 0; idx < activePowerUps.length; idx++) {
-      const pu = activePowerUps[idx];
-      const cy = startY + idx * spacing;
-      const ratio = Math.max(0, Math.min(1, pu.remainingSec / Math.max(1, pu.durationSec)));
-
-      ctx.save();
-
-      ctx.fillStyle = 'rgba(4, 6, 14, 0.88)';
-      ctx.strokeStyle = withAlpha(primaryColor, 0.72);
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.arc(cx, cy, radius, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.stroke();
-
-      ctx.beginPath();
-      ctx.arc(cx, cy, radius - 3, 0, Math.PI * 2);
-      ctx.clip();
-
-      const gridRadius = radius - 2;
-      const totalRows = Math.ceil((gridRadius * 2) / pxSize);
-      let rowIdx = 0;
-
-      for (let py = cy - gridRadius; py < cy + gridRadius; py += pxSize) {
-        const rowNormFromBottom = 1 - rowIdx / Math.max(1, totalRows);
-        let colIdx = 0;
-        for (let px = cx - gridRadius; px < cx + gridRadius; px += pxSize) {
-          const dither = (cellNoise(colIdx + idx * 7, rowIdx) - 0.5) * 0.14;
-          if (rowNormFromBottom + dither <= ratio) {
-            const isTopEdge = rowNormFromBottom + dither > ratio - 0.12;
-            ctx.fillStyle = isTopEdge
-              ? lighten(horizonCol, 0.35)
-              : withAlpha(primaryColor, 0.45);
-            ctx.fillRect(px, py, pxSize - 1, pxSize - 1);
-          }
-          colIdx++;
-        }
-        rowIdx++;
-      }
-
-      ctx.fillStyle = '#ffffff';
-      ctx.shadowBlur = 5;
-      ctx.shadowColor = '#000000';
-      ctx.font = "12px 'Press Start 2P', monospace";
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(pu.icon, cx, cy + 1);
-
-      ctx.restore();
-    }
-  }
+  // --- 10. RIGHT-SIDE INTERACTIVE POWER-UP SLOTS ARE RENDERED IN #ui-hud VIA drawCircularPixelGauge ---
+  void activePowerUps;
 
   // --- 11. LEFT-SIDE 4-SQUARE VERTICAL CHORD GATE COMBO COLUMN ---
   if (

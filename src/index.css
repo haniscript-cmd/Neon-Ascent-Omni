@@ -11,7 +11,7 @@
     height: 100dvh;
     background-color: #04050a;
     color: #f8fafc;
-    font-family: 'Press Start 2P', monospace;
+    font-family: 'Press Start 2P', 'Vazirmatn', monospace, sans-serif;
     overflow: hidden;
     overscroll-behavior: none;
     user-select: none;
@@ -23,20 +23,28 @@
   button,
   input,
   select {
-    font-family: 'Press Start 2P', monospace;
+    font-family: 'Press Start 2P', 'Vazirmatn', monospace, sans-serif;
   }
 }
 
 .font-display {
-  font-family: 'Press Start 2P', monospace;
+  font-family: 'Press Start 2P', 'Vazirmatn', monospace, sans-serif;
 }
 
 .font-pixel {
-  font-family: 'Press Start 2P', monospace;
+  font-family: 'Press Start 2P', 'Vazirmatn', monospace, sans-serif;
+}
+
+.font-fa,
+.font-fa button,
+.font-fa input,
+.font-fa select {
+  font-family: 'Vazirmatn', 'Press Start 2P', sans-serif;
+  letter-spacing: 0 !important;
 }
 
 .font-mono-tech {
-  font-family: 'Press Start 2P', monospace;
+  font-family: 'Press Start 2P', 'Vazirmatn', monospace, sans-serif;
   font-variant-numeric: tabular-nums;
 }
 
