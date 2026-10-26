@@ -95,6 +95,11 @@ const BIOME_MELODY_TITLES: Record<number, [string, string, string]> = {
   24: ['Ganges Morning Raga', 'Bhairav Sitar Awakening', 'Saffron Temple Bells'],
   25: ['Ubud Bronze Gamelan', 'Pelog Rainforest Canopy', 'Sacred Monkey Chant'],
   26: ['Chrono Warp Paradox', 'Whole-Tone Prism Matrix', 'Tesseract Time Loop'],
+  27: ['Aladdin Desert Citadel', 'Hijaz Caravan Epic', 'Sandstorm Oud Nocturne'],
+  28: ['Elderscroll Tavern Ballad', 'Dorian Castle Keep', 'Medieval Quest Overture'],
+  29: ['Imperial Gong Festival', 'Jade Dragon Courtyard', 'Silk Road Lantern Dance'],
+  30: ['Miyako-Bushi Koto Elegy', 'Edo Shadow Shamisen', 'Dark Sakura Nocturne'],
+  31: ['Sundanese Degung Dream', 'Bandung Bamboo Waterfall', 'Tropical Gamelan Lullaby'],
 };
 
 /**

@@ -45,6 +45,33 @@ export class OmniAudioEngine {
   private jumpsSinceSubdivision = 0;
   private nextSubdivisionJumpTarget = 5;
 
+  // Custom VST / Sample Buffer Overrides per Sound Bank (Root Note = C4 / 261.63 Hz)
+  private customBankBuffers: Map<string, AudioBuffer> = new Map();
+
+  async loadCustomBankSample(
+    bankId: string,
+    arrayBuffer: ArrayBuffer,
+    cfg: GameConfig
+  ): Promise<boolean> {
+    this.init(cfg);
+    if (!this.ctx) return false;
+    try {
+      const decoded = await this.ctx.decodeAudioData(arrayBuffer.slice(0));
+      this.customBankBuffers.set(bankId, decoded);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  clearCustomBankSample(bankId: string): void {
+    this.customBankBuffers.delete(bankId);
+  }
+
+  hasCustomBankSample(bankId: string): boolean {
+    return this.customBankBuffers.has(bankId);
+  }
+
   init(cfg: GameConfig): void {
     if (this.ctx) {
       if (this.ctx.state === 'suspended') {
@@ -655,15 +682,54 @@ export class OmniAudioEngine {
     if (this.activeVoiceCount >= 14) return;
     this.activeVoiceCount++;
 
+    // Apply subtle analog tape wow/flutter
+    const flutterMult = 1 + Math.sin(startTime * 6.2 + voiceIdx) * bank.tapeFlutter;
+    const tunedFreq = freq * flutterMult;
+
+    // If user uploaded a custom WAV/MP3/OGG sample for this Sound Bank (recorded at C4 = 261.63Hz),
+    // play it back pitch-shifted with full envelope & reverb/delay routing!
+    const customBuf = this.customBankBuffers.get(bank.id);
+    if (customBuf) {
+      const src = this.ctx.createBufferSource();
+      const g = this.ctx.createGain();
+      src.buffer = customBuf;
+      const playbackRate = Math.max(0.125, Math.min(8.0, tunedFreq / 261.63));
+      src.playbackRate.setValueAtTime(playbackRate, startTime);
+
+      let baseVol = 0.34 * gainScale;
+      if (totalVoices > 2) baseVol *= 0.74;
+      if (voiceIdx === 0) baseVol *= cfg.volNotes;
+      else if (voiceIdx === 1) baseVol *= cfg.volIntervals * 0.78;
+      else baseVol *= cfg.volChords * 0.7;
+
+      const safeDecay = Math.min(2.2, Math.max(0.35, bank.decaySec));
+      g.gain.setValueAtTime(0.0001, startTime);
+      g.gain.linearRampToValueAtTime(Math.max(0.001, baseVol), startTime + Math.max(0.004, bank.attackSec));
+      g.gain.exponentialRampToValueAtTime(0.0008, startTime + safeDecay);
+
+      src.connect(g);
+      g.connect(this.masterGain);
+      if (this.reverbNode && voiceIdx === 0) g.connect(this.reverbNode);
+      if (flow >= FLOW_THRESHOLDS.CHORD && this.delayLeft && voiceIdx === 0) {
+        g.connect(this.delayLeft);
+      }
+
+      const stopTime = startTime + safeDecay + 0.05;
+      src.onended = () => {
+        this.activeVoiceCount = Math.max(0, this.activeVoiceCount - 1);
+        src.disconnect();
+        g.disconnect();
+      };
+      src.start(startTime);
+      src.stop(stopTime);
+      return;
+    }
+
     const useDualOsc = voiceIdx === 0 && this.activeVoiceCount <= 6;
     const oscA = this.ctx.createOscillator();
     const oscB = useDualOsc ? this.ctx.createOscillator() : null;
     const filter = this.ctx.createBiquadFilter();
     const g = this.ctx.createGain();
-
-    // Apply subtle analog tape wow/flutter
-    const flutterMult = 1 + Math.sin(startTime * 6.2 + voiceIdx) * bank.tapeFlutter;
-    const tunedFreq = freq * flutterMult;
 
     oscA.type = voiceIdx === 0 ? bank.baseWave : bank.subWave;
     oscA.frequency.setValueAtTime(tunedFreq, startTime);

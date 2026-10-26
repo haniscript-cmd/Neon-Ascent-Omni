@@ -257,6 +257,74 @@ export const SOUND_BANKS: SoundBankDef[] = [
     fmModDepth: 45,
     tapeFlutter: 0.0018,
   },
+  {
+    id: 'magical_8bit_2',
+    name: 'Magical 8bit Plug 2 (2A03)',
+    category: 'CRT RETRO',
+    desc: 'YMCK NES 2A03 pulse & stepped triangle chiptune voice (supports .WAV sample override)',
+    costOrbs: 0,
+    baseWave: 'square',
+    subWave: 'triangle',
+    detuneCents: 2,
+    filterCutoffMult: 1.35,
+    filterQ: 1.6,
+    attackSec: 0.005,
+    decaySec: 0.78,
+    fmModRatio: 2.0,
+    fmModDepth: 6,
+    tapeFlutter: 0.0004,
+  },
+  {
+    id: 'socalabs_8bit',
+    name: 'SocaLabs 8-Bit Chip (SID/GB)',
+    category: 'CRT RETRO',
+    desc: 'Crisp GameBoy / RP2A03 / SID dual-duty chiptune pluck (supports .WAV sample override)',
+    costOrbs: 0,
+    baseWave: 'square',
+    subWave: 'square',
+    detuneCents: 9,
+    filterCutoffMult: 1.25,
+    filterQ: 2.4,
+    attackSec: 0.006,
+    decaySec: 0.88,
+    fmModRatio: 1.5,
+    fmModDepth: 14,
+    tapeFlutter: 0.0006,
+  },
+  {
+    id: 'chipsounds_sfz',
+    name: 'Plogue Chipsounds / Sforzando',
+    category: 'CRT RETRO',
+    desc: 'Vintage 8-bit home computer & SFZ multi-chip synth lead (supports .WAV sample override)',
+    costOrbs: 0,
+    baseWave: 'sawtooth',
+    subWave: 'square',
+    detuneCents: 11,
+    filterCutoffMult: 1.1,
+    filterQ: 3.1,
+    attackSec: 0.008,
+    decaySec: 1.05,
+    fmModRatio: 3.0,
+    fmModDepth: 32,
+    tapeFlutter: 0.0012,
+  },
+  {
+    id: 'vital_surge_wt',
+    name: 'Vital / Surge XT Wavetable',
+    category: 'CYBERPUNK',
+    desc: 'Modern spectral wavetable unison & FM harmonic lead (supports .WAV sample override)',
+    costOrbs: 0,
+    baseWave: 'sawtooth',
+    subWave: 'sawtooth',
+    detuneCents: 16,
+    filterCutoffMult: 1.45,
+    filterQ: 3.4,
+    attackSec: 0.01,
+    decaySec: 1.28,
+    fmModRatio: 2.0,
+    fmModDepth: 65,
+    tapeFlutter: 0.001,
+  },
 ];
 
 export const DEFAULT_CFG: GameConfig = {
@@ -276,10 +344,10 @@ export const DEFAULT_CFG: GameConfig = {
   crtScanlines: true,
   chromaticAberration: true,
   synthWaveform: 'triangle',
-  unlockedScales: [0, 1, 2, 6],
-  enabledScales: [0, 1, 2, 6],
-  unlockedSoundBanks: ['crt_velvet'],
-  enabledSoundBanks: ['crt_velvet'],
+  unlockedScales: [0, 1, 2, 6, 27, 28, 29, 30, 31],
+  enabledScales: [0, 1, 2, 6, 27, 28, 29, 30, 31],
+  unlockedSoundBanks: ['crt_velvet', 'magical_8bit_2', 'socalabs_8bit', 'chipsounds_sfz', 'vital_surge_wt'],
+  enabledSoundBanks: ['crt_velvet', 'magical_8bit_2', 'socalabs_8bit', 'chipsounds_sfz', 'vital_surge_wt'],
   tiltControlEnabled: true,
   language: 'en',
   playerXp: 0,
@@ -907,6 +975,92 @@ export const MASTER_SCALES: ScaleBiome[] = [
     chords: makeChords(
       [261.63, 293.66, 329.63, 369.99, 415.30, 466.16, 523.25, 587.33],
       [[0, 2, 4, 5], [1, 3, 5, 0], [2, 4, 0, 1], [5, 1, 3, 4]]
+    ),
+  },
+  // --- 5 NEW WORLD & MODAL BIOMES: MAQAM HIJAZ, C DORIAN RPG, GONG MODE, IN SCALE (MIYAKO-BUSHI), DEGUNG ---
+  {
+    id: 27,
+    name: 'MAQAM HIJAZ',
+    subtitle: 'C Maqam Hijaz (C-Db-E-F-G-Ab-Bb)',
+    tradition: 'ARABIC',
+    costOrbs: 0,
+    fg: '#f59e0b',
+    bgAccent: '#3b1504',
+    horizonColor: '#fde68a',
+    scale: [261.63, 277.18, 329.63, 349.23, 392.00, 415.30, 466.16, 523.25],
+    noteNames: ['C4', 'Db4', 'E4', 'F4', 'G4', 'Ab4', 'Bb4', 'C5'],
+    chordNames: ['C7(b9)', 'Fm(maj7)', 'Dbmaj7#11', 'Bbm6'],
+    chords: makeChords(
+      [261.63, 277.18, 329.63, 349.23, 392.00, 415.30, 466.16, 523.25],
+      [[0, 2, 4, 6], [3, 5, 0, 2], [1, 3, 5, 0], [6, 1, 3, 4]]
+    ),
+  },
+  {
+    id: 28,
+    name: 'DORIAN REALM',
+    subtitle: 'C Dorian RPG Mode (C-D-Eb-F-G-A-Bb)',
+    tradition: 'EUROPEAN RPG',
+    costOrbs: 0,
+    fg: '#38bdf8',
+    bgAccent: '#0c2440',
+    horizonColor: '#93c5fd',
+    scale: [261.63, 293.66, 311.13, 349.23, 392.00, 440.00, 466.16, 523.25],
+    noteNames: ['C4', 'D4', 'Eb4', 'F4', 'G4', 'A4', 'Bb4', 'C5'],
+    chordNames: ['Cm9', 'F9', 'Bbmaj7', 'Gm7'],
+    chords: makeChords(
+      [261.63, 293.66, 311.13, 349.23, 392.00, 440.00, 466.16, 523.25],
+      [[0, 2, 4, 6], [3, 5, 0, 1], [6, 1, 3, 5], [4, 6, 1, 3]]
+    ),
+  },
+  {
+    id: 29,
+    name: 'GONG DYNASTY',
+    subtitle: 'C Gong Mode Pentatonic (C-D-E-G-A)',
+    tradition: 'CHINESE TRAD',
+    costOrbs: 0,
+    fg: '#fbbf24',
+    bgAccent: '#450a0a',
+    horizonColor: '#fef08a',
+    scale: [261.63, 293.66, 329.63, 392.00, 440.00, 523.25, 587.33, 659.25],
+    noteNames: ['C4', 'D4', 'E4', 'G4', 'A4', 'C5', 'D5', 'E5'],
+    chordNames: ['C6/9', 'Gadd9', 'Am7', 'Dsus4'],
+    chords: makeChords(
+      [261.63, 293.66, 329.63, 392.00, 440.00, 523.25, 587.33, 659.25],
+      [[0, 2, 3, 4], [3, 4, 5, 6], [4, 0, 2, 3], [1, 3, 4, 5]]
+    ),
+  },
+  {
+    id: 30,
+    name: 'MIYAKO-BUSHI IN',
+    subtitle: 'C In Scale Koto (C-Db-F-G-Ab)',
+    tradition: 'JAPANESE',
+    costOrbs: 0,
+    fg: '#e11d48',
+    bgAccent: '#2e0514',
+    horizonColor: '#fda4af',
+    scale: [261.63, 277.18, 349.23, 392.00, 415.30, 523.25, 554.37, 698.46],
+    noteNames: ['C4', 'Db4', 'F4', 'G4', 'Ab4', 'C5', 'Db5', 'F5'],
+    chordNames: ['Csus4(b9)', 'Fm(b6)', 'Dbmaj7', 'Gsus(b9)'],
+    chords: makeChords(
+      [261.63, 277.18, 349.23, 392.00, 415.30, 523.25, 554.37, 698.46],
+      [[0, 2, 3, 1], [2, 4, 5, 3], [1, 2, 4, 5], [3, 4, 0, 2]]
+    ),
+  },
+  {
+    id: 31,
+    name: 'SUNDANESE DEGUNG',
+    subtitle: 'C Degung Gamelan (C-Db-Eb-G-Ab)',
+    tradition: 'INDONESIAN',
+    costOrbs: 0,
+    fg: '#14b8a6',
+    bgAccent: '#042f2e',
+    horizonColor: '#99f6e4',
+    scale: [261.63, 277.18, 311.13, 392.00, 415.30, 523.25, 554.37, 622.25],
+    noteNames: ['C4', 'Db4', 'Eb4', 'G4', 'Ab4', 'C5', 'Db5', 'Eb5'],
+    chordNames: ['Cm(b6)', 'Abmaj7', 'Dbadd9', 'Eb6'],
+    chords: makeChords(
+      [261.63, 277.18, 311.13, 392.00, 415.30, 523.25, 554.37, 622.25],
+      [[0, 2, 3, 4], [4, 0, 2, 3], [1, 2, 3, 5], [2, 3, 4, 6]]
     ),
   },
 ];
@@ -2912,8 +3066,8 @@ export const LEVEL_PROGRESSION_TABLE: LevelProgressionDef[] = [
   {
     level: 0,
     minXp: 0,
-    newlyUnlockedScales: [0, 1, 2, 6],
-    newlyUnlockedSoundBanks: ['crt_velvet'],
+    newlyUnlockedScales: [0, 1, 2, 6, 27, 28, 29, 30, 31],
+    newlyUnlockedSoundBanks: ['crt_velvet', 'magical_8bit_2', 'socalabs_8bit', 'chipsounds_sfz', 'vital_surge_wt'],
     newlyUnlockedSecretAvatars: [],
     powerUpSlots: 3,
     titleEn: 'Dormant Seed (Lv.0)',
@@ -3164,8 +3318,8 @@ export function getCumulativeUnlocksForLevel(
   powerUpSlots: number;
 } {
   const clampedLv = Math.max(0, Math.min(15, Math.floor(level ?? 0)));
-  const scales = new Set<number>([0, 1, 2, 6]);
-  const banks = new Set<string>(['crt_velvet']);
+  const scales = new Set<number>([0, 1, 2, 6, 27, 28, 29, 30, 31]);
+  const banks = new Set<string>(['crt_velvet', 'magical_8bit_2', 'socalabs_8bit', 'chipsounds_sfz', 'vital_surge_wt']);
   const secrets = new Set<string>();
   let slots = 3;
 

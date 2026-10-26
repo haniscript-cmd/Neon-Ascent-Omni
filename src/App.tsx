@@ -833,6 +833,7 @@ export default function App() {
   const rankBadgeDomRef = useRef<HTMLDivElement | null>(null);
   const biomeTagDomRef = useRef<HTMLDivElement | null>(null);
   const melodyHudDomRef = useRef<HTMLDivElement | null>(null);
+  const mobileHintDomRef = useRef<HTMLDivElement | null>(null);
   const hpHeartsDomRef = useRef<HTMLDivElement | null>(null);
   const lastRenderedHpKeyRef = useRef<string>('');
 
@@ -843,6 +844,7 @@ export default function App() {
   const [fineTuneCategory, setFineTuneCategory] = useState<FineTuneCategory>('ALL');
   const [isEditingDashLayout, setIsEditingDashLayout] = useState<boolean>(false);
   const dashDragActiveRef = useRef<boolean>(false);
+  const [customBankSampleNames, setCustomBankSampleNames] = useState<Record<string, string>>({});
   const [melodyBiomeFilter, setMelodyBiomeFilter] = useState<number | 'ALL'>('ALL');
   const [gameMode, setGameMode] = useState<GameMode>('STANDARD');
   const [storeOrbInput, setStoreOrbInput] = useState<string>('');
@@ -4779,6 +4781,19 @@ export default function App() {
             : '🎼 CURATED MELODY';
           melodyHudDomRef.current.style.color = c.useBiomes ? biome.fg : '#00ff88';
         }
+        if (mobileHintDomRef.current) {
+          if (sim.gameTime < 3.2) {
+            mobileHintDomRef.current.style.display = '';
+            mobileHintDomRef.current.style.opacity = '1';
+          } else if (sim.gameTime < 4.2) {
+            mobileHintDomRef.current.style.display = '';
+            mobileHintDomRef.current.style.opacity = String(
+              Math.max(0, Number((1 - (sim.gameTime - 3.2)).toFixed(2)))
+            );
+          } else {
+            mobileHintDomRef.current.style.display = 'none';
+          }
+        }
       }
 
       return ambientPulse;
@@ -5682,8 +5697,12 @@ export default function App() {
             NEON GRID · C Minor Nine
           </div>
 
-          {/* Mobile Touch Controls: Hold & Drag Steer Hint + Optional On-Screen Circular Dash Button (Hidden when mobileDashMode === 'tap') */}
-          <div className="md:hidden absolute bottom-28 left-4 pointer-events-none">
+          {/* Mobile Touch Controls: Hold & Drag Steer Hint (Shown only for the first ~4 seconds of gameplay) */}
+          <div
+            ref={mobileHintDomRef}
+            data-testid="mobile-gameplay-hint"
+            className="md:hidden absolute bottom-28 left-4 pointer-events-none transition-opacity duration-200"
+          >
             <div className="px-2.5 py-1.5 bg-slate-950/65 border border-slate-800/80 text-[7px] text-slate-400 uppercase">
               {(cfg.fineTune?.mobileDashMode ?? 'tap') === 'tap'
                 ? '⇄ DRAG TO STEER · ⚡ TAP TO DASH'
@@ -6730,13 +6749,14 @@ export default function App() {
                 </div>
               ) : storeTab === 'banks' ? (
                 <div className="flex-1 overflow-y-auto space-y-2 pr-1">
-                  <div className="p-2 bg-slate-900/80 border border-cyan-500/40 text-[7px] text-cyan-200">
-                    🔊 Sound Banks unlock automatically as you level up from LV.1 to LV.15!
+                  <div className="p-2 bg-slate-900/80 border border-cyan-500/40 text-[7px] text-cyan-200 leading-relaxed">
+                    🔊 Sound Banks unlock via LV.0–15. You can also click <strong className="text-amber-300">📥 WAV/MP3</strong> on any bank to import a single-note <strong className="text-white">C4 (261.63Hz)</strong> audio sample exported from <strong className="text-emerald-300">Magical 8bit Plug 2, SocaLabs, Plogue Chipsounds / Sforzando, or Vital / Surge XT</strong>!
                   </div>
                   {SOUND_BANKS.map((bank) => {
                     const unlocked = cfg.unlockedSoundBanks.includes(bank.id);
                     const enabled = cfg.enabledSoundBanks.includes(bank.id);
                     const reqLv = getRequiredLevelForSoundBank(bank.id);
+                    const customSampleName = customBankSampleNames[bank.id];
 
                     return (
                       <div
@@ -6748,11 +6768,19 @@ export default function App() {
                         }`}
                       >
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
                             <span className="text-[9px] text-white">{bank.name}</span>
                             <span className="text-[7px] px-1 py-0.5 bg-slate-800 text-cyan-300 border border-slate-700">
                               {bank.category}
                             </span>
+                            {customSampleName && (
+                              <span className="text-[6px] px-1 py-0.5 bg-amber-500/20 text-amber-300 border border-amber-400/60">
+                                🎵 SAMPLE: {customSampleName}
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-[7px] text-slate-400 mt-0.5 truncate">
+                            {bank.desc}
                           </div>
                         </div>
 
@@ -6768,6 +6796,37 @@ export default function App() {
                           >
                             ▶
                           </button>
+
+                          <label
+                            className="px-1.5 py-1 bg-slate-900 hover:bg-slate-800 border border-amber-400/60 text-[7px] text-amber-300 cursor-pointer"
+                            title="Import C4 (.wav / .mp3 / .ogg) sample exported from VST plugin"
+                          >
+                            📥 WAV
+                            <input
+                              type="file"
+                              accept=".wav,.mp3,.ogg,audio/*"
+                              className="hidden"
+                              onChange={async (e) => {
+                                const file = e.target.files?.[0];
+                                if (!file) return;
+                                const buf = await file.arrayBuffer();
+                                const ok = await audioRef.current.loadCustomBankSample(
+                                  bank.id,
+                                  buf,
+                                  cfg
+                                );
+                                if (ok) {
+                                  setCustomBankSampleNames((prev) => ({
+                                    ...prev,
+                                    [bank.id]: file.name,
+                                  }));
+                                  lastPreviewedBankIdRef.current = bank.id;
+                                  audioRef.current.previewNote(261.63, cfg, bank);
+                                }
+                                e.target.value = '';
+                              }}
+                            />
+                          </label>
 
                           {unlocked ? (
                             <label className="flex items-center gap-1 px-2 py-1 bg-slate-950 border border-emerald-500/50 text-[8px] text-emerald-300 cursor-pointer">
@@ -6911,7 +6970,7 @@ export default function App() {
                     01. Dev Bundle (.JSON)
                   </span>
                   <span className="text-[7px] text-slate-400">
-                    {keptMelodiesCount}/81 Melodies · {customStages.length} Stages
+                    {keptMelodiesCount}/{ALL_CURATED_MELODIES.length} Melodies · {customStages.length} Stages
                   </span>
                 </div>
                 <div className="flex flex-wrap items-center gap-1.5 pt-1">
@@ -6949,11 +7008,11 @@ export default function App() {
                 )}
               </div>
 
-              {/* 02. Unified Curated Biome Melody Library (81 Melodies · 3 Per Biome, Editable in DAW!) */}
+              {/* 02. Unified Curated Biome Melody Library (3 Per Biome, Editable in DAW!) */}
               <div className="bg-slate-900/70 border border-cyan-500/50 p-3 space-y-2.5">
                 <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 pb-1.5">
                   <span className="text-cyan-300 uppercase">
-                    02. Curated &amp; DAW Melody Library ({keptMelodiesCount}/81 Active)
+                    02. Curated &amp; DAW Melody Library ({keptMelodiesCount}/{ALL_CURATED_MELODIES.length} Active)
                   </span>
                   <button
                     type="button"
@@ -6982,7 +7041,7 @@ export default function App() {
                     }
                     className="px-2 py-1 bg-slate-950 border border-slate-700 text-[8px] text-emerald-300 cursor-pointer"
                   >
-                    <option value="ALL">ALL 27 BIOMES (81 MELODIES)</option>
+                    <option value="ALL">ALL {MASTER_SCALES.length} BIOMES ({ALL_CURATED_MELODIES.length} MELODIES)</option>
                     {MASTER_SCALES.map((sc) => (
                       <option key={sc.id} value={sc.id}>
                         #{sc.id + 1} {sc.name} · {sc.subtitle}

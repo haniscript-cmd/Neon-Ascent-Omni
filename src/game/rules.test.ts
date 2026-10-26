@@ -294,14 +294,30 @@ test('Color manipulation utilities properly lighten and darken hex colors (Bug F
   assert.equal(withAlpha('#ff0080', 0.5), 'rgba(255, 0, 128, 0.5)');
 });
 
-test('27 World/Modal Scales have 4 distinct 4-Gate Chord Progression variants per biome and +150% store prices', () => {
-  assert.equal(MASTER_SCALES.length, 27, 'Should include 7 core + 20 new world/modal scales');
-  assert.equal(SOUND_BANKS.length, 7, 'Should include 7 synth banks after removing Deckard CS-80 Brass');
+test('32 World/Modal Scales (including Maqam Hijaz, C Dorian, Gong Mode, In Scale, and Degung) & 11 Synth Banks', () => {
+  assert.equal(MASTER_SCALES.length, 32, 'Should include 27 original + 5 newly requested world/modal scales');
+  assert.equal(SOUND_BANKS.length, 11, 'Should include 7 core synth banks + 4 plugin-inspired synth banks');
   assert.equal(
     SOUND_BANKS.some((b) => b.id === 'bladerunner_cs80'),
     false,
     'Deckard CS-80 Brass is completely removed'
   );
+  // Verify the 4 newly added plugin-inspired sound banks exist
+  for (const bankId of ['magical_8bit_2', 'socalabs_8bit', 'chipsounds_sfz', 'vital_surge_wt']) {
+    assert.ok(SOUND_BANKS.some((b) => b.id === bankId), `Sound bank ${bankId} is registered`);
+  }
+  // Verify the 5 newly requested scales exist with exact notes
+  const hijaz = MASTER_SCALES.find((s) => s.id === 27);
+  const dorian = MASTER_SCALES.find((s) => s.id === 28);
+  const gong = MASTER_SCALES.find((s) => s.id === 29);
+  const inScale = MASTER_SCALES.find((s) => s.id === 30);
+  const degung = MASTER_SCALES.find((s) => s.id === 31);
+  assert.deepEqual(hijaz?.noteNames.slice(0, 7), ['C4', 'Db4', 'E4', 'F4', 'G4', 'Ab4', 'Bb4'], 'Maqam Hijaz has C-Db-E-F-G-Ab-Bb');
+  assert.deepEqual(dorian?.noteNames.slice(0, 7), ['C4', 'D4', 'Eb4', 'F4', 'G4', 'A4', 'Bb4'], 'Dorian has C-D-Eb-F-G-A-Bb');
+  assert.deepEqual(gong?.noteNames.slice(0, 5), ['C4', 'D4', 'E4', 'G4', 'A4'], 'Gong Mode has C-D-E-G-A');
+  assert.deepEqual(inScale?.noteNames.slice(0, 5), ['C4', 'Db4', 'F4', 'G4', 'Ab4'], 'In Scale has C-Db-F-G-Ab');
+  assert.deepEqual(degung?.noteNames.slice(0, 5), ['C4', 'Db4', 'Eb4', 'G4', 'Ab4'], 'Degung has C-Db-Eb-G-Ab');
+
   assert.ok(DEFAULT_CFG.volMaster >= 0.8, 'Master volume default is boosted for strong audio output');
   assert.equal(DEFAULT_CFG.tiltControlEnabled, true, 'Android gravity/tilt steering is enabled by default');
 
