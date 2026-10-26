@@ -12,8 +12,11 @@
  * - api (optional external API base URL; defaults to same-origin Render server)
  */
 
+export const TELEGRAM_GAME_SHORT_NAME = 'neonascentomni';
+
 export interface TelegramGameSession {
   isTelegramEnv: boolean;
+  gameShortName: string;
   userId: string;
   firstName: string;
   username: string;
@@ -141,6 +144,7 @@ export function parseTelegramGameSession(): TelegramGameSession {
   if (typeof window === 'undefined') {
     return {
       isTelegramEnv: false,
+      gameShortName: TELEGRAM_GAME_SHORT_NAME,
       userId: saved.userId,
       firstName: saved.firstName,
       username: saved.username,
@@ -173,6 +177,11 @@ export function parseTelegramGameSession(): TelegramGameSession {
     }
     return undefined;
   };
+
+  const gameShortName =
+    getParam(['game', 'game_short_name', 'short_name']) ||
+    cachedSession.gameShortName ||
+    TELEGRAM_GAME_SHORT_NAME;
 
   const uid =
     getParam(['uid', 'user_id', 'id']) ||
@@ -228,6 +237,7 @@ export function parseTelegramGameSession(): TelegramGameSession {
 
   const sessionObj: TelegramGameSession = {
     isTelegramEnv,
+    gameShortName,
     userId: uid,
     firstName,
     username,

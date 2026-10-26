@@ -13,6 +13,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || process.env.BOT_TOKEN || '';
+const GAME_SHORT_NAME = process.env.TELEGRAM_GAME_SHORT_NAME || 'neonascentomni';
 const PORT = Number(process.env.PORT || 8787);
 
 const DB_FILE = path.resolve(process.cwd(), 'telegram-leaderboard-db.json');

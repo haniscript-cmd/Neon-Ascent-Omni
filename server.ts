@@ -17,6 +17,7 @@ interface StoredLeaderboardEntry {
 }
 
 const PORT = Number(process.env.PORT) || 3000;
+const GAME_SHORT_NAME = process.env.TELEGRAM_GAME_SHORT_NAME || 'neonascentomni';
 const DATA_DIR = path.resolve(process.cwd(), 'data');
 const LEADERBOARD_FILE = path.join(DATA_DIR, 'telegram-leaderboard.json');
 
@@ -152,7 +153,7 @@ async function startServer() {
         updatedAt: item.updatedAt,
       }));
 
-    res.json({ ok: true, leaderboard });
+    res.json({ ok: true, gameShortName: GAME_SHORT_NAME, leaderboard });
   });
 
   // 2. POST /api/telegram/score
