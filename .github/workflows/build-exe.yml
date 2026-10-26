@@ -1,0 +1,97 @@
+name: Build Windows EXE (Electron)
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build-windows-exe:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Sync Custom App Icon (public/app-icon.png or public/pwa-512x512.png)
+        shell: pwsh
+        run: |
+          if (Test-Path "public/app-icon.png") {
+            Copy-Item "public/app-icon.png" "public/pwa-512x512.png" -Force
+            Copy-Item "public/app-icon.png" "public/pwa-192x192.png" -Force
+            Copy-Item "public/app-icon.png" "public/apple-touch-icon.png" -Force
+          }
+
+      - name: Install dependencies & Build Web Assets
+        run: |
+          if (Test-Path package-lock.json) { Remove-Item package-lock.json -Force }
+          npm install --legacy-peer-deps
+          npm run build
+
+      - name: Package Windows Portable & Setup EXE with Electron Builder
+        shell: pwsh
+        run: |
+          npm install --no-save --legacy-peer-deps electron@33.2.0 electron-builder@25.1.8 png-to-ico@2.1.8
+
+          New-Item -ItemType Directory -Force -Path "build" | Out-Null
+
+          node -e "
+            const fs = require('fs');
+            const pngToIco = require('png-to-ico');
+            const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+            pkg.name = 'neon-ascent-omni';
+            pkg.productName = 'Neon Ascent Omni';
+            pkg.version = '1.0.0';
+            pkg.description = 'Neon Ascent: Omni - Musical Cyberpunk Action Platformer';
+            pkg.author = 'Neon Ascent Studio';
+            pkg.main = 'electron/main.cjs';
+            fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2));
+            pngToIco('public/pwa-512x512.png').then(buf => {
+              fs.writeFileSync('build/icon.ico', buf);
+              console.log('Generated build/icon.ico from public/pwa-512x512.png');
+            });
+          "
+
+          $ebConfig = @{
+            appId = "com.neonascent.omni"
+            productName = "Neon Ascent Omni"
+            directories = @{
+              output = "release-exe"
+            }
+            files = @(
+              "dist/**/*",
+              "electron/**/*"
+            )
+            win = @{
+              icon = "build/icon.ico"
+              target = @(
+                @{ target = "portable"; arch = @("x64") },
+                @{ target = "nsis"; arch = @("x64") }
+              )
+            }
+            portable = @{
+              artifactName = "NeonAscent-Omni-Portable.exe"
+            }
+            nsis = @{
+              oneClick = $true
+              perMachine = $false
+              createDesktopShortcut = $true
+              createStartMenuShortcut = $true
+              artifactName = "NeonAscent-Omni-Setup.exe"
+            }
+          } | ConvertTo-Json -Depth 6
+
+          Set-Content -Path "electron-builder.json" -Value $ebConfig -Encoding UTF8
+          npx electron-builder --win --x64 --config electron-builder.json --publish never
+
+      - name: Upload Windows EXE Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: NeonAscent-Windows-EXE
+          path: |
+            release-exe/*.exe

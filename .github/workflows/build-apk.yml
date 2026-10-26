@@ -26,16 +26,28 @@ jobs:
 
       - name: Install dependencies & Build Web Assets
         run: |
+          if [ -f "public/app-icon.png" ]; then
+            cp -f public/app-icon.png public/pwa-512x512.png
+            cp -f public/app-icon.png public/pwa-192x192.png
+            cp -f public/app-icon.png public/apple-touch-icon.png
+          fi
           rm -f package-lock.json
           npm install --legacy-peer-deps
           npm run build
 
-      - name: Install Capacitor & Generate Android Project
+      - name: Install Capacitor, Generate Android Project & Apply Custom App Icon
         run: |
-          npm install --legacy-peer-deps @capacitor/core @capacitor/cli @capacitor/android
+          npm install --legacy-peer-deps @capacitor/core @capacitor/cli @capacitor/android @capacitor/assets
           rm -rf android
           npx cap add android
           npx cap sync android
+          mkdir -p assets
+          cp -f public/pwa-512x512.png assets/icon-only.png
+          cp -f public/pwa-512x512.png assets/icon-foreground.png
+          cp -f public/pwa-512x512.png assets/icon-background.png
+          cp -f public/pwa-512x512.png assets/splash.png
+          cp -f public/pwa-512x512.png assets/splash-dark.png
+          npx capacitor-assets generate --android --iconBackgroundColor '#04050a' --iconBackgroundColorDark '#04050a' --splashBackgroundColor '#04050a' --splashBackgroundColorDark '#04050a' || true
 
       - name: Configure Native Android Immersive Fullscreen (No Top/Bottom Bars)
         run: |
