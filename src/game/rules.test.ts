@@ -37,6 +37,8 @@ import {
   buildProChordFromSpec,
   getAllBiomes,
   LEVEL_PROGRESSION_TABLE,
+  canSpawnHeartPickup,
+  sortEquippedPowerUpsActiveFirst,
 } from './rules';
 import {
   CHARACTER_AVATARS,
@@ -125,7 +127,7 @@ test('81 Curated Melodies provide 3 compositions per biome including iconic Clas
   assert.ok(goalRec !== null && goalRec.canAfford === false && goalRec.orbsNeeded > 0, 'Shows needed orbs for closest locked item when orbs are low');
 });
 
-test('Level 0 Start (0 -> 1500 XP -> 150,000 XP at Lv.15), 5-Level Power-Up Upgrades, Only Shield Default, Nerfed Lv.1 Magnet, Health Power-Ups, and Pro Chord Builder', () => {
+test('Level 0 Start (0 -> 4500 XP -> 450,000 XP at Lv.15), 5-Level Power-Up Upgrades, Only Shield Default, Nerfed Lv.1 Magnet, Health Power-Ups, and Pro Chord Builder', () => {
   // Verify only Shield (`combo_shield`) is unlocked/equipped by default
   assert.deepEqual(
     DEFAULT_CFG.equippedPowerUps,
@@ -217,26 +219,38 @@ test('Level 0 Start (0 -> 1500 XP -> 150,000 XP at Lv.15), 5-Level Power-Up Upgr
   assert.equal(proChord.chromaticIndices.length, 4);
   assert.equal(proChord.freqs.length, 4);
 
-  // Verify Player starts at Level 0 (0 XP -> 1,500 XP for Level 1 -> 150,000 XP for Level 15)
+  // Verify Player starts at Level 0 (0 XP -> 4,500 XP for Level 1 -> 450,000 XP for Level 15) (+200% XP increase)
   assert.equal(DEFAULT_CFG.playerLevel, 0, 'Default player level is 0');
   assert.equal(DEFAULT_CFG.playerXp, 0, 'Default player XP is 0');
   assert.equal(LEVEL_PROGRESSION_TABLE[0].level, 0, 'Progression table starts at Level 0');
   assert.equal(LEVEL_PROGRESSION_TABLE[0].minXp, 0, 'Level 0 starts at 0 XP');
   assert.equal(LEVEL_PROGRESSION_TABLE[1].level, 1, 'Second row is Level 1');
-  assert.equal(LEVEL_PROGRESSION_TABLE[1].minXp, 1500, 'Level 1 requires 1,500 XP');
+  assert.equal(LEVEL_PROGRESSION_TABLE[1].minXp, 4500, 'Level 1 requires 4,500 XP');
   assert.equal(
     LEVEL_PROGRESSION_TABLE[LEVEL_PROGRESSION_TABLE.length - 1].minXp,
-    150000,
-    'Level 15 threshold is exactly 150,000 XP'
+    450000,
+    'Level 15 threshold is exactly 450,000 XP'
   );
 
   const lv0 = computePlayerLevelInfo(0);
   assert.equal(lv0.level, 0);
-  assert.equal(lv0.xpNeededForNext, 1500);
-  const lv1 = computePlayerLevelInfo(1500);
+  assert.equal(lv0.xpNeededForNext, 4500);
+  const lv1 = computePlayerLevelInfo(4500);
   assert.equal(lv1.level, 1);
-  const lv15 = computePlayerLevelInfo(150000);
+  const lv15 = computePlayerLevelInfo(450000);
   assert.equal(lv15.level, 15);
+
+  // Verify hearts only spawn when damaged (playerHp < playerMaxHp)
+  assert.equal(canSpawnHeartPickup(3, 3), false, 'Hearts do not spawn at full health');
+  assert.equal(canSpawnHeartPickup(2, 3), true, 'Hearts can spawn after player takes damage');
+
+  // Verify Active power-ups always sort above Passive power-ups
+  assert.deepEqual(
+    sortEquippedPowerUpsActiveFirst(['orb_magnet', 'jetpack_white', 'wall_bounce', 'nano_heal']),
+    ['jetpack_white', 'nano_heal', 'orb_magnet', 'wall_bounce'],
+    'Active power-ups always prioritize above Passive power-ups'
+  );
+
   const unlocksLv5 = getCumulativeUnlocksForLevel(5);
   const unlocksLv10 = getCumulativeUnlocksForLevel(10);
   const unlocksLv15 = getCumulativeUnlocksForLevel(15);

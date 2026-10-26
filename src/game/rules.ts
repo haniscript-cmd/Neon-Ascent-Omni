@@ -6,13 +6,13 @@
  */
 
 export interface FineTuneConfig {
-  flowGainRate: number;           // Multiplier for Flow gained per platform/orb (default 1.2)
+  flowGainRate: number;           // Multiplier for Flow gained per platform/orb (default 0.8)
   flowDecayRate: number;          // Multiplier for Flow decay when stalling (default 0.7)
-  difficultyRampSpeed: number;    // Speed at which platform width narrows with Altitude (M) (0.1..10.0, default 3.0)
-  minPlatformWidth: number;       // Minimum platform width at high Altitude (default 64px)
-  maxPlatformWidth: number;       // Starting platform width at 0M Altitude (default 174px)
-  horizontalScatterMult: number;  // Horizontal distance multiplier between platforms (default 1.4)
-  wideLeapSpawnRate: number;      // Multiplier for max-distance opposite-direction platform leaps as Flow rises (default 2.1)
+  difficultyRampSpeed: number;    // Speed at which platform width narrows with Altitude (M) (0.1..10.0, default 1.8)
+  minPlatformWidth: number;       // Minimum platform width at high Altitude (default 60px)
+  maxPlatformWidth: number;       // Starting platform width at 0M Altitude (default 158px)
+  horizontalScatterMult: number;  // Horizontal distance multiplier between platforms (default 1.3)
+  wideLeapSpawnRate: number;      // Multiplier for max-distance opposite-direction platform leaps as Flow rises (default 2.2)
   fragileSpawnRate: number;       // Multiplier for fragile (crumble) platform probability as Flow rises (default 1.5)
   fragileStreakChance: number;    // Probability multiplier of spawning consecutive fragile platform streaks (default 1.5)
   fragileStreakMaxLen: number;    // Maximum consecutive fragile platforms in a streak (default 5)
@@ -20,7 +20,7 @@ export interface FineTuneConfig {
   biomePlatformDuration: number;  // Number of platforms before shifting to the next Biome (default 60)
   biomeShiftSpeed: number;        // Speed multiplier for visual/musical biome transition dissolve (default 0.9)
   orbSpawnRate: number;           // Probability of spawning an Orb on/between platforms (default 0.35)
-  orbScatterSpread: number;       // Vertical/horizontal spread of Orbs (default 1.0)
+  orbScatterSpread: number;       // Vertical/horizontal spread of Orbs (default 0.9)
   spikeHazardRate: number;        // Multiplier for on-platform spike probability (default 1.6)
   aerialDroneRate: number;        // Multiplier for mid-air drone probability (default 1.7)
   enemyMoveSpeedMult: number;     // Multiplier for enemy movement speed (default 2.7)
@@ -32,18 +32,27 @@ export interface FineTuneConfig {
   baseJumpTempo: number;          // Base auto-bounce tempo in BPM equivalent (default 100)
   minJumpBpm: number;             // Minimum Jump Speed (BPM) at Flow 0 (96..250, default 100)
   maxJumpBpm: number;             // Maximum Jump Speed (BPM) at High Flow (96..250, default 165)
-  heartSpawnRate: number;         // Spawn rate for mid-air Heart Health Pickups, capped strictly below drone rate (default 0.18)
+  heartSpawnRate: number;         // Spawn rate for mid-air Heart Health Pickups, capped strictly below drone rate (default 0.08)
   dashBoostPowerMult: number;     // Multiplier for Dash horizontal velocity & upward lift boost (default 1.25)
+  // --- MOBILE / ANDROID STEERING, COVERAGE RANGE & DASH LAYOUT ---
+  mobileTouchSpeedMult: number;   // Touch drag steering velocity multiplier on mobile (default 0.85)
+  mobileTouchRangePx: number;     // Touch drag distance in px for full 100% steering range (default 85px)
+  mobileTiltSpeedMult: number;    // Gravity/accelerometer tilt steering velocity multiplier (default 0.80)
+  mobileTiltMaxAngleDeg: number;  // Phone tilt angle in degrees for full 100% steering range (default 18 deg)
+  mobileDashMode?: 'tap' | 'button'; // 'tap' = single-tap anywhere to Dash (default), 'button' = show Dash icon button
+  dashBtnXPercent?: number;       // Live X position (%) of Dash button when mobileDashMode === 'button' (default 84)
+  dashBtnYPercent?: number;       // Live Y position (%) of Dash button when mobileDashMode === 'button' (default 80)
+  dashBtnSizePx?: number;         // Live size (px) of Dash button when mobileDashMode === 'button' (default 54)
 }
 
 export const DEFAULT_FINE_TUNE: FineTuneConfig = {
-  flowGainRate: 1.2,
+  flowGainRate: 0.8,
   flowDecayRate: 0.7,
-  difficultyRampSpeed: 3.0,
-  minPlatformWidth: 64,
-  maxPlatformWidth: 174,
-  horizontalScatterMult: 1.4,
-  wideLeapSpawnRate: 2.1,
+  difficultyRampSpeed: 1.8,
+  minPlatformWidth: 60,
+  maxPlatformWidth: 158,
+  horizontalScatterMult: 1.3,
+  wideLeapSpawnRate: 2.2,
   fragileSpawnRate: 1.5,
   fragileStreakChance: 1.5,
   fragileStreakMaxLen: 5,
@@ -51,7 +60,7 @@ export const DEFAULT_FINE_TUNE: FineTuneConfig = {
   biomePlatformDuration: 60,
   biomeShiftSpeed: 0.9,
   orbSpawnRate: 0.35,
-  orbScatterSpread: 1.0,
+  orbScatterSpread: 0.9,
   spikeHazardRate: 1.6,
   aerialDroneRate: 1.7,
   enemyMoveSpeedMult: 2.7,
@@ -63,8 +72,16 @@ export const DEFAULT_FINE_TUNE: FineTuneConfig = {
   baseJumpTempo: 100,
   minJumpBpm: 100,
   maxJumpBpm: 165,
-  heartSpawnRate: 0.18,
+  heartSpawnRate: 0.08,
   dashBoostPowerMult: 1.25,
+  mobileTouchSpeedMult: 0.85,
+  mobileTouchRangePx: 85,
+  mobileTiltSpeedMult: 0.80,
+  mobileTiltMaxAngleDeg: 18,
+  mobileDashMode: 'tap',
+  dashBtnXPercent: 84,
+  dashBtnYPercent: 80,
+  dashBtnSizePx: 54,
 };
 
 export interface GameConfig {
@@ -246,10 +263,10 @@ export const DEFAULT_CFG: GameConfig = {
   volMaster: 0.85,
   volNotes: 1.4,
   volIntervals: 0.8,
-  volChords: 0.7,
+  volChords: 0.8,
   volBass: 0.8,
   volDrums: 0.0,
-  volChoir: 0.5,
+  volChoir: 1.1,
   volSfx: 0.95,
   useBiomes: true,
   fixedColor: '#00ff88',
@@ -2614,6 +2631,35 @@ export function getPowerUpItemById(id: string): PowerUpStoreDef | undefined {
 }
 
 /**
+ * Ensures ACTIVE power-ups always appear before PASSIVE power-ups in the player's equipped loadout
+ * and HUD slots, regardless of the chronological order in which they were equipped.
+ */
+export function sortEquippedPowerUpsActiveFirst(ids: string[]): PowerUpItemId[] {
+  const unique = Array.from(new Set(ids)).filter((id): id is PowerUpItemId =>
+    Boolean(getPowerUpItemById(id))
+  );
+  const activeIds: PowerUpItemId[] = [];
+  const passiveIds: PowerUpItemId[] = [];
+  for (const id of unique) {
+    const def = getPowerUpItemById(id);
+    if (def?.activationMode === 'PASSIVE') {
+      passiveIds.push(id);
+    } else {
+      activeIds.push(id);
+    }
+  }
+  return [...activeIds, ...passiveIds];
+}
+
+/**
+ * Hearts may ONLY spawn after the character has taken damage (`playerHp < playerMaxHp`).
+ * When at full health, collecting a heart does nothing, so hearts do not spawn.
+ */
+export function canSpawnHeartPickup(playerHp: number, playerMaxHp: number): boolean {
+  return playerHp > 0 && playerHp < playerMaxHp;
+}
+
+/**
  * Computes the Orb cost to unlock (when currentLevel === 0) or upgrade to `currentLevel + 1` (up to `def.maxLevel = 5`).
  * Features a steep exponential price gap between levels 1..5!
  */
@@ -2875,7 +2921,7 @@ export const LEVEL_PROGRESSION_TABLE: LevelProgressionDef[] = [
   },
   {
     level: 1,
-    minXp: 1500,
+    minXp: 4500,
     newlyUnlockedScales: [3],
     newlyUnlockedSoundBanks: ['lofi_tape'],
     newlyUnlockedSecretAvatars: [],
@@ -2885,7 +2931,7 @@ export const LEVEL_PROGRESSION_TABLE: LevelProgressionDef[] = [
   },
   {
     level: 2,
-    minXp: 3500,
+    minXp: 10500,
     newlyUnlockedScales: [4, 5],
     newlyUnlockedSoundBanks: [],
     newlyUnlockedSecretAvatars: [],
@@ -2895,7 +2941,7 @@ export const LEVEL_PROGRESSION_TABLE: LevelProgressionDef[] = [
   },
   {
     level: 3,
-    minXp: 6500,
+    minXp: 19500,
     newlyUnlockedScales: [7, 8],
     newlyUnlockedSoundBanks: [],
     newlyUnlockedSecretAvatars: [],
@@ -2905,7 +2951,7 @@ export const LEVEL_PROGRESSION_TABLE: LevelProgressionDef[] = [
   },
   {
     level: 4,
-    minXp: 10500,
+    minXp: 31500,
     newlyUnlockedScales: [9],
     newlyUnlockedSoundBanks: [],
     newlyUnlockedSecretAvatars: [],
@@ -2915,7 +2961,7 @@ export const LEVEL_PROGRESSION_TABLE: LevelProgressionDef[] = [
   },
   {
     level: 5,
-    minXp: 15500,
+    minXp: 46500,
     newlyUnlockedScales: [10],
     newlyUnlockedSoundBanks: [],
     newlyUnlockedSecretAvatars: ['secret_heart', 'secret_flower', 'secret_cherry'],
@@ -2925,7 +2971,7 @@ export const LEVEL_PROGRESSION_TABLE: LevelProgressionDef[] = [
   },
   {
     level: 6,
-    minXp: 21500,
+    minXp: 64500,
     newlyUnlockedScales: [11, 12],
     newlyUnlockedSoundBanks: ['akira_fm'],
     newlyUnlockedSecretAvatars: [],
@@ -2935,7 +2981,7 @@ export const LEVEL_PROGRESSION_TABLE: LevelProgressionDef[] = [
   },
   {
     level: 7,
-    minXp: 28500,
+    minXp: 85500,
     newlyUnlockedScales: [13, 14],
     newlyUnlockedSoundBanks: [],
     newlyUnlockedSecretAvatars: [],
@@ -2945,7 +2991,7 @@ export const LEVEL_PROGRESSION_TABLE: LevelProgressionDef[] = [
   },
   {
     level: 8,
-    minXp: 37000,
+    minXp: 111000,
     newlyUnlockedScales: [15, 16],
     newlyUnlockedSoundBanks: ['vhs_dream'],
     newlyUnlockedSecretAvatars: [],
@@ -2955,7 +3001,7 @@ export const LEVEL_PROGRESSION_TABLE: LevelProgressionDef[] = [
   },
   {
     level: 9,
-    minXp: 47500,
+    minXp: 142500,
     newlyUnlockedScales: [17, 18],
     newlyUnlockedSoundBanks: ['arcade_crt_pulse'],
     newlyUnlockedSecretAvatars: [],
@@ -2965,7 +3011,7 @@ export const LEVEL_PROGRESSION_TABLE: LevelProgressionDef[] = [
   },
   {
     level: 10,
-    minXp: 60000,
+    minXp: 180000,
     newlyUnlockedScales: [19],
     newlyUnlockedSoundBanks: [],
     newlyUnlockedSecretAvatars: ['secret_rockhand', 'secret_leaf', 'secret_skull'],
@@ -2975,7 +3021,7 @@ export const LEVEL_PROGRESSION_TABLE: LevelProgressionDef[] = [
   },
   {
     level: 11,
-    minXp: 74500,
+    minXp: 223500,
     newlyUnlockedScales: [20, 21],
     newlyUnlockedSoundBanks: ['rainy_shibuya'],
     newlyUnlockedSecretAvatars: [],
@@ -2985,7 +3031,7 @@ export const LEVEL_PROGRESSION_TABLE: LevelProgressionDef[] = [
   },
   {
     level: 12,
-    minXp: 91000,
+    minXp: 273000,
     newlyUnlockedScales: [22, 23],
     newlyUnlockedSoundBanks: [],
     newlyUnlockedSecretAvatars: [],
@@ -2995,7 +3041,7 @@ export const LEVEL_PROGRESSION_TABLE: LevelProgressionDef[] = [
   },
   {
     level: 13,
-    minXp: 109000,
+    minXp: 327000,
     newlyUnlockedScales: [24],
     newlyUnlockedSoundBanks: ['cyber_matrix_sub'],
     newlyUnlockedSecretAvatars: [],
@@ -3005,7 +3051,7 @@ export const LEVEL_PROGRESSION_TABLE: LevelProgressionDef[] = [
   },
   {
     level: 14,
-    minXp: 128500,
+    minXp: 385500,
     newlyUnlockedScales: [25, 26],
     newlyUnlockedSoundBanks: [],
     newlyUnlockedSecretAvatars: [],
@@ -3015,7 +3061,7 @@ export const LEVEL_PROGRESSION_TABLE: LevelProgressionDef[] = [
   },
   {
     level: 15,
-    minXp: 150000,
+    minXp: 450000,
     newlyUnlockedScales: [],
     newlyUnlockedSoundBanks: [],
     newlyUnlockedSecretAvatars: ['secret_eyeball', 'secret_hexagram', 'secret_cat'],

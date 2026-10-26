@@ -21,6 +21,8 @@ import {
   POWERUP_STORE_ITEMS,
   getPowerUpDef,
   getPowerUpItemById,
+  sortEquippedPowerUpsActiveFirst,
+  canSpawnHeartPickup,
   getPowerUpUpgradeCost,
   getPowerUpLevelStats,
   computePassiveDashUpgrades,
@@ -108,7 +110,14 @@ type ScreenState =
 
 type GameMode = 'STANDARD' | 'SEQUENCER' | 'MIDI' | 'STAGE';
 
-type FineTuneCategory = 'ALL' | 'FLOW' | 'PLATFORMS' | 'FRAGILE' | 'ENEMIES' | 'PHYSICS';
+type FineTuneCategory =
+  | 'ALL'
+  | 'MOBILE'
+  | 'FLOW'
+  | 'PLATFORMS'
+  | 'FRAGILE'
+  | 'ENEMIES'
+  | 'PHYSICS';
 
 interface PersistentStats {
   highScore: number;
@@ -126,7 +135,8 @@ const NOTE_KEYS = Object.keys(NOTES_MAP);
 const ROMAN_NUMERALS = ['I', 'II', 'III', 'IV'] as const;
 
 const FINE_TUNE_CATEGORIES: Array<{ id: FineTuneCategory; label: string }> = [
-  { id: 'ALL', label: 'ALL (28)' },
+  { id: 'ALL', label: 'ALL (32)' },
+  { id: 'MOBILE', label: '📱 MOBILE (4)' },
   { id: 'FLOW', label: '⚡ FLOW (6)' },
   { id: 'PLATFORMS', label: '🧱 PLATFORMS (6)' },
   { id: 'FRAGILE', label: '💥 FRAGILE (4)' },
@@ -433,6 +443,48 @@ const FINE_TUNE_SLIDERS: Array<{
     unit: ' BPM',
     desc: 'Fastest Jump Speed (BPM) as Flow increases toward Peak Flow',
   },
+
+  // --- MOBILE / ANDROID STEERING & COVERAGE RANGE CATEGORY ---
+  {
+    key: 'mobileTouchSpeedMult',
+    category: 'MOBILE',
+    label: 'Touch Drag Steer Speed',
+    min: 0.2,
+    max: 2.5,
+    step: 0.05,
+    unit: 'x',
+    desc: 'Horizontal character steering speed multiplier when dragging finger on screen',
+  },
+  {
+    key: 'mobileTouchRangePx',
+    category: 'MOBILE',
+    label: 'Touch Drag Coverage Range',
+    min: 25,
+    max: 200,
+    step: 5,
+    unit: 'px',
+    desc: 'Finger drag distance in pixels required to reach 100% full steering speed',
+  },
+  {
+    key: 'mobileTiltSpeedMult',
+    category: 'MOBILE',
+    label: 'Gravity Tilt Steer Speed',
+    min: 0.2,
+    max: 2.5,
+    step: 0.05,
+    unit: 'x',
+    desc: 'Horizontal character steering speed multiplier when tilting phone (gravity sensor)',
+  },
+  {
+    key: 'mobileTiltMaxAngleDeg',
+    category: 'MOBILE',
+    label: 'Gravity Tilt Coverage Range',
+    min: 6,
+    max: 35,
+    step: 1,
+    unit: '°',
+    desc: 'Phone tilt angle in degrees required to reach 100% full steering speed',
+  },
 ];
 
 /**
@@ -652,6 +704,7 @@ function RightSidePowerUpSlotsHud({
 function CircularPixelDashButton({
   getDashCooldownState,
   onTriggerDash,
+  sizePx = 54,
 }: {
   getDashCooldownState: () => {
     dashCool: number;
@@ -661,6 +714,7 @@ function CircularPixelDashButton({
     horizonColor: string;
   };
   onTriggerDash: () => void;
+  sizePx?: number;
 }) {
   const cvsRef = useRef<HTMLCanvasElement | null>(null);
 
@@ -727,6 +781,10 @@ function CircularPixelDashButton({
     return () => cancelAnimationFrame(animId);
   }, [getDashCooldownState]);
 
+  const clampedSize = Math.max(36, Math.min(96, Math.round(sizePx || 54)));
+  const canvasPx = Math.round(clampedSize * (76 / 54));
+  const negMarginPx = Math.round((canvasPx - clampedSize) * 0.5);
+
   return (
     <button
       type="button"
@@ -742,13 +800,19 @@ function CircularPixelDashButton({
         e.stopPropagation();
         onTriggerDash();
       }}
-      className="pointer-events-auto w-[54px] h-[54px] rounded-full flex items-center justify-center transition-transform active:scale-90 cursor-pointer overflow-visible"
+      style={{ width: `${clampedSize}px`, height: `${clampedSize}px` }}
+      className="pointer-events-auto rounded-full flex items-center justify-center transition-transform active:scale-90 cursor-pointer overflow-visible"
     >
       <canvas
         ref={cvsRef}
         width={76}
         height={76}
-        className="w-[76px] h-[76px] -m-[11px] block pointer-events-none"
+        style={{
+          width: `${canvasPx}px`,
+          height: `${canvasPx}px`,
+          margin: `-${negMarginPx}px`,
+        }}
+        className="block pointer-events-none"
       />
     </button>
   );
@@ -769,14 +833,16 @@ export default function App() {
   const rankBadgeDomRef = useRef<HTMLDivElement | null>(null);
   const biomeTagDomRef = useRef<HTMLDivElement | null>(null);
   const melodyHudDomRef = useRef<HTMLDivElement | null>(null);
-  const hpDomRef = useRef<HTMLSpanElement | null>(null);
-  const hpBarDomRef = useRef<HTMLDivElement | null>(null);
+  const hpHeartsDomRef = useRef<HTMLDivElement | null>(null);
+  const lastRenderedHpKeyRef = useRef<string>('');
 
   const [screen, setScreen] = useState<ScreenState>('title');
   const [storeTab, setStoreTab] = useState<'powerups' | 'characters' | 'banks' | 'scales'>('powerups');
   const [powerUpModeFilter, setPowerUpModeFilter] = useState<'ALL' | 'ACTIVE' | 'PASSIVE'>('ALL');
   const [traditionFilter, setTraditionFilter] = useState<string>('ALL');
   const [fineTuneCategory, setFineTuneCategory] = useState<FineTuneCategory>('ALL');
+  const [isEditingDashLayout, setIsEditingDashLayout] = useState<boolean>(false);
+  const dashDragActiveRef = useRef<boolean>(false);
   const [melodyBiomeFilter, setMelodyBiomeFilter] = useState<number | 'ALL'>('ALL');
   const [gameMode, setGameMode] = useState<GameMode>('STANDARD');
   const [storeOrbInput, setStoreOrbInput] = useState<string>('');
@@ -854,7 +920,7 @@ export default function App() {
           },
           equippedPowerUps:
             Array.isArray(parsed.equippedPowerUps) && parsed.equippedPowerUps.length > 0
-              ? parsed.equippedPowerUps
+              ? sortEquippedPowerUpsActiveFirst(parsed.equippedPowerUps)
               : DEFAULT_CFG.equippedPowerUps,
           fineTune: {
             ...DEFAULT_FINE_TUNE,
@@ -949,7 +1015,7 @@ export default function App() {
     prevRatio: 0,
     progressRatio: 0,
     xpIntoLevel: 0,
-    xpNeededForNext: 1500,
+    xpNeededForNext: 4500,
     levelRewards: [],
   });
 
@@ -977,6 +1043,10 @@ export default function App() {
   const touchDragRef = useRef<{
     active: boolean;
     touchId: number;
+    startX: number;
+    startY: number;
+    startTimeMs: number;
+    maxMoveDistPx: number;
     anchorX: number;
     lastX: number;
     lastTimeMs: number;
@@ -984,10 +1054,26 @@ export default function App() {
   }>({
     active: false,
     touchId: -1,
+    startX: 0,
+    startY: 0,
+    startTimeMs: 0,
+    maxMoveDistPx: 0,
     anchorX: 0,
     lastX: 0,
     lastTimeMs: 0,
-    speedBoost: 1.5,
+    speedBoost: 0.85,
+  });
+
+  const mouseTapRef = useRef<{
+    down: boolean;
+    startX: number;
+    startY: number;
+    startTimeMs: number;
+  }>({
+    down: false,
+    startX: 0,
+    startY: 0,
+    startTimeMs: 0,
   });
 
   const simRef = useRef<{
@@ -2104,10 +2190,11 @@ export default function App() {
           });
         }
 
-        // Spawn rare mid-air Heart Health Pickups (`diff.heartPickupChance` is strictly < `diff.aerialHazardChance`)
+        // Spawn rare mid-air Heart Health Pickups ONLY after the character has taken damage (`canSpawnHeartPickup`)!
         if (
           !isChordGateStep &&
           altitudePx > 850 &&
+          canSpawnHeartPickup(sim.player.hp, sim.player.maxHp) &&
           Math.random() < diff.heartPickupChance
         ) {
           const heartX = Math.max(
@@ -2334,9 +2421,9 @@ export default function App() {
         sequenceNumberInBiome: 1,
       };
 
-      // Initialize Equipped Power-Up Loadout Slots (ACTIVE slots + smaller PASSIVE slots in gameplay HUD!)
+      // Initialize Equipped Power-Up Loadout Slots (ACTIVE slots ALWAYS sorted above PASSIVE slots in gameplay HUD!)
       const maxSlots = computeUnlockedPowerUpSlots(stats.highScore, sim.cfg.playerLevel);
-      const equippedIds = (
+      const equippedIds = sortEquippedPowerUpsActiveFirst(
         sim.cfg.equippedPowerUps && sim.cfg.equippedPowerUps.length > 0
           ? sim.cfg.equippedPowerUps
           : (['combo_shield'] as PowerUpItemId[])
@@ -2688,18 +2775,20 @@ export default function App() {
       if (angle === 90 && typeof ag.y === 'number') rawG = ag.y;
       else if ((angle === -90 || angle === 270) && typeof ag.y === 'number') rawG = -ag.y;
 
-      // Fast 1-frame responsiveness with minimal anti-jitter blend
-      smoothedRawTilt = smoothedRawTilt * 0.2 + rawG * 0.8;
+      smoothedRawTilt = smoothedRawTilt * 0.25 + rawG * 0.75;
 
-      const deadzoneG = 0.12; // ~0.7 deg micro-deadzone
-      const maxG = 1.95; // Full arena-crossing speed at ~11.5 deg wrist tilt
+      const deadzoneG = 0.16;
+      const maxTiltDeg = Math.max(
+        6,
+        Math.min(35, sim.cfg.fineTune?.mobileTiltMaxAngleDeg ?? 18)
+      );
+      const maxG = Math.max(0.85, (maxTiltDeg / 90) * 9.81);
       if (Math.abs(smoothedRawTilt) <= deadzoneG) {
         sim.inputs.tiltX = 0;
       } else {
         const sign = smoothedRawTilt > 0 ? 1 : -1;
-        const linear = Math.min(1, (Math.abs(smoothedRawTilt) - deadzoneG) / (maxG - deadzoneG));
-        // Direct proportional response with responsive low-angle curve so maximum tilt reaches full edge-to-edge speed
-        const curved = Math.pow(linear, 0.78);
+        const linear = Math.min(1, (Math.abs(smoothedRawTilt) - deadzoneG) / Math.max(0.3, maxG - deadzoneG));
+        const curved = Math.pow(linear, 0.92);
         sim.inputs.tiltX = Number((sign * curved).toFixed(3));
       }
     };
@@ -2722,14 +2811,17 @@ export default function App() {
       if (angle === 90 && e.beta !== null) rawDeg = e.beta;
       else if (angle === -90 || angle === 270) rawDeg = -(e.beta ?? 0);
 
-      const deadzoneDeg = 0.7;
-      const maxTiltDeg = 11.0;
+      const deadzoneDeg = 1.0;
+      const maxTiltDeg = Math.max(
+        6,
+        Math.min(35, sim.cfg.fineTune?.mobileTiltMaxAngleDeg ?? 18)
+      );
       if (Math.abs(rawDeg) <= deadzoneDeg) {
         sim.inputs.tiltX = 0;
       } else {
         const sign = rawDeg > 0 ? 1 : -1;
-        const linear = Math.min(1, (Math.abs(rawDeg) - deadzoneDeg) / (maxTiltDeg - deadzoneDeg));
-        const curved = Math.pow(linear, 0.78);
+        const linear = Math.min(1, (Math.abs(rawDeg) - deadzoneDeg) / Math.max(2, maxTiltDeg - deadzoneDeg));
+        const curved = Math.pow(linear, 0.92);
         sim.inputs.tiltX = Number((sign * curved).toFixed(3));
       }
     };
@@ -3564,14 +3656,16 @@ export default function App() {
             keyAxis !== 0 ? keyAxis : isTouchActive ? touchAxis : tiltAxis
           )
         );
-        // Direct velocity scaling with touch drag distance/velocity and phone tilt angle:
-        // At maximum input (|combinedAxis| -> 1.0), horizontal speed reaches ~1050 px/s so the player can traverse
-        // the entire 600px arena from edge to edge within a single jump!
-        const touchDynBoost = Math.max(
-          1.45,
-          Math.min(2.65, (touchDragRef.current.speedBoost || 1.5) + Math.abs(touchAxis) * 0.85)
-        );
-        const tiltDynBoost = 1.45 + Math.abs(tiltAxis) * 0.95;
+        // Controlled velocity scaling via Fine-Tune Mobile sliders (`mobileTouchSpeedMult`, `mobileTiltSpeedMult`)
+        const touchSpeedMult = Math.max(0.2, fine.mobileTouchSpeedMult ?? 0.85);
+        const tiltSpeedMult = Math.max(0.2, fine.mobileTiltSpeedMult ?? 0.80);
+        const touchDynBoost =
+          touchSpeedMult *
+          Math.max(
+            0.75,
+            Math.min(1.65, (touchDragRef.current.speedBoost || 1.0) + Math.abs(touchAxis) * 0.35)
+          );
+        const tiltDynBoost = tiltSpeedMult * (0.85 + Math.abs(tiltAxis) * 0.55);
         const speedBoost = isTouchActive
           ? touchDynBoost
           : isTiltActive
@@ -3582,8 +3676,8 @@ export default function App() {
         const steerRate =
           isTouchActive || isTiltActive
             ? isReversing
-              ? 64
-              : 48
+              ? 28
+              : 20
             : Math.abs(combinedAxis) > 0.05
             ? 16
             : 11;
@@ -4439,10 +4533,14 @@ export default function App() {
         }
       }
 
-      // Collectible Mid-Air Heart Health Pickups (`♥`)
+      // Collectible Mid-Air Heart Health Pickups (`♥`) — Hide/clear if player is already at full health!
       for (let i = 0; i < sim.heartPickups.length; i++) {
         const hpItem = sim.heartPickups[i];
         if (hpItem.collected) continue;
+        if (!canSpawnHeartPickup(p.hp, p.maxHp)) {
+          hpItem.collected = true;
+          continue;
+        }
         const pCenterX = p.x + p.w * 0.5;
         const pCenterY = p.y + p.h * 0.5;
         const dist = Math.hypot(pCenterX - hpItem.x, pCenterY - hpItem.y);
@@ -4637,12 +4735,21 @@ export default function App() {
       if (orbsDomRef.current) {
         orbsDomRef.current.textContent = `${sim.orbsThisRun}`;
       }
-      if (hpDomRef.current) {
-        hpDomRef.current.textContent = `${p.hp}/${p.maxHp}`;
-      }
-      if (hpBarDomRef.current) {
-        const hpRatio = Math.max(0, Math.min(1, p.hp / Math.max(1, p.maxHp)));
-        hpBarDomRef.current.style.width = `${(hpRatio * 100).toFixed(1)}%`;
+      if (hpHeartsDomRef.current) {
+        const hpKey = `${p.hp}/${p.maxHp}`;
+        if (lastRenderedHpKeyRef.current !== hpKey) {
+          lastRenderedHpKeyRef.current = hpKey;
+          const totalHearts = Math.max(1, p.maxHp);
+          const currentHearts = Math.max(0, Math.min(totalHearts, p.hp));
+          let heartsHtml = '';
+          for (let hIdx = 0; hIdx < totalHearts; hIdx++) {
+            const isFull = hIdx < currentHearts;
+            heartsHtml += isFull
+              ? `<svg data-heart-state="full" viewBox="0 0 12 11" class="w-3 h-3 shrink-0 drop-shadow-[0_0_4px_rgba(251,113,133,0.85)]" style="shape-rendering:crispEdges"><path d="M2 1h3v1h2V1h3v1h1v3h-1v2H9v1H8v1H7v1H5V9H4V8H3V7H2V5H1V2h1V1z" fill="#fb7185"/><rect x="2" y="2" width="2" height="1" fill="#ffe4e6"/></svg>`
+              : `<svg data-heart-state="empty" viewBox="0 0 12 11" class="w-3 h-3 shrink-0 opacity-75" style="shape-rendering:crispEdges"><path d="M2 1h3v1h2V1h3v1h1v3h-1v2H9v1H8v1H7v1H5V9H4V8H3V7H2V5H1V2h1V1zm0 1v3h1v2h1v1h1v1h2V8h1V7h1V5h1V2H7v1H5V2H2z" fill="#fb7185"/></svg>`;
+          }
+          hpHeartsDomRef.current.innerHTML = heartsHtml;
+        }
       }
       if (comboTextDomRef.current) {
         comboTextDomRef.current.textContent = `FLOW x${sim.combo}`;
@@ -4915,7 +5022,7 @@ export default function App() {
           ...(prev.powerUpLevels || {}),
           [item.id]: nextLv,
         },
-        equippedPowerUps: nextEquipped,
+        equippedPowerUps: sortEquippedPowerUpsActiveFirst(nextEquipped),
       };
     });
     if (!isMuted) {
@@ -4923,7 +5030,7 @@ export default function App() {
     }
   };
 
-  // Equip or Unequip an unlocked Power-Up into the player's available Loadout Slots
+  // Equip or Unequip an unlocked Power-Up into the player's available Loadout Slots (ACTIVE always prioritized above PASSIVE)
   const handleToggleEquipPowerUp = (itemId: PowerUpItemId) => {
     const currentLv = Number(cfg.powerUpLevels?.[itemId] || 0);
     if (currentLv <= 0) return;
@@ -4934,18 +5041,20 @@ export default function App() {
       if (current.includes(itemId)) {
         return {
           ...prev,
-          equippedPowerUps: current.filter((id) => id !== itemId),
+          equippedPowerUps: sortEquippedPowerUpsActiveFirst(
+            current.filter((id) => id !== itemId)
+          ),
         };
       }
       if (current.length >= maxSlots) {
         return {
           ...prev,
-          equippedPowerUps: [...current.slice(1), itemId],
+          equippedPowerUps: sortEquippedPowerUpsActiveFirst([...current.slice(1), itemId]),
         };
       }
       return {
         ...prev,
-        equippedPowerUps: [...current, itemId],
+        equippedPowerUps: sortEquippedPowerUpsActiveFirst([...current, itemId]),
       };
     });
     if (!isMuted) {
@@ -5212,38 +5321,73 @@ export default function App() {
       <div
         ref={containerRef}
         id="game-container"
-        onMouseMove={(e) => {
-          const rect = e.currentTarget.getBoundingClientRect();
-          const vh = simRef.current.viewH || 800;
-          pointerEyeRef.current = {
-            x: ((e.clientX - rect.left) / Math.max(1, rect.width)) * 600,
-            y: ((e.clientY - rect.top) / Math.max(1, rect.height)) * vh,
-            activeUntil: performance.now() + 2500,
+        onMouseDown={(e) => {
+          const sim = simRef.current;
+          if (sim.state !== 'playing' || tutorialStep > 0 || isEditingDashLayout) return;
+          const targetEl = e.target as HTMLElement | null;
+          if (targetEl && targetEl.closest('button, input, label, select')) return;
+          mouseTapRef.current = {
+            down: true,
+            startX: e.clientX,
+            startY: e.clientY,
+            startTimeMs: performance.now(),
           };
+        }}
+        onMouseUp={(e) => {
+          const sim = simRef.current;
+          const mt = mouseTapRef.current;
+          if (!mt.down) return;
+          mt.down = false;
+          if (sim.state !== 'playing' || tutorialStep > 0 || isEditingDashLayout) return;
+          const dashMode = sim.cfg.fineTune?.mobileDashMode ?? 'tap';
+          const dtMs = performance.now() - mt.startTimeMs;
+          const dist = Math.hypot(e.clientX - mt.startX, e.clientY - mt.startY);
+          if (dashMode === 'tap' && dtMs < 260 && dist < 14) {
+            sim.inputs.dashJustPressed = true;
+          }
         }}
         onTouchStart={(e) => {
           const sim = simRef.current;
-          if (sim.state !== 'playing') return;
+          if (sim.state !== 'playing' || isEditingDashLayout) return;
           const targetEl = e.target as HTMLElement | null;
           if (targetEl && targetEl.closest('button, input, label, select')) {
             return;
           }
+          const dashMode = sim.cfg.fineTune?.mobileDashMode ?? 'tap';
+          const td = touchDragRef.current;
+
+          // If one finger is ALREADY holding/dragging to steer and a 2nd finger taps anywhere,
+          // trigger Dash immediately while keeping the 1st finger's steering active simultaneously!
+          if (td.active && dashMode === 'tap') {
+            for (let i = 0; i < e.changedTouches.length; i++) {
+              if (e.changedTouches[i].identifier !== td.touchId) {
+                sim.inputs.dashJustPressed = true;
+              }
+            }
+            return;
+          }
+
           const touch = e.changedTouches[0];
           if (!touch) return;
+          const nowMs = performance.now();
           touchDragRef.current = {
             active: true,
             touchId: touch.identifier,
+            startX: touch.clientX,
+            startY: touch.clientY,
+            startTimeMs: nowMs,
+            maxMoveDistPx: 0,
             anchorX: touch.clientX,
             lastX: touch.clientX,
-            lastTimeMs: performance.now(),
-            speedBoost: 1.5,
+            lastTimeMs: nowMs,
+            speedBoost: 1.0,
           };
           sim.inputs.touchSteerX = 0;
         }}
         onTouchMove={(e) => {
           const sim = simRef.current;
           const td = touchDragRef.current;
-          if (!td.active || sim.state !== 'playing') return;
+          if (!td.active || sim.state !== 'playing' || isEditingDashLayout) return;
           let matchedTouch: React.Touch | undefined = undefined;
           for (let i = 0; i < e.touches.length; i++) {
             if (e.touches[i].identifier === td.touchId) {
@@ -5259,43 +5403,74 @@ export default function App() {
           const nowMs = performance.now();
           const dtSec = Math.max(0.004, Math.min(0.1, (nowMs - (td.lastTimeMs || nowMs - 16)) / 1000));
           const curX = matchedTouch.clientX;
+          const curY = matchedTouch.clientY;
+          const distFromStart = Math.hypot(curX - td.startX, curY - td.startY);
+          if (distFromStart > td.maxMoveDistPx) {
+            td.maxMoveDistPx = distFromStart;
+          }
+
+          const rangePx = Math.max(25, Math.min(200, sim.cfg.fineTune?.mobileTouchRangePx ?? 85));
+          const anchorClamp = rangePx * 1.25;
           const stepDx = curX - td.lastX;
           const totalDx = curX - td.anchorX;
           const swipeVelPxPerSec = stepDx / dtSec;
 
-          // Dynamic floating anchor: if finger reverses direction, slide anchor closer so direction change is instant!
-          if ((totalDx > 12 && stepDx < -1.2) || (totalDx < -12 && stepDx > 1.2)) {
+          // Dynamic floating anchor: if finger reverses direction, slide anchor closer so direction change is responsive
+          if ((totalDx > 16 && stepDx < -1.5) || (totalDx < -16 && stepDx > 1.5)) {
             td.anchorX = curX - stepDx * 4;
-          } else if (Math.abs(totalDx) > 56) {
-            td.anchorX = curX - Math.sign(totalDx) * 56;
+          } else if (Math.abs(totalDx) > anchorClamp) {
+            td.anchorX = curX - Math.sign(totalDx) * anchorClamp;
           }
           td.lastX = curX;
           td.lastTimeMs = nowMs;
 
-          // Combine displacement from anchor AND instantaneous finger swipe speed so fast or wide drags
-          // scale player velocity directly up to full arena-crossing speed!
-          const dispNorm = (curX - td.anchorX) / 40;
-          const velNorm = swipeVelPxPerSec / 650;
+          const dispNorm = (curX - td.anchorX) / rangePx;
+          const velNorm = swipeVelPxPerSec / (rangePx * 13);
           const rawNorm =
             Math.sign(dispNorm !== 0 ? dispNorm : velNorm) *
-            Math.min(1, Math.max(Math.abs(dispNorm), Math.abs(dispNorm) * 0.65 + Math.abs(velNorm) * 0.55));
-          td.speedBoost = Math.max(
-            1.45,
-            Math.min(2.65, 1.45 + Math.min(1, Math.abs(swipeVelPxPerSec) / 800) * 0.75 + Math.min(1, Math.abs(dispNorm)) * 0.45)
-          );
+            Math.min(1, Math.max(Math.abs(dispNorm), Math.abs(dispNorm) * 0.72 + Math.abs(velNorm) * 0.35));
+          td.speedBoost =
+            0.85 +
+            Math.min(1, Math.abs(swipeVelPxPerSec) / (rangePx * 15)) * 0.4 +
+            Math.min(1, Math.abs(dispNorm)) * 0.35;
 
-          const deadzone = 0.035;
+          const deadzone = 0.04;
           if (Math.abs(rawNorm) <= deadzone) {
             sim.inputs.touchSteerX = 0;
           } else {
             const sign = rawNorm > 0 ? 1 : -1;
             const mag = Math.min(1, (Math.abs(rawNorm) - deadzone) / (1 - deadzone));
-            sim.inputs.touchSteerX = Number((sign * Math.pow(mag, 0.78)).toFixed(3));
+            sim.inputs.touchSteerX = Number((sign * Math.pow(mag, 0.92)).toFixed(3));
           }
         }}
         onTouchEnd={(e) => {
+          const sim = simRef.current;
           const td = touchDragRef.current;
           if (!td.active) return;
+
+          const dashMode = sim.cfg.fineTune?.mobileDashMode ?? 'tap';
+          let primaryFingerLifted = false;
+          for (let i = 0; i < e.changedTouches.length; i++) {
+            if (e.changedTouches[i].identifier === td.touchId) {
+              primaryFingerLifted = true;
+              break;
+            }
+          }
+
+          if (primaryFingerLifted) {
+            const tapDurationMs = performance.now() - td.startTimeMs;
+            // Single-tap anywhere (< 260ms and < 16px drag) triggers Dash in 'tap' mode!
+            if (
+              dashMode === 'tap' &&
+              sim.state === 'playing' &&
+              !isEditingDashLayout &&
+              tapDurationMs < 260 &&
+              td.maxMoveDistPx < 16
+            ) {
+              sim.inputs.dashJustPressed = true;
+            }
+          }
+
           let stillTouching = false;
           for (let i = 0; i < e.touches.length; i++) {
             if (e.touches[i].identifier === td.touchId) {
@@ -5304,8 +5479,17 @@ export default function App() {
             }
           }
           if (!stillTouching) {
-            td.active = false;
-            simRef.current.inputs.touchSteerX = 0;
+            if (e.touches.length > 0) {
+              // Seamlessly hand over steering to remaining finger on screen
+              const nextTouch = e.touches[0];
+              td.touchId = nextTouch.identifier;
+              td.anchorX = nextTouch.clientX;
+              td.lastX = nextTouch.clientX;
+              td.maxMoveDistPx = 999;
+            } else {
+              td.active = false;
+              sim.inputs.touchSteerX = 0;
+            }
           }
         }}
         onTouchCancel={() => {
@@ -5334,7 +5518,7 @@ export default function App() {
             screen === 'playing' || screen === 'paused' ? 'opacity-100' : 'opacity-0'
           }`}
         >
-          {/* Compact Top-Left Score & Icon Metrics */}
+          {/* Compact Top-Left Score, Altitude & Flow Metrics */}
           <div className="absolute top-3.5 left-4 flex flex-col gap-1.5">
             <div className="flex items-center gap-3">
               <div
@@ -5348,25 +5532,7 @@ export default function App() {
                 <span className="text-emerald-400">
                   +<span ref={altDomRef}>0M</span>
                 </span>
-                <span className="text-amber-400">
-                  *<span ref={orbsDomRef}>0</span>
-                </span>
-                <span
-                  data-testid="hud-hp-badge"
-                  className="text-rose-400 inline-flex items-center gap-0.5"
-                >
-                  ♥<span ref={hpDomRef}>3/3</span>
-                </span>
               </div>
-            </div>
-
-            <div className="relative w-36 h-1 bg-slate-900/90 border border-rose-500/50 overflow-hidden">
-              <div
-                ref={hpBarDomRef}
-                id="hp-bar-fill"
-                className="relative h-full bg-rose-500 transition-none"
-                style={{ width: '100%' }}
-              />
             </div>
 
             <div className="flex items-center gap-2">
@@ -5402,8 +5568,43 @@ export default function App() {
             </div>
           </div>
 
-          {/* Compact Top-Right System Icon Buttons (Rank Badge Removed) */}
-          <div className="absolute top-3.5 right-4 flex items-center gap-1.5">
+          {/* Top-Right HUD: Heart Icons + Collected Orbs + Mute / Pause / Restart Buttons */}
+          <div className="absolute top-3.5 right-4 flex items-center gap-2">
+            {/* Heart Icons (Filled when healthy, Hollow when damaged) & Collected Orbs */}
+            <div className="flex items-center gap-2 bg-slate-950/80 border border-slate-800/90 px-2 py-1">
+              <div
+                ref={hpHeartsDomRef}
+                id="hud-hp-badge"
+                data-testid="hud-hp-badge"
+                aria-label="Player Health Hearts"
+                className="flex items-center justify-end gap-1 flex-wrap max-w-[118px]"
+              >
+                {Array.from({ length: 3 }, (_, idx) => (
+                  <svg
+                    key={idx}
+                    data-heart-state="full"
+                    viewBox="0 0 12 11"
+                    className="w-3 h-3 shrink-0 drop-shadow-[0_0_4px_rgba(251,113,133,0.85)]"
+                    style={{ shapeRendering: 'crispEdges' }}
+                  >
+                    <path
+                      d="M2 1h3v1h2V1h3v1h1v3h-1v2H9v1H8v1H7v1H5V9H4V8H3V7H2V5H1V2h1V1z"
+                      fill="#fb7185"
+                    />
+                    <rect x="2" y="2" width="2" height="1" fill="#ffe4e6" />
+                  </svg>
+                ))}
+              </div>
+
+              <div
+                data-testid="hud-orbs-badge"
+                className="flex items-center gap-1 text-[9px] text-amber-300 border-l border-slate-800 pl-2"
+              >
+                <RadiantOrbIcon size={11} />
+                <span ref={orbsDomRef}>0</span>
+              </div>
+            </div>
+
             <div className="pointer-events-auto flex items-center gap-1">
               <button
                 type="button"
@@ -5481,28 +5682,44 @@ export default function App() {
             NEON GRID · C Minor Nine
           </div>
 
-          {/* Mobile Touch Controls: Full-Screen Hold & Drag Steer Hint + Raised Circular Pixel-Cooldown Dash Button */}
-          <div className="md:hidden absolute bottom-28 inset-x-4 flex items-center justify-between">
-            <div className="pointer-events-none px-2.5 py-1.5 bg-slate-950/65 border border-slate-800/80 text-[7px] text-slate-400 uppercase">
-              ⇄ TOUCH &amp; DRAG TO STEER
+          {/* Mobile Touch Controls: Hold & Drag Steer Hint + Optional On-Screen Circular Dash Button (Hidden when mobileDashMode === 'tap') */}
+          <div className="md:hidden absolute bottom-28 left-4 pointer-events-none">
+            <div className="px-2.5 py-1.5 bg-slate-950/65 border border-slate-800/80 text-[7px] text-slate-400 uppercase">
+              {(cfg.fineTune?.mobileDashMode ?? 'tap') === 'tap'
+                ? '⇄ DRAG TO STEER · ⚡ TAP TO DASH'
+                : '⇄ TOUCH & DRAG TO STEER'}
             </div>
-            <CircularPixelDashButton
-              getDashCooldownState={() => {
-                const s = simRef.current;
-                const b = MASTER_SCALES[s.activeBiomeIdx] || MASTER_SCALES[0];
-                return {
-                  dashCool: s.player.dashCool,
-                  dashMaxCool: s.player.dashMaxCool,
-                  dashAct: s.player.dashAct,
-                  primaryColor: b.fg || '#00ff88',
-                  horizonColor: b.bgAccent || '#00d4ff',
-                };
-              }}
-              onTriggerDash={() => {
-                simRef.current.inputs.dashJustPressed = true;
-              }}
-            />
           </div>
+
+          {(cfg.fineTune?.mobileDashMode ?? 'tap') === 'button' && !isEditingDashLayout && (
+            <div
+              data-testid="hud-dash-btn-wrapper"
+              style={{
+                left: `${cfg.fineTune?.dashBtnXPercent ?? 84}%`,
+                top: `${cfg.fineTune?.dashBtnYPercent ?? 80}%`,
+                transform: 'translate(-50%, -50%)',
+              }}
+              className="absolute z-20 pointer-events-auto"
+            >
+              <CircularPixelDashButton
+                sizePx={cfg.fineTune?.dashBtnSizePx ?? 54}
+                getDashCooldownState={() => {
+                  const s = simRef.current;
+                  const b = MASTER_SCALES[s.activeBiomeIdx] || MASTER_SCALES[0];
+                  return {
+                    dashCool: s.player.dashCool,
+                    dashMaxCool: s.player.dashMaxCool,
+                    dashAct: s.player.dashAct,
+                    primaryColor: b.fg || '#00ff88',
+                    horizonColor: b.bgAccent || '#00d4ff',
+                  };
+                }}
+                onTriggerDash={() => {
+                  simRef.current.inputs.dashJustPressed = true;
+                }}
+              />
+            </div>
+          )}
         </div>
 
         {/* --- FIRST-TIME 3-STEP ANIMATED PIXEL-HAND TUTORIAL OVERLAY --- */}
@@ -6906,6 +7123,94 @@ export default function App() {
                   ))}
                 </div>
 
+                {/* Mobile Dash Input Mode Switch & Live Position/Size Customizer */}
+                {(fineTuneCategory === 'ALL' || fineTuneCategory === 'MOBILE') && (
+                  <div
+                    data-testid="mobile-dash-finetune-panel"
+                    className="p-2.5 bg-slate-950/90 border border-emerald-400/60 space-y-2"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[8px] text-emerald-300 uppercase">
+                        📱 MOBILE DASH MODE &amp; LIVE BUTTON LAYOUT
+                      </span>
+                      <span className="text-[7px] text-amber-300 uppercase">
+                        {(cfg.fineTune?.mobileDashMode ?? 'tap') === 'tap'
+                          ? '⚡ SINGLE-TAP ANYWHERE'
+                          : '🔘 ON-SCREEN BUTTON'}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-1.5">
+                      <button
+                        type="button"
+                        data-testid="dash-mode-tap-btn"
+                        onClick={() =>
+                          setCfg((prev) => ({
+                            ...prev,
+                            fineTune: {
+                              ...(prev.fineTune || DEFAULT_FINE_TUNE),
+                              mobileDashMode: 'tap',
+                            },
+                          }))
+                        }
+                        className={`py-2 px-2 text-[7px] border uppercase cursor-pointer ${
+                          (cfg.fineTune?.mobileDashMode ?? 'tap') === 'tap'
+                            ? 'bg-emerald-500/25 border-emerald-400 text-emerald-200'
+                            : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white'
+                        }`}
+                      >
+                        ⚡ تک تاچ (SINGLE-TAP DASH)
+                      </button>
+
+                      <button
+                        type="button"
+                        data-testid="dash-mode-button-btn"
+                        onClick={() =>
+                          setCfg((prev) => ({
+                            ...prev,
+                            fineTune: {
+                              ...(prev.fineTune || DEFAULT_FINE_TUNE),
+                              mobileDashMode: 'button',
+                            },
+                          }))
+                        }
+                        className={`py-2 px-2 text-[7px] border uppercase cursor-pointer ${
+                          (cfg.fineTune?.mobileDashMode ?? 'tap') === 'button'
+                            ? 'bg-cyan-500/25 border-cyan-400 text-cyan-200'
+                            : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white'
+                        }`}
+                      >
+                        🔘 دکمه ظاهر شدنی (SHOW ICON)
+                      </button>
+                    </div>
+
+                    <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-800/90">
+                      <div className="text-[7px] text-slate-400">
+                        X: <strong className="text-white">{Math.round(cfg.fineTune?.dashBtnXPercent ?? 84)}%</strong> · Y:{' '}
+                        <strong className="text-white">{Math.round(cfg.fineTune?.dashBtnYPercent ?? 80)}%</strong> · SIZE:{' '}
+                        <strong className="text-cyan-300">{cfg.fineTune?.dashBtnSizePx ?? 54}px</strong>
+                      </div>
+                      <button
+                        type="button"
+                        data-testid="open-live-dash-editor-btn"
+                        onClick={() => {
+                          setCfg((prev) => ({
+                            ...prev,
+                            fineTune: {
+                              ...(prev.fineTune || DEFAULT_FINE_TUNE),
+                              mobileDashMode: 'button',
+                            },
+                          }));
+                          setIsEditingDashLayout(true);
+                        }}
+                        className="px-2.5 py-1.5 bg-amber-400 hover:bg-amber-300 text-slate-950 text-[7px] uppercase cursor-pointer"
+                      >
+                        🎯 تنظیم لایو مکان و سایز دکمه دش
+                      </button>
+                    </div>
+                  </div>
+                )}
+
                 <div className="space-y-2 pt-1">
                   {visibleFineTuneSliders.map((sl) => {
                     const currentVal =
@@ -7099,6 +7404,144 @@ export default function App() {
                   </button>
                 </div>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* --- LIVE INTERACTIVE DASH BUTTON POSITION & SIZE EDITOR OVERLAY --- */}
+        {isEditingDashLayout && (
+          <div
+            id="live-dash-layout-editor"
+            data-testid="live-dash-layout-editor"
+            onPointerMove={(e) => {
+              if (!dashDragActiveRef.current) return;
+              const rect = e.currentTarget.getBoundingClientRect();
+              const xPct = Math.max(
+                8,
+                Math.min(92, ((e.clientX - rect.left) / Math.max(1, rect.width)) * 100)
+              );
+              const yPct = Math.max(
+                12,
+                Math.min(92, ((e.clientY - rect.top) / Math.max(1, rect.height)) * 100)
+              );
+              setCfg((prev) => ({
+                ...prev,
+                fineTune: {
+                  ...(prev.fineTune || DEFAULT_FINE_TUNE),
+                  dashBtnXPercent: Number(xPct.toFixed(1)),
+                  dashBtnYPercent: Number(yPct.toFixed(1)),
+                },
+              }));
+            }}
+            onPointerUp={() => {
+              dashDragActiveRef.current = false;
+            }}
+            onPointerCancel={() => {
+              dashDragActiveRef.current = false;
+            }}
+            className="pointer-events-auto absolute inset-0 z-50 bg-[#04050a]/45 flex flex-col justify-between p-4 touch-none"
+          >
+            {/* Top Live Control Panel */}
+            <div
+              onPointerDown={(e) => e.stopPropagation()}
+              className="w-full bg-slate-950/95 border-2 border-amber-400 p-3 shadow-[0_0_30px_rgba(251,191,36,0.3)] space-y-2.5 text-[8px]"
+            >
+              <div className="flex items-center justify-between border-b border-slate-800 pb-1.5">
+                <span className="text-amber-300 uppercase">
+                  🎯 LIVE DASH ICON POSITION &amp; SIZE
+                </span>
+                <button
+                  type="button"
+                  data-testid="save-live-dash-editor-btn"
+                  onClick={() => {
+                    dashDragActiveRef.current = false;
+                    setIsEditingDashLayout(false);
+                  }}
+                  className="px-3 py-1 bg-emerald-400 hover:bg-emerald-300 text-slate-950 text-[8px] uppercase cursor-pointer"
+                >
+                  ✓ SAVE &amp; DONE
+                </button>
+              </div>
+
+              <div className="text-[7px] text-slate-300">
+                آیکون دش (⚡) را با انگشت یا ماوس به هر نقطه دلخواه صفحه بکشید و سایز آن را به صورت زنده تغییر دهید:
+              </div>
+
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-cyan-300">
+                  SIZE: <strong className="text-white">{cfg.fineTune?.dashBtnSizePx ?? 54}px</strong>
+                </span>
+                <input
+                  type="range"
+                  data-testid="live-dash-size-slider"
+                  min={36}
+                  max={96}
+                  step={2}
+                  value={cfg.fineTune?.dashBtnSizePx ?? 54}
+                  onChange={(e) => {
+                    const sz = parseInt(e.target.value, 10);
+                    setCfg((prev) => ({
+                      ...prev,
+                      fineTune: {
+                        ...(prev.fineTune || DEFAULT_FINE_TUNE),
+                        dashBtnSizePx: sz,
+                      },
+                    }));
+                  }}
+                  className="flex-1 accent-amber-400"
+                />
+                <button
+                  type="button"
+                  onClick={() =>
+                    setCfg((prev) => ({
+                      ...prev,
+                      fineTune: {
+                        ...(prev.fineTune || DEFAULT_FINE_TUNE),
+                        dashBtnXPercent: 84,
+                        dashBtnYPercent: 80,
+                        dashBtnSizePx: 54,
+                      },
+                    }))
+                  }
+                  className="px-2 py-1 bg-slate-800 hover:bg-slate-700 border border-slate-600 text-[7px] text-slate-200 cursor-pointer"
+                >
+                  ↺ RESET
+                </button>
+              </div>
+            </div>
+
+            {/* Live Draggable Dash Button Target */}
+            <div
+              data-testid="live-draggable-dash-target"
+              onPointerDown={(e) => {
+                e.stopPropagation();
+                e.currentTarget.setPointerCapture?.(e.pointerId);
+                dashDragActiveRef.current = true;
+              }}
+              style={{
+                left: `${cfg.fineTune?.dashBtnXPercent ?? 84}%`,
+                top: `${cfg.fineTune?.dashBtnYPercent ?? 80}%`,
+                transform: 'translate(-50%, -50%)',
+              }}
+              className="absolute z-50 p-2 rounded-full border-2 border-dashed border-amber-300 bg-amber-400/15 shadow-[0_0_25px_rgba(251,191,36,0.45)] cursor-move flex flex-col items-center"
+            >
+              <div className="pointer-events-none">
+                <CircularPixelDashButton
+                  sizePx={cfg.fineTune?.dashBtnSizePx ?? 54}
+                  getDashCooldownState={() => ({
+                    dashCool: 0,
+                    dashMaxCool: 1.8,
+                    dashAct: 0,
+                    primaryColor: '#00ff88',
+                    horizonColor: '#00d4ff',
+                  })}
+                  onTriggerDash={() => {}}
+                />
+              </div>
+              <span className="mt-1 px-1.5 py-0.5 bg-slate-950/95 border border-amber-400 text-[6px] text-amber-300 whitespace-nowrap pointer-events-none">
+                ✥ DRAG ME ({Math.round(cfg.fineTune?.dashBtnXPercent ?? 84)}%,{' '}
+                {Math.round(cfg.fineTune?.dashBtnYPercent ?? 80)}%)
+              </span>
             </div>
           </div>
         )}
