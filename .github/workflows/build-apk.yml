@@ -26,10 +26,14 @@ jobs:
 
       - name: Install dependencies & Build Web Assets
         run: |
-          if [ -f "public/app-icon.png" ]; then
+          if [ -s "public/app-icon.png" ]; then
             cp -f public/app-icon.png public/pwa-512x512.png
             cp -f public/app-icon.png public/pwa-192x192.png
             cp -f public/app-icon.png public/apple-touch-icon.png
+          elif [ -s "app-icon.png" ]; then
+            cp -f app-icon.png public/pwa-512x512.png
+            cp -f app-icon.png public/pwa-192x192.png
+            cp -f app-icon.png public/apple-touch-icon.png
           fi
           rm -f package-lock.json
           npm install --legacy-peer-deps

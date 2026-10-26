@@ -18,13 +18,17 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Sync Custom App Icon (public/app-icon.png or public/pwa-512x512.png)
+      - name: Sync Custom App Icon (public/app-icon.png or app-icon.png)
         shell: pwsh
         run: |
-          if (Test-Path "public/app-icon.png") {
+          if ((Test-Path "public/app-icon.png") -and ((Get-Item "public/app-icon.png").Length -gt 100)) {
             Copy-Item "public/app-icon.png" "public/pwa-512x512.png" -Force
             Copy-Item "public/app-icon.png" "public/pwa-192x192.png" -Force
             Copy-Item "public/app-icon.png" "public/apple-touch-icon.png" -Force
+          } elseif ((Test-Path "app-icon.png") -and ((Get-Item "app-icon.png").Length -gt 100)) {
+            Copy-Item "app-icon.png" "public/pwa-512x512.png" -Force
+            Copy-Item "app-icon.png" "public/pwa-192x192.png" -Force
+            Copy-Item "app-icon.png" "public/apple-touch-icon.png" -Force
           }
 
       - name: Install dependencies & Build Web Assets

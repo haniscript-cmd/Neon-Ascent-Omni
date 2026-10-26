@@ -96,6 +96,15 @@ import CharacterSelectModal, {
   RadiantOrbIcon,
 } from './components/CharacterSelectModal';
 import StageCreatorModal from './components/StageCreatorModal';
+import {
+  parseTelegramGameSession,
+  initTelegramWebViewOptimizations,
+  submitTelegramRankedScore,
+  fetchTelegramLeaderboard,
+  shareScoreToTelegramChat,
+  savePlayerProfile,
+  RankedLeaderboardEntry,
+} from './game/telegram';
 
 type ScreenState =
   | 'title'
@@ -851,6 +860,13 @@ export default function App() {
   const [devBundleStatus, setDevBundleStatus] = useState<string>('');
   const [tutorialStep, setTutorialStep] = useState<0 | 1 | 2 | 3>(0);
   const [showLevelRoadmapModal, setShowLevelRoadmapModal] = useState<boolean>(false);
+  const [showRankedModal, setShowRankedModal] = useState<boolean>(false);
+  const [telegramSession, setTelegramSession] = useState(() => parseTelegramGameSession());
+  const [rankedLeaderboard, setRankedLeaderboard] = useState<RankedLeaderboardEntry[]>([]);
+  const [telegramSyncedBadge, setTelegramSyncedBadge] = useState<boolean>(false);
+  const [pilotNameInput, setPilotNameInput] = useState<string>(
+    () => parseTelegramGameSession().firstName
+  );
   const [gameOverAnimElapsed, setGameOverAnimElapsed] = useState<number>(0);
   const menuBeatInfoRef = useRef<{ phase: number; beatCount: number }>({
     phase: 0,
@@ -858,6 +874,16 @@ export default function App() {
   });
   const [deferredInstallPrompt, setDeferredInstallPrompt] =
     useState<BeforeInstallPromptEvent | null>(null);
+
+  useEffect(() => {
+    initTelegramWebViewOptimizations();
+    const sess = parseTelegramGameSession();
+    setTelegramSession(sess);
+    setPilotNameInput(sess.firstName);
+    fetchTelegramLeaderboard().then((list) => {
+      setRankedLeaderboard(list);
+    });
+  }, []);
 
   useEffect(() => {
     const onBeforeInstall = (e: Event) => {
@@ -3204,6 +3230,14 @@ export default function App() {
             if (nextLvInfo.level > prevLvInfo.level && !sim.isMuted) {
               audioRef.current.sfxLevelUp(biome, c);
             }
+            submitTelegramRankedScore({
+              score: Math.round(sim.score),
+              maxFlow: sim.maxFlowThisRun,
+              avatarShape: c.playerShape,
+            }).then((res) => {
+              setRankedLeaderboard(res.leaderboard);
+              setTelegramSyncedBadge(res.syncedToTelegram);
+            });
             setGameOverAnimElapsed(0);
             sim.dyingSequence.active = false;
             setScreen('gameover');
@@ -4994,6 +5028,15 @@ export default function App() {
       runsPlayed: prev.runsPlayed + 1,
     }));
 
+    submitTelegramRankedScore({
+      score: Math.round(runScore),
+      maxFlow: sim.maxFlowThisRun,
+      avatarShape: c.playerShape,
+    }).then((res) => {
+      setRankedLeaderboard(res.leaderboard);
+      setTelegramSyncedBadge(res.syncedToTelegram);
+    });
+
     // Zero out run counters so it cannot be double-committed
     sim.score = 0;
     sim.orbsThisRun = 0;
@@ -6096,8 +6139,8 @@ export default function App() {
                   <span className="text-[9px] text-cyan-300 shrink-0">&gt;</span>
                 </button>
 
-                {/* Minimal 3-Column Icon Row for Stage DAW, Store & Level Roadmap (16-SEQ Removed) */}
-                <div className="grid grid-cols-3 gap-2 w-full">
+                {/* Minimal 4-Column Icon Row for Stage DAW, Store, Ranked Leaderboard & Level Roadmap */}
+                <div className="grid grid-cols-4 gap-1.5 w-full">
                   <button
                     type="button"
                     id="open-stage-creator-btn"
@@ -6106,10 +6149,10 @@ export default function App() {
                       if (!isMuted) audioRef.current.sfxUiClick(MASTER_SCALES[0], cfg);
                       setScreen('stage_creator');
                     }}
-                    className="py-2.5 px-2 bg-slate-900/95 hover:bg-slate-800 border border-emerald-400/80 hover:border-emerald-300 text-emerald-300 text-[9px] uppercase transition-colors cursor-pointer flex items-center justify-between"
+                    className="py-2.5 px-1.5 bg-slate-900/95 hover:bg-slate-800 border border-emerald-400/80 hover:border-emerald-300 text-emerald-300 text-[8px] uppercase transition-colors cursor-pointer flex items-center justify-between"
                   >
                     <span>🎹 {isFa ? 'ساخت' : 'DAW'}</span>
-                    <span className="text-[8px] text-slate-400">{customStages.length}</span>
+                    <span className="text-[7px] text-slate-400">{customStages.length}</span>
                   </button>
 
                   <button
@@ -6120,13 +6163,26 @@ export default function App() {
                       if (!isMuted) audioRef.current.sfxUiClick(MASTER_SCALES[0], cfg);
                       setScreen('store');
                     }}
-                    className="py-2.5 px-2 bg-slate-900/95 hover:bg-slate-800 border border-amber-400/80 hover:border-amber-300 text-amber-300 text-[9px] uppercase transition-colors cursor-pointer flex items-center justify-between"
+                    className="py-2.5 px-1.5 bg-slate-900/95 hover:bg-slate-800 border border-amber-400/80 hover:border-amber-300 text-amber-300 text-[8px] uppercase transition-colors cursor-pointer flex items-center justify-between"
                   >
                     <span>🛒 {isFa ? 'شاپ' : 'SHOP'}</span>
-                    <span className="inline-flex items-center gap-0.5 text-[8px] text-amber-300">
-                      <RadiantOrbIcon size={11} />
+                    <span className="inline-flex items-center gap-0.5 text-[7px] text-amber-300">
+                      <RadiantOrbIcon size={10} />
                       {stats.totalOrbs}
                     </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    data-testid="open-ranked-leaderboard-btn"
+                    onClick={() => {
+                      if (!isMuted) audioRef.current.sfxUiClick(MASTER_SCALES[0], cfg);
+                      fetchTelegramLeaderboard().then((list) => setRankedLeaderboard(list));
+                      setShowRankedModal(true);
+                    }}
+                    className="py-2.5 px-1.5 bg-slate-900/95 hover:bg-slate-800 border border-cyan-400/80 hover:border-cyan-300 text-cyan-300 text-[8px] uppercase transition-colors cursor-pointer text-center"
+                  >
+                    🏆 {isFa ? 'رنکینگ' : 'RANKED'}
                   </button>
 
                   <button
@@ -6136,9 +6192,9 @@ export default function App() {
                       if (!isMuted) audioRef.current.sfxUiClick(MASTER_SCALES[0], cfg);
                       setShowLevelRoadmapModal(true);
                     }}
-                    className="py-2.5 px-2 bg-slate-900/90 hover:bg-slate-800 border border-slate-600 hover:border-pink-400 text-pink-300 text-[9px] uppercase transition-colors cursor-pointer text-center"
+                    className="py-2.5 px-1.5 bg-slate-900/90 hover:bg-slate-800 border border-slate-600 hover:border-pink-400 text-pink-300 text-[8px] uppercase transition-colors cursor-pointer text-center"
                   >
-                    ⭐ {isFa ? `لول ${playerLvInfo.level}/15` : `LV.${playerLvInfo.level} STATS`}
+                    ⭐ {isFa ? `لول ${playerLvInfo.level}` : `LV.${playerLvInfo.level}`}
                   </button>
                 </div>
 
@@ -8107,6 +8163,71 @@ export default function App() {
                   </div>
                 )}
 
+                {/* TELEGRAM GROUP RANKED MINI-LEADERBOARD & SHARE BUTTON IN GAME OVER */}
+                {showButtons && (
+                  <div
+                    data-testid="gameover-ranked-panel"
+                    className="mb-3 p-2.5 bg-slate-900/90 border border-cyan-500/50 text-left space-y-1.5"
+                  >
+                    <div className="flex items-center justify-between text-[7px]">
+                      <span className="text-cyan-300 uppercase">
+                        🏆 {isFa ? 'لیدربورد گروه تلگرام (RANKED)' : 'GROUP RANKED LEADERBOARD'}
+                      </span>
+                      <div className="flex items-center gap-1.5">
+                        {telegramSyncedBadge && (
+                          <span className="px-1 py-0.5 bg-emerald-500/20 border border-emerald-400 text-[6px] text-emerald-300">
+                            ✓ TG SYNCED
+                          </span>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            fetchTelegramLeaderboard().then((list) => setRankedLeaderboard(list));
+                            setShowRankedModal(true);
+                          }}
+                          className="text-amber-300 hover:underline cursor-pointer uppercase"
+                        >
+                          {isFa ? 'مشاهده کامل ◄' : 'FULL TABLE >'}
+                        </button>
+                      </div>
+                    </div>
+
+                    {rankedLeaderboard.slice(0, 3).map((row) => (
+                      <div
+                        key={row.userId}
+                        className={`px-2 py-1 border flex items-center justify-between text-[7px] ${
+                          row.isCurrentUser
+                            ? 'bg-emerald-950/40 border-emerald-400/70 text-emerald-200'
+                            : 'bg-slate-950/80 border-slate-800 text-slate-300'
+                        }`}
+                      >
+                        <div className="flex items-center gap-1.5 truncate">
+                          <span className="text-amber-300">
+                            {row.position === 1 ? '🥇' : row.position === 2 ? '🥈' : '🥉'} #{row.position}
+                          </span>
+                          <span className="text-white truncate">{row.name}</span>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          {row.maxFlow ? (
+                            <span className="text-emerald-400">x{row.maxFlow}</span>
+                          ) : null}
+                          <strong className="text-amber-300">{row.score}</strong>
+                        </div>
+                      </div>
+                    ))}
+
+                    {telegramSession.isTelegramEnv && (
+                      <button
+                        type="button"
+                        onClick={() => shareScoreToTelegramChat(endSnapshot.score, endSnapshot.maxFlow)}
+                        className="w-full py-1.5 bg-sky-500/25 hover:bg-sky-500/35 border border-sky-400 text-sky-200 text-[7px] uppercase cursor-pointer text-center"
+                      >
+                        📤 {isFa ? 'اشتراک‌گذاری رکورد در گروه تلگرام' : 'SHARE SCORE IN TELEGRAM CHAT'}
+                      </button>
+                    )}
+                  </div>
+                )}
+
                 {/* PHASE 4 (1.75s+): Action Buttons */}
                 <div
                   className={`flex flex-col gap-2 transition-all duration-200 ${
@@ -8123,15 +8244,25 @@ export default function App() {
                   >
                     &gt; RETRY
                   </button>
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-3 gap-2">
                     <button
                       type="button"
                       onClick={() => setScreen('store')}
-                      className="py-2.5 bg-slate-900 hover:bg-slate-800 border border-amber-400/70 text-amber-300 text-[9px] uppercase cursor-pointer inline-flex items-center justify-center gap-1.5"
+                      className="py-2.5 bg-slate-900 hover:bg-slate-800 border border-amber-400/70 text-amber-300 text-[9px] uppercase cursor-pointer inline-flex items-center justify-center gap-1"
                     >
                       <span>SHOP</span>
-                      <RadiantOrbIcon size={11} />
+                      <RadiantOrbIcon size={10} />
                       <span>{stats.totalOrbs}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        fetchTelegramLeaderboard().then((list) => setRankedLeaderboard(list));
+                        setShowRankedModal(true);
+                      }}
+                      className="py-2.5 bg-slate-900 hover:bg-slate-800 border border-cyan-400/70 text-cyan-300 text-[9px] uppercase cursor-pointer"
+                    >
+                      🏆 RANKED
                     </button>
                     <button
                       type="button"
@@ -8146,6 +8277,169 @@ export default function App() {
             </div>
           );
         })()}
+
+        {/* --- TELEGRAM GROUP RANKED LEADERBOARD MODAL --- */}
+        {showRankedModal && (
+          <div
+            id="telegram-ranked-modal"
+            data-testid="telegram-ranked-modal"
+            onClick={() => setShowRankedModal(false)}
+            className="absolute inset-0 z-50 bg-[#04050a]/94 flex items-center justify-center p-4"
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-md max-h-[88vh] bg-slate-950 border-2 border-cyan-400 shadow-[0_0_40px_rgba(0,212,255,0.25)] p-4 flex flex-col gap-3 text-[8px]"
+            >
+              <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                <div>
+                  <div className="text-[10px] text-cyan-300 uppercase">
+                    🏆 {isFa ? 'جدول رده‌بندی اعضای گروه (TELEGRAM RANKED)' : 'TELEGRAM GROUP RANKED LEADERBOARD'}
+                  </div>
+                  <div className="text-[7px] text-slate-400 mt-0.5">
+                    {telegramSession.groupTitle || 'GLOBAL / INLINE GROUP'} · PILOT:{' '}
+                    <strong className="text-emerald-300">{telegramSession.firstName}</strong>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowRankedModal(false)}
+                  className="px-2.5 py-1 bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 cursor-pointer"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Player Callsign / Telegram Profile Bar */}
+              <div className="p-2.5 bg-slate-900/90 border border-slate-800 flex items-center justify-between gap-2">
+                <div className="flex items-center gap-1.5 flex-1">
+                  <span className="text-slate-400 shrink-0">{isFa ? 'نام بازیکن:' : 'NAME:'}</span>
+                  <input
+                    type="text"
+                    value={pilotNameInput}
+                    onChange={(e) => setPilotNameInput(e.target.value)}
+                    maxLength={24}
+                    className="flex-1 px-2 py-1 bg-slate-950 border border-slate-700 text-white text-[8px]"
+                    placeholder="Your Name / Telegram Handle"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    savePlayerProfile({ firstName: pilotNameInput });
+                    const updated = parseTelegramGameSession();
+                    setTelegramSession(updated);
+                    submitTelegramRankedScore({
+                      score: stats.highScore,
+                      maxFlow: stats.maxCombo,
+                      avatarShape: cfg.playerShape,
+                    }).then((res) => {
+                      setRankedLeaderboard(res.leaderboard);
+                      setTelegramSyncedBadge(res.syncedToTelegram);
+                    });
+                  }}
+                  className="px-2.5 py-1 bg-emerald-400 hover:bg-emerald-300 text-slate-950 text-[7px] uppercase cursor-pointer shrink-0"
+                >
+                  {isFa ? 'ثبت رکورد' : 'SYNC SCORE'}
+                </button>
+              </div>
+
+              {/* Ranked Group Members List */}
+              <div className="flex-1 overflow-y-auto space-y-1.5 pr-1 min-h-[180px]">
+                {rankedLeaderboard.length === 0 ? (
+                  <div className="p-6 text-center text-slate-400 border border-dashed border-slate-800">
+                    {isFa
+                      ? 'هنوز رکوردی در این گروه ثبت نشده است! یک دست بازی کنید یا روی دکمه ثبت رکورد کلیک کنید.'
+                      : 'No scores recorded in this group yet! Play a run or click SYNC SCORE to post your best score.'}
+                  </div>
+                ) : (
+                  rankedLeaderboard.map((entry) => (
+                    <div
+                      key={`${entry.userId}_${entry.position}`}
+                      className={`p-2 border flex items-center justify-between gap-2 ${
+                        entry.isCurrentUser
+                          ? 'bg-emerald-950/40 border-emerald-400'
+                          : entry.position <= 3
+                          ? 'bg-slate-900/90 border-amber-400/50'
+                          : 'bg-slate-900/60 border-slate-800'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="w-7 text-center text-[9px] text-amber-300 shrink-0">
+                          {entry.position === 1
+                            ? '🥇'
+                            : entry.position === 2
+                            ? '🥈'
+                            : entry.position === 3
+                            ? '🥉'
+                            : `#${entry.position}`}
+                        </span>
+                        {entry.avatarShape && (
+                          <div className="scale-75 -mx-1 shrink-0">
+                            <SelectedAvatarMiniBadge
+                              avatarId={entry.avatarShape}
+                              primaryColor="#00ff88"
+                              horizonColor="#00d4ff"
+                            />
+                          </div>
+                        )}
+                        <div className="min-w-0">
+                          <div className="text-[8px] text-white truncate">
+                            {entry.name}{' '}
+                            {entry.isCurrentUser && (
+                              <span className="text-[6px] text-emerald-300 uppercase">(YOU)</span>
+                            )}
+                          </div>
+                          {entry.username && (
+                            <div className="text-[6px] text-cyan-400 truncate">
+                              @{entry.username}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-3 shrink-0">
+                        {entry.maxFlow ? (
+                          <span className="px-1.5 py-0.5 bg-slate-950 border border-emerald-500/40 text-[7px] text-emerald-300">
+                            FLOW x{entry.maxFlow}
+                          </span>
+                        ) : null}
+                        <span className="text-[10px] text-amber-300">{entry.score}</span>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => {
+                    fetchTelegramLeaderboard().then((list) => setRankedLeaderboard(list));
+                  }}
+                  className="px-3 py-2 bg-slate-900 hover:bg-slate-800 border border-slate-700 text-cyan-300 text-[8px] uppercase cursor-pointer"
+                >
+                  ↻ {isFa ? 'بروزرسانی جدول' : 'REFRESH'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const shared = shareScoreToTelegramChat(stats.highScore, stats.maxCombo);
+                    if (!shared && typeof window !== 'undefined') {
+                      const shareText = encodeURIComponent(
+                        `🏆 رکورد من در NEON ASCENT: OMNI — امتیاز: ${stats.highScore} (Max Flow x${stats.maxCombo})!`
+                      );
+                      const shareUrl = encodeURIComponent(window.location.origin);
+                      window.location.href = `https://t.me/share/url?url=${shareUrl}&text=${shareText}`;
+                    }
+                  }}
+                  className="flex-1 py-2 bg-sky-500/25 hover:bg-sky-500/35 border border-sky-400 text-sky-200 text-[8px] uppercase cursor-pointer text-center"
+                >
+                  📤 {isFa ? 'ارسال رکورد به گروه تلگرام' : 'SHARE SCORE TO TELEGRAM'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </main>
   );
