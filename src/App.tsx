@@ -103,7 +103,7 @@ import {
   fetchTelegramLeaderboard,
   shareScoreToTelegramChat,
   savePlayerProfile,
-  checkAndApplyTelegramResetEpoch,
+  syncTelegramPlayerProgress,
   RankedLeaderboardEntry,
 } from './game/telegram';
 
@@ -881,13 +881,62 @@ export default function App() {
     const sess = parseTelegramGameSession();
     setTelegramSession(sess);
     setPilotNameInput(sess.firstName);
-    fetchTelegramLeaderboard(() => {
-      // Server resetEpoch advanced: reset in-memory XP, Level, Orbs, and HighScore
-      const freshCfg = { ...DEFAULT_CFG, fineTune: { ...DEFAULT_FINE_TUNE } };
-      const freshStats = { highScore: 0, maxCombo: 0, totalOrbs: 60, runsPlayed: 0 };
-      setCfg(freshCfg);
-      setStats(freshStats);
-      simRef.current.cfg = freshCfg;
+    fetchTelegramLeaderboard((remoteProfile) => {
+      setStats((prev) => {
+        const isLocalFresh =
+          prev.runsPlayed === 0 && prev.highScore === 0 && prev.totalOrbs === 60;
+        return {
+          highScore: Math.max(prev.highScore, remoteProfile.highScore || 0),
+          maxCombo: Math.max(prev.maxCombo, remoteProfile.maxCombo || 0),
+          totalOrbs: isLocalFresh
+            ? typeof remoteProfile.totalOrbs === 'number'
+              ? remoteProfile.totalOrbs
+              : prev.totalOrbs
+            : prev.totalOrbs,
+          runsPlayed: Math.max(prev.runsPlayed, remoteProfile.runsPlayed || 0),
+        };
+      });
+      setCfg((prev) => {
+        const mergedXp = Math.max(prev.playerXp || 0, remoteProfile.playerXp || 0);
+        const lvInfo = computePlayerLevelInfo(mergedXp);
+        const cumUnlocks = getCumulativeUnlocksForLevel(lvInfo.level);
+        const mergedPowerUpLevels = {
+          ...(DEFAULT_CFG.powerUpLevels || {}),
+          ...(prev.powerUpLevels || {}),
+        } as Record<PowerUpItemId, number>;
+        if (remoteProfile.powerUpLevels) {
+          for (const [k, v] of Object.entries(remoteProfile.powerUpLevels)) {
+            const key = k as PowerUpItemId;
+            mergedPowerUpLevels[key] = Math.max(
+              Number(mergedPowerUpLevels[key] || 0),
+              Number(v || 0)
+            );
+          }
+        }
+        const mergedAvatars = Array.from(
+          new Set([
+            ...STARTER_UNLOCKED_AVATARS,
+            ...prev.unlockedAvatars,
+            ...(Array.isArray(remoteProfile.unlockedAvatars)
+              ? (remoteProfile.unlockedAvatars as CharacterAvatarDef['id'][])
+              : []),
+            ...cumUnlocks.unlockedSecretAvatars,
+          ])
+        );
+        return {
+          ...prev,
+          playerXp: lvInfo.totalXp,
+          playerLevel: lvInfo.level,
+          unlockedAvatars: mergedAvatars,
+          powerUpLevels: mergedPowerUpLevels,
+          unlockedScales: Array.from(
+            new Set([...prev.unlockedScales, ...cumUnlocks.unlockedScales])
+          ),
+          unlockedSoundBanks: Array.from(
+            new Set([...prev.unlockedSoundBanks, ...cumUnlocks.unlockedSoundBanks])
+          ),
+        };
+      });
     }).then((list) => {
       setRankedLeaderboard(list);
     });
@@ -922,9 +971,6 @@ export default function App() {
 
   const [cfg, setCfg] = useState<GameConfig>(() => {
     const isTgRelease = parseTelegramGameSession().isTelegramEnv;
-    if (isTgRelease) {
-      checkAndApplyTelegramResetEpoch();
-    }
     try {
       const saved = localStorage.getItem('omni_cfg_v8');
       if (saved) {
@@ -1414,6 +1460,39 @@ export default function App() {
       // ignore
     }
   }, [stats]);
+
+  const didMountSyncRef = useRef(false);
+  useEffect(() => {
+    if (!didMountSyncRef.current) {
+      didMountSyncRef.current = true;
+      return;
+    }
+    if (!telegramSession.isTelegramEnv) return;
+    syncTelegramPlayerProgress({
+      highScore: stats.highScore,
+      maxCombo: stats.maxCombo,
+      totalOrbs: stats.totalOrbs,
+      runsPlayed: stats.runsPlayed,
+      playerXp: cfg.playerXp || 0,
+      playerLevel: cfg.playerLevel || 0,
+      playerShape: cfg.playerShape,
+      unlockedAvatars: cfg.unlockedAvatars,
+      powerUpLevels: cfg.powerUpLevels || {},
+      equippedPowerUps: cfg.equippedPowerUps || ['combo_shield'],
+    });
+  }, [
+    telegramSession.isTelegramEnv,
+    stats.highScore,
+    stats.maxCombo,
+    stats.totalOrbs,
+    stats.runsPlayed,
+    cfg.playerXp,
+    cfg.playerLevel,
+    cfg.playerShape,
+    cfg.unlockedAvatars,
+    cfg.powerUpLevels,
+    cfg.equippedPowerUps,
+  ]);
 
   useEffect(() => {
     simRef.current.isMuted = isMuted;

@@ -20,40 +20,100 @@ const PORT = Number(process.env.PORT) || 3000;
 const GAME_SHORT_NAME = process.env.TELEGRAM_GAME_SHORT_NAME || 'neonascentomni';
 const DATA_DIR = path.resolve(process.cwd(), 'data');
 const LEADERBOARD_FILE = path.join(DATA_DIR, 'telegram-leaderboard.json');
-const META_FILE = path.join(DATA_DIR, 'telegram-meta.json');
-const DEFAULT_RESET_EPOCH = 2; // Bumped to 2 to automatically wipe farmed pre-fix XP/Orbs/Scores
+const PROFILES_FILE = path.join(DATA_DIR, 'telegram-profiles.json');
 
-interface LeaderboardMeta {
-  resetEpoch: number;
-  lastResetAt: string;
+export interface StoredPlayerProgress {
+  userId: string;
+  highScore: number;
+  maxCombo: number;
+  totalOrbs: number;
+  runsPlayed: number;
+  playerXp: number;
+  playerLevel: number;
+  playerShape: string;
+  unlockedAvatars: string[];
+  powerUpLevels: Record<string, number>;
+  equippedPowerUps: string[];
+  updatedAtMs: number;
 }
 
-function loadMeta(): LeaderboardMeta {
+function loadStoredProfiles(): Record<string, StoredPlayerProgress> {
   try {
-    if (fs.existsSync(META_FILE)) {
-      const parsed = JSON.parse(fs.readFileSync(META_FILE, 'utf8'));
-      if (typeof parsed.resetEpoch === 'number' && parsed.resetEpoch >= DEFAULT_RESET_EPOCH) {
-        return parsed;
+    if (fs.existsSync(PROFILES_FILE)) {
+      const raw = fs.readFileSync(PROFILES_FILE, 'utf8');
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        return parsed as Record<string, StoredPlayerProgress>;
       }
     }
   } catch {
     // ignore
   }
-  return {
-    resetEpoch: DEFAULT_RESET_EPOCH,
-    lastResetAt: new Date().toISOString(),
-  };
+  return {};
 }
 
-function saveMeta(meta: LeaderboardMeta): void {
+function saveStoredProfiles(profiles: Record<string, StoredPlayerProgress>): void {
   try {
     if (!fs.existsSync(DATA_DIR)) {
       fs.mkdirSync(DATA_DIR, { recursive: true });
     }
-    fs.writeFileSync(META_FILE, JSON.stringify(meta, null, 2), 'utf8');
+    fs.writeFileSync(PROFILES_FILE, JSON.stringify(profiles, null, 2), 'utf8');
   } catch {
     // ignore
   }
+}
+
+function upsertPlayerProgress(
+  uid: string,
+  incoming: Partial<StoredPlayerProgress>
+): StoredPlayerProgress | null {
+  const cleanUid = String(uid || '').trim();
+  if (!cleanUid || cleanUid === 'anon' || cleanUid.startsWith('pilot_')) {
+    return null;
+  }
+  const profiles = loadStoredProfiles();
+  const prev = profiles[cleanUid];
+
+  const mergedUnlockedAvatars = Array.from(
+    new Set([
+      ...(prev?.unlockedAvatars || ['triangle', 'circle', 'square']),
+      ...(Array.isArray(incoming.unlockedAvatars) ? incoming.unlockedAvatars : []),
+    ])
+  );
+
+  const mergedPowerUpLevels: Record<string, number> = {
+    ...(prev?.powerUpLevels || {}),
+  };
+  if (incoming.powerUpLevels && typeof incoming.powerUpLevels === 'object') {
+    for (const [k, v] of Object.entries(incoming.powerUpLevels)) {
+      mergedPowerUpLevels[k] = Math.max(Number(mergedPowerUpLevels[k] || 0), Number(v || 0));
+    }
+  }
+
+  const next: StoredPlayerProgress = {
+    userId: cleanUid,
+    highScore: Math.max(prev?.highScore || 0, Math.round(Number(incoming.highScore) || 0)),
+    maxCombo: Math.max(prev?.maxCombo || 0, Math.round(Number(incoming.maxCombo) || 0)),
+    totalOrbs:
+      typeof incoming.totalOrbs === 'number' && incoming.totalOrbs >= 0
+        ? Math.round(incoming.totalOrbs)
+        : prev?.totalOrbs ?? 60,
+    runsPlayed: Math.max(prev?.runsPlayed || 0, Math.round(Number(incoming.runsPlayed) || 0)),
+    playerXp: Math.max(prev?.playerXp || 0, Math.round(Number(incoming.playerXp) || 0)),
+    playerLevel: Math.max(prev?.playerLevel || 0, Math.round(Number(incoming.playerLevel) || 0)),
+    playerShape: incoming.playerShape || prev?.playerShape || 'triangle',
+    unlockedAvatars: mergedUnlockedAvatars,
+    powerUpLevels: mergedPowerUpLevels,
+    equippedPowerUps:
+      Array.isArray(incoming.equippedPowerUps) && incoming.equippedPowerUps.length > 0
+        ? incoming.equippedPowerUps
+        : prev?.equippedPowerUps || ['combo_shield'],
+    updatedAtMs: Date.now(),
+  };
+
+  profiles[cleanUid] = next;
+  saveStoredProfiles(profiles);
+  return next;
 }
 
 function loadStoredScores(): StoredLeaderboardEntry[] {
@@ -99,8 +159,6 @@ async function callTelegramApi(
 
 /**
  * Resets a user's score in Telegram's official message leaderboard using `force: true`.
- * Tries `score: 0` first (which removes/zeros the score in Telegram); if Telegram rejects 0,
- * falls back to `score: 1` with `force: true`.
  */
 async function forceResetTelegramUserScore(
   token: string,
@@ -149,7 +207,7 @@ async function startServer() {
 
   // 1. GET /api/telegram/leaderboard
   app.get('/api/telegram/leaderboard', async (req, res) => {
-    const meta = loadMeta();
+    const reqUid = String(req.query.uid || req.query.user_id || req.query.userId || '').trim();
     const inlineMessageId = String(
       req.query.imid || req.query.inline_message_id || req.query.inlineMessageId || ''
     ).trim();
@@ -179,18 +237,31 @@ async function startServer() {
         updatedAt: item.updatedAt,
       }));
 
+    const profiles = loadStoredProfiles();
+    const playerProfile = reqUid && profiles[reqUid] ? profiles[reqUid] : null;
+
     res.json({
       ok: true,
       gameShortName: GAME_SHORT_NAME,
-      resetEpoch: meta.resetEpoch,
       leaderboard,
+      playerProfile,
+    });
+  });
+
+  // 1b. POST /api/telegram/profile (Syncs player coins/orbs, XP, high score, and shop unlocks by uid)
+  app.post('/api/telegram/profile', (req, res) => {
+    const body = req.body || {};
+    const rawUid = body.uid ?? body.user_id ?? body.userId ?? '';
+    const savedProfile = upsertPlayerProgress(String(rawUid), body);
+    res.json({
+      ok: true,
+      playerProfile: savedProfile,
     });
   });
 
   // 2. POST /api/telegram/score
   // Saves the score and calls ONLY Telegram's outbound `setGameScore` method (no polling / no webhook!)
   app.post('/api/telegram/score', async (req, res) => {
-    const meta = loadMeta();
     const body = req.body || {};
     const rawUid = body.uid ?? body.user_id ?? body.userId ?? 'anon';
     const rawName = body.name ?? body.first_name ?? 'Neon Pilot';
@@ -206,6 +277,20 @@ async function startServer() {
     const inlineMessageId = String(rawImid).trim();
     const chatId = String(rawCid).trim();
     const messageId = String(rawMid).trim();
+
+    if (body.profile && typeof body.profile === 'object') {
+      upsertPlayerProgress(cleanUid, {
+        ...body.profile,
+        highScore: Math.max(cleanScore, Number(body.profile.highScore) || 0),
+        maxCombo: Math.max(Number(body.maxFlow) || 0, Number(body.profile.maxCombo) || 0),
+      });
+    } else if (cleanScore > 0) {
+      upsertPlayerProgress(cleanUid, {
+        highScore: cleanScore,
+        maxCombo: Number(body.maxFlow) || 0,
+        avatarShape: body.avatarShape,
+      } as Partial<StoredPlayerProgress>);
+    }
 
     const groupKey =
       inlineMessageId || (chatId && messageId ? `${chatId}:${messageId}` : 'global');
@@ -287,16 +372,20 @@ async function startServer() {
 
     res.json({
       ok: true,
-      resetEpoch: meta.resetEpoch,
       telegramUpdated,
       leaderboard,
     });
   });
 
   // 3. GET / POST /api/telegram/reset
-  // Resets both the server leaderboard AND Telegram's official message scores (`setGameScore` with `force: true`),
-  // and increments `resetEpoch` so all players' farmed local XP/Orbs/HighScore in Telegram are wiped!
+  // Protected against accidental GET reloads or TelegramBot link-preview crawlers!
   const handleResetLeaderboard = async (req: express.Request, res: express.Response) => {
+    const ua = String(req.headers['user-agent'] || '').toLowerCase();
+    if (ua.includes('telegrambot') || ua.includes('twitterbot') || ua.includes('bot')) {
+      res.status(200).send('Ignored crawler request.');
+      return;
+    }
+
     const adminKey = process.env.ADMIN_RESET_KEY || '';
     const providedKey = String(req.query.key || req.body?.key || '').trim();
     if (adminKey && providedKey !== adminKey) {
@@ -304,11 +393,31 @@ async function startServer() {
       return;
     }
 
+    // Require explicit confirmation on GET requests so reloading an open browser tab doesn't auto-reset
+    const confirmed =
+      req.method === 'POST' ||
+      req.query.confirm === '1' ||
+      req.query.confirm === 'yes';
+
+    if (!confirmed) {
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      res.send(`<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Reset Leaderboard</title></head>
+<body style="background:#04050a;color:#e2e8f0;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0">
+  <form method="POST" action="/api/telegram/reset" style="border:1px solid #334155;padding:24px;text-align:center;max-width:400px">
+    <h3 style="color:#00ff88;margin-top:0">Reset Telegram Leaderboard</h3>
+    <p style="font-size:14px;color:#94a3b8">This will clear the server leaderboard scores without deleting players' coins or shop items.</p>
+    <input type="hidden" name="key" value="${providedKey}" />
+    <button type="submit" style="background:#f43f5e;color:#fff;border:none;padding:10px 20px;cursor:pointer;font-weight:bold">CONFIRM RESET LEADERBOARD</button>
+  </form>
+</body></html>`);
+      return;
+    }
+
     const token = process.env.TELEGRAM_BOT_TOKEN || process.env.BOT_TOKEN || '';
     const stored = loadStoredScores();
     let telegramResetCount = 0;
 
-    // Also allow passing specific message identifiers (`imid` or `cid`+`mid`) to reset all high scores on that message
     const queryImid = String(req.query.imid || req.body?.imid || '').trim();
     const queryCid = String(req.query.cid || req.body?.cid || '').trim();
     const queryMid = String(req.query.mid || req.body?.mid || '').trim();
@@ -339,44 +448,6 @@ async function startServer() {
     }
 
     if (token && targetsToReset.length > 0) {
-      // Also query `getGameHighScores` using the first known userId on each message to catch any other users in Telegram
-      const firstUid = targetsToReset[0].userId;
-      const uniqueGroupTargets = new Map<
-        string,
-        { inlineMessageId?: string; chatId?: string; messageId?: string }
-      >();
-      for (const t of targetsToReset) {
-        const k = t.inlineMessageId || `${t.chatId}:${t.messageId}`;
-        uniqueGroupTargets.set(k, {
-          inlineMessageId: t.inlineMessageId,
-          chatId: t.chatId,
-          messageId: t.messageId,
-        });
-      }
-
-      for (const [, grp] of uniqueGroupTargets) {
-        const hsPayload: Record<string, unknown> = { user_id: firstUid };
-        if (grp.inlineMessageId) {
-          hsPayload.inline_message_id = grp.inlineMessageId;
-        } else if (grp.chatId && grp.messageId) {
-          hsPayload.chat_id = /^-?\d+$/.test(grp.chatId) ? Number(grp.chatId) : grp.chatId;
-          hsPayload.message_id = Number(grp.messageId);
-        }
-        const hsRes = await callTelegramApi(token, 'getGameHighScores', hsPayload);
-        if (hsRes.ok && Array.isArray(hsRes.result)) {
-          for (const row of hsRes.result as Array<{ user: { id: number } }>) {
-            if (row.user?.id) {
-              targetsToReset.push({
-                userId: row.user.id,
-                inlineMessageId: grp.inlineMessageId,
-                chatId: grp.chatId,
-                messageId: grp.messageId,
-              });
-            }
-          }
-        }
-      }
-
       const seenKey = new Set<string>();
       for (const item of targetsToReset) {
         const dedup = `${item.userId}_${item.inlineMessageId || ''}_${item.chatId || ''}_${
@@ -390,18 +461,10 @@ async function startServer() {
     }
 
     saveStoredScores([]);
-    const prevMeta = loadMeta();
-    const nextMeta: LeaderboardMeta = {
-      resetEpoch: prevMeta.resetEpoch + 1,
-      lastResetAt: new Date().toISOString(),
-    };
-    saveMeta(nextMeta);
 
     res.json({
       ok: true,
-      message:
-        'Leaderboard & player progression epoch reset! All Telegram scores forced to 0/1 and client XP/Orbs will reset on next open.',
-      resetEpoch: nextMeta.resetEpoch,
+      message: 'Server leaderboard cleared (player coins & items preserved).',
       telegramResetCount,
       clearedServerEntries: stored.length,
     });
