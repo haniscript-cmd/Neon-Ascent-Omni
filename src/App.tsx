@@ -3331,20 +3331,20 @@ export default function App() {
                 xpNeededForNext: nextLvInfo.xpNeededForNext,
                 levelRewards,
               });
+              submitTelegramRankedScore({
+                score: Math.round(next.highScore),
+                maxFlow: next.maxCombo,
+                avatarShape: c.playerShape,
+              }).then((res) => {
+                setRankedLeaderboard(res.leaderboard);
+                setTelegramSyncedBadge(res.syncedToTelegram);
+              });
               return next;
             });
 
             if (nextLvInfo.level > prevLvInfo.level && !sim.isMuted) {
               audioRef.current.sfxLevelUp(biome, c);
             }
-            submitTelegramRankedScore({
-              score: Math.round(sim.score),
-              maxFlow: sim.maxFlowThisRun,
-              avatarShape: c.playerShape,
-            }).then((res) => {
-              setRankedLeaderboard(res.leaderboard);
-              setTelegramSyncedBadge(res.syncedToTelegram);
-            });
             setGameOverAnimElapsed(0);
             sim.dyingSequence.active = false;
             setScreen('gameover');
@@ -5153,20 +5153,22 @@ export default function App() {
       ),
     }));
 
-    setStats((prev) => ({
-      highScore: Math.max(prev.highScore, Math.round(runScore)),
-      maxCombo: Math.max(prev.maxCombo, sim.maxFlowThisRun),
-      totalOrbs: prev.totalOrbs + sim.orbsThisRun,
-      runsPlayed: prev.runsPlayed + 1,
-    }));
-
-    submitTelegramRankedScore({
-      score: Math.round(runScore),
-      maxFlow: sim.maxFlowThisRun,
-      avatarShape: c.playerShape,
-    }).then((res) => {
-      setRankedLeaderboard(res.leaderboard);
-      setTelegramSyncedBadge(res.syncedToTelegram);
+    setStats((prev) => {
+      const next = {
+        highScore: Math.max(prev.highScore, Math.round(runScore)),
+        maxCombo: Math.max(prev.maxCombo, sim.maxFlowThisRun),
+        totalOrbs: prev.totalOrbs + sim.orbsThisRun,
+        runsPlayed: prev.runsPlayed + 1,
+      };
+      submitTelegramRankedScore({
+        score: Math.round(next.highScore),
+        maxFlow: next.maxCombo,
+        avatarShape: c.playerShape,
+      }).then((res) => {
+        setRankedLeaderboard(res.leaderboard);
+        setTelegramSyncedBadge(res.syncedToTelegram);
+      });
+      return next;
     });
 
     // Zero out run counters so it cannot be double-committed

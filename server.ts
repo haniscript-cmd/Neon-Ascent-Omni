@@ -205,6 +205,108 @@ async function startServer() {
     next();
   });
 
+  async function mergeTelegramOfficialHighScores(
+    stored: StoredLeaderboardEntry[],
+    uid: string,
+    inlineMessageId: string,
+    chatId: string,
+    messageId: string,
+    groupKey: string
+  ): Promise<StoredLeaderboardEntry[]> {
+    const token = process.env.TELEGRAM_BOT_TOKEN || process.env.BOT_TOKEN || '';
+    if (!token || !/^\d+$/.test(uid) || (!inlineMessageId && !(chatId && messageId))) {
+      return stored;
+    }
+
+    const hsPayload: Record<string, unknown> = { user_id: Number(uid) };
+    if (inlineMessageId) {
+      hsPayload.inline_message_id = inlineMessageId;
+    } else {
+      hsPayload.chat_id = /^-?\d+$/.test(chatId) ? Number(chatId) : chatId;
+      hsPayload.message_id = Number(messageId);
+    }
+
+    const hsRes = await callTelegramApi(token, 'getGameHighScores', hsPayload);
+    if (!hsRes.ok || !Array.isArray(hsRes.result)) {
+      return stored;
+    }
+
+    let changed = false;
+    for (const row of hsRes.result as Array<{
+      score: number;
+      user: { id: number; first_name?: string; last_name?: string; username?: string };
+    }>) {
+      if (!row?.user?.id || !(row.score > 0)) continue;
+      const rowUid = String(row.user.id);
+      const rowName =
+        `${row.user.first_name || ''}${row.user.last_name ? ' ' + row.user.last_name : ''}`.trim() ||
+        'Neon Pilot';
+      const rowUsername = row.user.username || undefined;
+      const existingIdx = stored.findIndex((s) => s.userId === rowUid);
+      if (existingIdx >= 0) {
+        if (row.score > stored[existingIdx].score) {
+          stored[existingIdx].score = row.score;
+          changed = true;
+        }
+        if (rowName && stored[existingIdx].name === 'Neon Pilot') {
+          stored[existingIdx].name = rowName;
+          changed = true;
+        }
+      } else {
+        stored.push({
+          userId: rowUid,
+          name: rowName,
+          username: rowUsername,
+          score: row.score,
+          maxFlow: 0,
+          avatarShape: 'triangle',
+          groupKey,
+          updatedAt: new Date().toISOString(),
+        });
+        changed = true;
+      }
+    }
+
+    if (changed) {
+      saveStoredScores(stored);
+    }
+    return stored;
+  }
+
+  function buildDeduplicatedLeaderboard(stored: StoredLeaderboardEntry[]) {
+    const byUser = new Map<string, StoredLeaderboardEntry>();
+    for (const item of stored) {
+      if (!item.userId || !(item.score > 0)) continue;
+      const prev = byUser.get(item.userId);
+      if (!prev) {
+        byUser.set(item.userId, { ...item });
+      } else {
+        byUser.set(item.userId, {
+          ...prev,
+          name: item.name && item.name !== 'Neon Pilot' ? item.name : prev.name,
+          username: item.username || prev.username,
+          score: Math.max(prev.score, item.score),
+          maxFlow: Math.max(prev.maxFlow || 0, item.maxFlow || 0),
+          avatarShape: item.avatarShape || prev.avatarShape,
+          updatedAt: item.updatedAt > prev.updatedAt ? item.updatedAt : prev.updatedAt,
+        });
+      }
+    }
+    return Array.from(byUser.values())
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 50)
+      .map((item, idx) => ({
+        position: idx + 1,
+        userId: item.userId,
+        name: item.name,
+        username: item.username,
+        score: item.score,
+        maxFlow: item.maxFlow,
+        avatarShape: item.avatarShape,
+        updatedAt: item.updatedAt,
+      }));
+  }
+
   // 1. GET /api/telegram/leaderboard
   app.get('/api/telegram/leaderboard', async (req, res) => {
     const reqUid = String(req.query.uid || req.query.user_id || req.query.userId || '').trim();
@@ -218,24 +320,17 @@ async function startServer() {
     const groupKey =
       inlineMessageId || (chatId && messageId ? `${chatId}:${messageId}` : 'global');
 
-    const stored = loadStoredScores();
-    const filtered = stored.filter(
-      (s) => groupKey === 'global' || s.groupKey === groupKey || s.groupKey === 'global'
+    let stored = loadStoredScores();
+    stored = await mergeTelegramOfficialHighScores(
+      stored,
+      reqUid,
+      inlineMessageId,
+      chatId,
+      messageId,
+      groupKey
     );
 
-    const leaderboard = filtered
-      .sort((a, b) => b.score - a.score)
-      .slice(0, 50)
-      .map((item, idx) => ({
-        position: idx + 1,
-        userId: item.userId,
-        name: item.name,
-        username: item.username,
-        score: item.score,
-        maxFlow: item.maxFlow,
-        avatarShape: item.avatarShape,
-        updatedAt: item.updatedAt,
-      }));
+    const leaderboard = buildDeduplicatedLeaderboard(stored);
 
     const profiles = loadStoredProfiles();
     const playerProfile = reqUid && profiles[reqUid] ? profiles[reqUid] : null;
@@ -278,14 +373,15 @@ async function startServer() {
     const chatId = String(rawCid).trim();
     const messageId = String(rawMid).trim();
 
+    let savedProfile: StoredPlayerProgress | null = null;
     if (body.profile && typeof body.profile === 'object') {
-      upsertPlayerProgress(cleanUid, {
+      savedProfile = upsertPlayerProgress(cleanUid, {
         ...body.profile,
         highScore: Math.max(cleanScore, Number(body.profile.highScore) || 0),
         maxCombo: Math.max(Number(body.maxFlow) || 0, Number(body.profile.maxCombo) || 0),
       });
     } else if (cleanScore > 0) {
-      upsertPlayerProgress(cleanUid, {
+      savedProfile = upsertPlayerProgress(cleanUid, {
         highScore: cleanScore,
         maxCombo: Number(body.maxFlow) || 0,
         avatarShape: body.avatarShape,
@@ -295,16 +391,23 @@ async function startServer() {
     const groupKey =
       inlineMessageId || (chatId && messageId ? `${chatId}:${messageId}` : 'global');
 
-    const stored = loadStoredScores();
-    const existingIdx = stored.findIndex(
-      (s) => s.userId === cleanUid && s.groupKey === groupKey
+    let stored = loadStoredScores();
+    stored = await mergeTelegramOfficialHighScores(
+      stored,
+      cleanUid,
+      inlineMessageId,
+      chatId,
+      messageId,
+      groupKey
     );
 
-    let authoritativeBestScore = cleanScore;
+    const existingIdx = stored.findIndex((s) => s.userId === cleanUid);
+
+    let authoritativeBestScore = Math.max(cleanScore, savedProfile?.highScore || 0);
 
     if (existingIdx >= 0) {
       const prev = stored[existingIdx];
-      authoritativeBestScore = Math.max(prev.score, cleanScore);
+      authoritativeBestScore = Math.max(prev.score, authoritativeBestScore);
       stored[existingIdx] = {
         ...prev,
         name: cleanName || prev.name,
@@ -312,14 +415,15 @@ async function startServer() {
         score: authoritativeBestScore,
         maxFlow: Math.max(prev.maxFlow || 0, Number(body.maxFlow) || 0),
         avatarShape: body.avatarShape || prev.avatarShape || 'triangle',
+        groupKey: groupKey !== 'global' ? groupKey : prev.groupKey,
         updatedAt: new Date().toISOString(),
       };
-    } else if (cleanScore > 0) {
+    } else if (authoritativeBestScore > 0) {
       stored.push({
         userId: cleanUid,
         name: cleanName,
         username: cleanUsername || undefined,
-        score: cleanScore,
+        score: authoritativeBestScore,
         maxFlow: Number(body.maxFlow) || 0,
         avatarShape: body.avatarShape || 'triangle',
         groupKey,
@@ -329,8 +433,8 @@ async function startServer() {
 
     saveStoredScores(stored);
 
-    // Call ONLY Telegram's outbound `setGameScore` method with `force: true` using the server's
-    // authoritative best score so any old pre-reset bugged Telegram score is overwritten!
+    // Call ONLY Telegram's outbound `setGameScore` method WITHOUT `force: true` so Telegram
+    // strictly increases high scores and NEVER lowers or resets a user's score!
     let telegramUpdated = false;
     const token = process.env.TELEGRAM_BOT_TOKEN || process.env.BOT_TOKEN || '';
     if (
@@ -342,7 +446,6 @@ async function startServer() {
       const tgPayload: Record<string, unknown> = {
         user_id: Number(cleanUid),
         score: authoritativeBestScore,
-        force: true,
       };
       if (inlineMessageId) {
         tgPayload.inline_message_id = inlineMessageId;
@@ -355,20 +458,7 @@ async function startServer() {
       telegramUpdated = Boolean(tgRes.ok);
     }
 
-    const leaderboard = stored
-      .filter((s) => groupKey === 'global' || s.groupKey === groupKey || s.groupKey === 'global')
-      .sort((a, b) => b.score - a.score)
-      .slice(0, 50)
-      .map((item, idx) => ({
-        position: idx + 1,
-        userId: item.userId,
-        name: item.name,
-        username: item.username,
-        score: item.score,
-        maxFlow: item.maxFlow,
-        avatarShape: item.avatarShape,
-        updatedAt: item.updatedAt,
-      }));
+    const leaderboard = buildDeduplicatedLeaderboard(stored);
 
     res.json({
       ok: true,

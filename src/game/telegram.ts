@@ -311,23 +311,98 @@ export function initTelegramWebViewOptimizations(): void {
   }
 }
 
-export function getLocalLeaderboard(currentUserId?: string): RankedLeaderboardEntry[] {
+function getLocalSavedHighScore(): { highScore: number; maxCombo: number; playerShape: string } {
+  let highScore = 0;
+  let maxCombo = 0;
+  let playerShape = 'triangle';
   try {
-    const raw = localStorage.getItem(LOCAL_LEADERBOARD_KEY);
-    const parsed: RankedLeaderboardEntry[] = raw ? JSON.parse(raw) : [];
-    if (Array.isArray(parsed) && parsed.length > 0) {
-      return parsed
-        .sort((a, b) => b.score - a.score)
-        .map((item, idx) => ({
-          ...item,
-          position: idx + 1,
-          isCurrentUser: currentUserId ? item.userId === currentUserId : item.isCurrentUser,
-        }));
+    const rawStats = localStorage.getItem('omni_stats_v4');
+    if (rawStats) {
+      const parsed = JSON.parse(rawStats);
+      highScore = Math.max(0, Math.round(Number(parsed.highScore) || 0));
+      maxCombo = Math.max(0, Math.round(Number(parsed.maxCombo) || 0));
+    }
+    const rawCfg = localStorage.getItem('omni_cfg_v8');
+    if (rawCfg) {
+      const parsedCfg = JSON.parse(rawCfg);
+      if (parsedCfg.playerShape) playerShape = String(parsedCfg.playerShape);
     }
   } catch {
     // ignore
   }
-  return [];
+  return { highScore, maxCombo, playerShape };
+}
+
+function mergeLeaderboardLists(
+  listA: RankedLeaderboardEntry[],
+  listB: RankedLeaderboardEntry[],
+  currentUserId?: string
+): RankedLeaderboardEntry[] {
+  const byUser = new Map<string, RankedLeaderboardEntry>();
+
+  const addEntry = (item: RankedLeaderboardEntry) => {
+    if (!item || !item.userId || !(item.score > 0)) return;
+    const uid = String(item.userId);
+    const prev = byUser.get(uid);
+    if (!prev) {
+      byUser.set(uid, { ...item, userId: uid });
+    } else {
+      byUser.set(uid, {
+        ...prev,
+        name: item.name && item.name !== 'Neon Pilot' ? item.name : prev.name,
+        username: item.username || prev.username,
+        score: Math.max(prev.score, item.score),
+        maxFlow: Math.max(prev.maxFlow || 0, item.maxFlow || 0),
+        avatarShape: item.avatarShape || prev.avatarShape,
+        updatedAt: item.updatedAt || prev.updatedAt,
+      });
+    }
+  };
+
+  for (const x of listA) addEntry(x);
+  for (const x of listB) addEntry(x);
+
+  return Array.from(byUser.values())
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 50)
+    .map((item, idx) => ({
+      ...item,
+      position: idx + 1,
+      isCurrentUser: currentUserId ? String(item.userId) === String(currentUserId) : item.isCurrentUser,
+    }));
+}
+
+export function getLocalLeaderboard(currentUserId?: string): RankedLeaderboardEntry[] {
+  const savedProfile = getSavedPlayerProfile();
+  const uid = currentUserId || savedProfile.userId;
+  const { highScore, maxCombo, playerShape } = getLocalSavedHighScore();
+
+  let parsed: RankedLeaderboardEntry[] = [];
+  try {
+    const raw = localStorage.getItem(LOCAL_LEADERBOARD_KEY);
+    parsed = raw ? JSON.parse(raw) : [];
+    if (!Array.isArray(parsed)) parsed = [];
+  } catch {
+    parsed = [];
+  }
+
+  const selfSeed: RankedLeaderboardEntry[] =
+    highScore > 0 && uid
+      ? [
+          {
+            position: 1,
+            userId: uid,
+            name: savedProfile.firstName || 'Neon Pilot',
+            username: savedProfile.username || undefined,
+            score: highScore,
+            maxFlow: maxCombo,
+            avatarShape: playerShape,
+            isCurrentUser: true,
+          },
+        ]
+      : [];
+
+  return mergeLeaderboardLists(parsed, selfSeed, uid);
 }
 
 function updateLocalLeaderboard(entry: {
@@ -338,43 +413,26 @@ function updateLocalLeaderboard(entry: {
   maxFlow?: number;
   avatarShape?: string;
 }): RankedLeaderboardEntry[] {
-  const list = getLocalLeaderboard(entry.userId);
-  const existingIdx = list.findIndex((x) => x.userId === entry.userId);
+  const existing = getLocalLeaderboard(entry.userId);
   const cleanScore = Math.max(0, Math.round(entry.score));
+  const incoming: RankedLeaderboardEntry[] =
+    cleanScore > 0
+      ? [
+          {
+            position: 1,
+            userId: entry.userId,
+            name: entry.name,
+            username: entry.username,
+            score: cleanScore,
+            maxFlow: entry.maxFlow || 0,
+            avatarShape: entry.avatarShape || 'triangle',
+            updatedAt: new Date().toISOString(),
+            isCurrentUser: true,
+          },
+        ]
+      : [];
 
-  if (existingIdx >= 0) {
-    const prev = list[existingIdx];
-    list[existingIdx] = {
-      ...prev,
-      name: entry.name || prev.name,
-      username: entry.username || prev.username,
-      score: Math.max(prev.score, cleanScore),
-      maxFlow: Math.max(prev.maxFlow || 0, entry.maxFlow || 0),
-      avatarShape: entry.avatarShape || prev.avatarShape,
-      updatedAt: new Date().toISOString(),
-    };
-  } else if (cleanScore > 0) {
-    list.push({
-      position: list.length + 1,
-      userId: entry.userId,
-      name: entry.name,
-      username: entry.username,
-      score: cleanScore,
-      maxFlow: entry.maxFlow || 0,
-      avatarShape: entry.avatarShape || 'triangle',
-      updatedAt: new Date().toISOString(),
-    });
-  }
-
-  const sorted = list
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 50)
-    .map((item, idx) => ({
-      ...item,
-      position: idx + 1,
-      isCurrentUser: item.userId === entry.userId,
-    }));
-
+  const sorted = mergeLeaderboardLists(existing, incoming, entry.userId);
   try {
     localStorage.setItem(LOCAL_LEADERBOARD_KEY, JSON.stringify(sorted));
   } catch {
@@ -422,14 +480,17 @@ export async function submitTelegramRankedScore(params: {
   leaderboard: RankedLeaderboardEntry[];
 }> {
   const session = parseTelegramGameSession();
-  const cleanScore = Math.max(0, Math.round(params.score));
+  const { highScore: localHighScore, maxCombo: localMaxCombo } = getLocalSavedHighScore();
+  // Always submit the player's highest-ever score so a lower run never overwrites their record
+  const cleanScore = Math.max(0, Math.round(params.score), localHighScore);
+  const cleanMaxFlow = Math.max(0, Math.round(params.maxFlow), localMaxCombo);
 
   const localUpdated = updateLocalLeaderboard({
     userId: session.userId,
     name: session.firstName,
     username: session.username,
     score: cleanScore,
-    maxFlow: params.maxFlow,
+    maxFlow: cleanMaxFlow,
     avatarShape: params.avatarShape,
   });
 
@@ -450,7 +511,7 @@ export async function submitTelegramRankedScore(params: {
         name: session.firstName,
         username: session.username,
         score: cleanScore,
-        maxFlow: params.maxFlow,
+        maxFlow: cleanMaxFlow,
         avatarShape: params.avatarShape,
         profile: params.profile,
         imid: session.inlineMessageId,
@@ -468,13 +529,7 @@ export async function submitTelegramRankedScore(params: {
     if (res.ok) {
       const data = await res.json();
       if (Array.isArray(data.leaderboard)) {
-        const merged: RankedLeaderboardEntry[] = data.leaderboard.map(
-          (row: RankedLeaderboardEntry, idx: number) => ({
-            ...row,
-            position: idx + 1,
-            isCurrentUser: String(row.userId) === String(session.userId),
-          })
-        );
+        const merged = mergeLeaderboardLists(localUpdated, data.leaderboard, session.userId);
         try {
           localStorage.setItem(LOCAL_LEADERBOARD_KEY, JSON.stringify(merged));
         } catch {
@@ -500,6 +555,7 @@ export async function fetchTelegramLeaderboard(
   onRestoreProfile?: (profile: TelegramRemotePlayerProfile) => void
 ): Promise<RankedLeaderboardEntry[]> {
   const session = parseTelegramGameSession();
+  const localCurrent = getLocalLeaderboard(session.userId);
   const query = new URLSearchParams();
   if (session.userId) {
     query.set('uid', session.userId);
@@ -531,25 +587,19 @@ export async function fetchTelegramLeaderboard(
         onRestoreProfile(data.playerProfile as TelegramRemotePlayerProfile);
       }
       if (Array.isArray(data.leaderboard)) {
-        const mapped: RankedLeaderboardEntry[] = data.leaderboard.map(
-          (row: RankedLeaderboardEntry, idx: number) => ({
-            ...row,
-            position: idx + 1,
-            isCurrentUser: String(row.userId) === String(session.userId),
-          })
-        );
+        const merged = mergeLeaderboardLists(localCurrent, data.leaderboard, session.userId);
         try {
-          localStorage.setItem(LOCAL_LEADERBOARD_KEY, JSON.stringify(mapped));
+          localStorage.setItem(LOCAL_LEADERBOARD_KEY, JSON.stringify(merged));
         } catch {
           // ignore
         }
-        return mapped;
+        return merged;
       }
     }
   } catch {
     // fallback to local
   }
-  return getLocalLeaderboard(session.userId);
+  return localCurrent;
 }
 
 /**
