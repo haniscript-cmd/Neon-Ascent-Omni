@@ -41,6 +41,7 @@ export interface RankedLeaderboardEntry {
 
 declare global {
   interface Window {
+    __OMNI_TELEGRAM_DEPLOY__?: boolean;
     TelegramGameProxy?: {
       initParams?: Record<string, string>;
       shareScore: () => void;
@@ -221,8 +222,15 @@ export function parseTelegramGameSession(): TelegramGameSession {
     rawApiParam !== undefined ? rawApiParam : cachedSession.apiBaseUrl ?? saved.customBotApiUrl ?? ''
   ).replace(/\/+$/, '');
 
+  const isRenderOrTelegramDeploy =
+    Boolean(window.__OMNI_TELEGRAM_DEPLOY__) ||
+    window.location.hostname.endsWith('.onrender.com') ||
+    (import.meta as unknown as { env?: Record<string, string> }).env?.VITE_TELEGRAM_DEPLOY ===
+      'true';
+
   const isTelegramEnv = Boolean(
-    inlineMessageId ||
+    isRenderOrTelegramDeploy ||
+      inlineMessageId ||
       (chatId && messageId) ||
       window.TelegramGameProxy ||
       window.Telegram?.WebApp?.initData ||
@@ -232,6 +240,9 @@ export function parseTelegramGameSession(): TelegramGameSession {
       params.has('inline_message_id') ||
       params.has('cid') ||
       params.has('chat_id') ||
+      params.has('mid') ||
+      params.has('message_id') ||
+      params.get('tg') === '1' ||
       cachedSession.isTelegramEnv
   );
 

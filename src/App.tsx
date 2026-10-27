@@ -913,6 +913,7 @@ export default function App() {
   }, []);
 
   const [cfg, setCfg] = useState<GameConfig>(() => {
+    const isTgRelease = parseTelegramGameSession().isTelegramEnv;
     try {
       const saved = localStorage.getItem('omni_cfg_v8');
       if (saved) {
@@ -922,25 +923,39 @@ export default function App() {
           : DEFAULT_CFG.playerShape;
         const lvInfo = computePlayerLevelInfo(parsed.playerXp || 0);
         const cumUnlocks = getCumulativeUnlocksForLevel(lvInfo.level);
-        const betaSecrets = parsed.betaUnlockSecretSkins ? SECRET_AVATAR_IDS : [];
+        const allowBetaSecrets = !isTgRelease && Boolean(parsed.betaUnlockSecretSkins);
+        const betaSecrets = allowBetaSecrets ? SECRET_AVATAR_IDS : [];
+        const rawSavedAvatars: string[] = Array.isArray(parsed.unlockedAvatars)
+          ? parsed.unlockedAvatars
+          : [];
+        const sanitizedSavedAvatars = isTgRelease
+          ? rawSavedAvatars.filter(
+              (id) =>
+                !SECRET_AVATAR_IDS.includes(id as CharacterAvatarDef['id']) ||
+                cumUnlocks.unlockedSecretAvatars.includes(id as CharacterAvatarDef['id'])
+            )
+          : rawSavedAvatars;
         const unlockedAvatars = Array.from(
           new Set([
             ...STARTER_UNLOCKED_AVATARS,
-            ...(parsed.unlockedAvatars || []),
+            ...sanitizedSavedAvatars,
             ...cumUnlocks.unlockedSecretAvatars,
             ...betaSecrets,
           ])
         );
+        const activePlayerShape = unlockedAvatars.includes(validAvatar)
+          ? validAvatar
+          : DEFAULT_CFG.playerShape;
         return {
           ...DEFAULT_CFG,
           ...parsed,
           language: parsed.language === 'fa' ? 'fa' : 'en',
           playerXp: lvInfo.totalXp,
           playerLevel: lvInfo.level,
-          betaUnlockSecretSkins: Boolean(parsed.betaUnlockSecretSkins),
+          betaUnlockSecretSkins: allowBetaSecrets,
           tutorialSeen: Boolean(parsed.tutorialSeen),
           customBiomes: Array.isArray(parsed.customBiomes) ? parsed.customBiomes : [],
-          playerShape: validAvatar,
+          playerShape: activePlayerShape,
           unlockedAvatars,
           powerUpLevels: {
             ...DEFAULT_CFG.powerUpLevels,
@@ -950,10 +965,12 @@ export default function App() {
             Array.isArray(parsed.equippedPowerUps) && parsed.equippedPowerUps.length > 0
               ? sortEquippedPowerUpsActiveFirst(parsed.equippedPowerUps)
               : DEFAULT_CFG.equippedPowerUps,
-          fineTune: {
-            ...DEFAULT_FINE_TUNE,
-            ...(parsed.fineTune || {}),
-          },
+          fineTune: isTgRelease
+            ? { ...DEFAULT_FINE_TUNE }
+            : {
+                ...DEFAULT_FINE_TUNE,
+                ...(parsed.fineTune || {}),
+              },
           unlockedScales: Array.from(
             new Set([
               ...(parsed.unlockedScales?.length ? parsed.unlockedScales : DEFAULT_CFG.unlockedScales),
@@ -4097,15 +4114,27 @@ export default function App() {
               }
             }
 
-            // 4-GATE HARMONIC CHORD PROGRESSION PORTAL TRIGGER
-            if (plat.type === 'chord_gate') {
+            // 4-GATE HARMONIC CHORD PROGRESSION PORTAL TRIGGER (One-time trigger per gate; converts to normal platform once hit!)
+            if (plat.type === 'chord_gate' && !plat.hit) {
               const gateIdx = plat.chordGateIndex ?? 0;
               const variantIdx = plat.chordProgressionVariant ?? 0;
+              const savedNextGateId = plat.nextGateId;
               const prog = pickBiomeChordProgression(activePlatBiome, variantIdx);
               const roman = ROMAN_NUMERALS[gateIdx % 4];
               const chordName =
                 plat.chordNameOverride || prog.chordNames[gateIdx % 4] || 'HARMONY';
+
+              // Immediately convert this Chord Gate into a standard hit platform so landing on it again NEVER re-triggers rewards or XP!
               plat.hit = true;
+              plat.repeatBounces = 0;
+              plat.type = 'normal';
+              plat.chordGateIndex = undefined;
+              plat.chordProgressionVariant = undefined;
+              plat.chordNameOverride = undefined;
+              plat.nextGateId = undefined;
+              plat.nextGateX = undefined;
+              plat.nextGateY = undefined;
+
               sim.timeSinceLastClimb = 0;
               if (plat.y < sim.highestPlatformY) {
                 sim.highestPlatformY = plat.y;
@@ -4180,6 +4209,19 @@ export default function App() {
 
               if (gateIdx === 3) {
                 sim.chordSequencesCompletedInBiome++;
+                // Ensure any stray chord_gate platforms left behind are converted to normal platforms
+                for (let gi = 0; gi < sim.platforms.length; gi++) {
+                  const gPlat = sim.platforms[gi];
+                  if (gPlat.type === 'chord_gate' && gPlat.y >= plat.y - 20) {
+                    gPlat.type = 'normal';
+                    gPlat.chordGateIndex = undefined;
+                    gPlat.chordProgressionVariant = undefined;
+                    gPlat.chordNameOverride = undefined;
+                    gPlat.nextGateId = undefined;
+                    gPlat.nextGateX = undefined;
+                    gPlat.nextGateY = undefined;
+                  }
+                }
                 // Chord Sequence Completion Restores 35% of Max HP!
                 const chordHeal = Math.max(1, Math.ceil(p.maxHp * 0.35));
                 const actualHealed = Math.min(p.maxHp - p.hp, chordHeal);
@@ -4235,8 +4277,8 @@ export default function App() {
 
               generateWorldUpTo(plat.y - 900);
 
-              if (gateIdx < 3 && plat.nextGateId !== undefined) {
-                const nextGate = sim.platforms.find((pl) => pl.id === plat.nextGateId);
+              if (gateIdx < 3 && savedNextGateId !== undefined) {
+                const nextGate = sim.platforms.find((pl) => pl.id === savedNextGateId);
                 if (nextGate) {
                   sim.activeChordChainTargetId = nextGate.id;
                   const verticalSpan = Math.max(380, Math.abs(plat.y - nextGate.y));
@@ -4251,7 +4293,7 @@ export default function App() {
 
               sim.activeChordChainTargetId = undefined;
               sim.activeJumpGravity = kin.gravityPxPerSec2;
-              p.vy = kin.bouncePadVelocityPxPerSec * 1.05;
+              p.vy = kin.bouncePadVelocityPxPerSec * 1.15;
               p.scaleX = 0.66;
               p.scaleY = 1.38;
               break;
@@ -5121,11 +5163,13 @@ export default function App() {
   };
 
   const handleSetExactOrbs = (orbs: number) => {
+    if (telegramSession.isTelegramEnv) return;
     setStats((prev) => ({ ...prev, totalOrbs: Math.max(0, Math.round(orbs)) }));
   };
 
   // Beta Reset All Save / Stats / Progression back to Level 0 & fresh tutorial
   const handleResetAllSaveData = () => {
+    if (telegramSession.isTelegramEnv) return;
     try {
       localStorage.removeItem('omni_cfg_v8');
       localStorage.removeItem('omni_stats_v4');
@@ -6198,55 +6242,61 @@ export default function App() {
                   </button>
                 </div>
 
-                {/* Config / Export / Beta Reset / Install Row */}
-                <div className="flex items-center justify-center gap-1.5 w-full">
-                  <button
-                    type="button"
-                    id="open-settings-btn"
-                    data-testid="open-settings-btn"
-                    onClick={() => {
-                      if (!isMuted) audioRef.current.sfxUiClick(MASTER_SCALES[0], cfg);
-                      setScreen('settings');
-                    }}
-                    className="flex-1 py-2 px-2 bg-transparent hover:bg-slate-900 border border-slate-700 hover:border-white text-slate-300 text-[8px] uppercase transition-colors cursor-pointer"
-                  >
-                    ⚙ {isFa ? 'تنظیمات' : 'FINE-TUNE'}
-                  </button>
+                {/* Config / Export / Beta Reset / Install Row (Hidden in Telegram Release Build) */}
+                {(!telegramSession.isTelegramEnv || deferredInstallPrompt) && (
+                  <div className="flex items-center justify-center gap-1.5 w-full">
+                    {!telegramSession.isTelegramEnv && (
+                      <>
+                        <button
+                          type="button"
+                          id="open-settings-btn"
+                          data-testid="open-settings-btn"
+                          onClick={() => {
+                            if (!isMuted) audioRef.current.sfxUiClick(MASTER_SCALES[0], cfg);
+                            setScreen('settings');
+                          }}
+                          className="flex-1 py-2 px-2 bg-transparent hover:bg-slate-900 border border-slate-700 hover:border-white text-slate-300 text-[8px] uppercase transition-colors cursor-pointer"
+                        >
+                          ⚙ {isFa ? 'تنظیمات' : 'FINE-TUNE'}
+                        </button>
 
-                  <button
-                    type="button"
-                    data-testid="beta-reset-save-btn"
-                    onClick={handleResetAllSaveData}
-                    className="py-2 px-2 bg-transparent hover:bg-rose-950/50 border border-rose-500/60 hover:border-rose-400 text-rose-300 text-[8px] uppercase transition-colors cursor-pointer"
-                    title="Beta: Reset All Save Data & Stats to Zero"
-                  >
-                    ↺ {isFa ? 'ریست' : 'RESET'}
-                  </button>
+                        <button
+                          type="button"
+                          data-testid="beta-reset-save-btn"
+                          onClick={handleResetAllSaveData}
+                          className="py-2 px-2 bg-transparent hover:bg-rose-950/50 border border-rose-500/60 hover:border-rose-400 text-rose-300 text-[8px] uppercase transition-colors cursor-pointer"
+                          title="Beta: Reset All Save Data & Stats to Zero"
+                        >
+                          ↺ {isFa ? 'ریست' : 'RESET'}
+                        </button>
 
-                  <button
-                    type="button"
-                    onClick={handleExportDevBundleFile}
-                    className="py-2 px-2 bg-transparent hover:bg-slate-900 border border-slate-700 hover:border-amber-400 text-amber-300 text-[8px] uppercase transition-colors cursor-pointer"
-                    title="Export Dev Bundle (.JSON)"
-                  >
-                    .JSON
-                  </button>
+                        <button
+                          type="button"
+                          onClick={handleExportDevBundleFile}
+                          className="py-2 px-2 bg-transparent hover:bg-slate-900 border border-slate-700 hover:border-amber-400 text-amber-300 text-[8px] uppercase transition-colors cursor-pointer"
+                          title="Export Dev Bundle (.JSON)"
+                        >
+                          .JSON
+                        </button>
+                      </>
+                    )}
 
-                  {deferredInstallPrompt && (
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        await deferredInstallPrompt.prompt();
-                        await deferredInstallPrompt.userChoice;
-                        setDeferredInstallPrompt(null);
-                      }}
-                      className="py-2 px-2 bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-400 text-emerald-300 text-[8px] uppercase cursor-pointer"
-                      title="Install App on Android / Desktop"
-                    >
-                      📲 APP
-                    </button>
-                  )}
-                </div>
+                    {deferredInstallPrompt && (
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          await deferredInstallPrompt.prompt();
+                          await deferredInstallPrompt.userChoice;
+                          setDeferredInstallPrompt(null);
+                        }}
+                        className="py-2 px-2 bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-400 text-emerald-300 text-[8px] uppercase cursor-pointer"
+                        title="Install App on Android / Desktop"
+                      >
+                        📲 APP
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
 
               {midiStatus && (
@@ -6276,6 +6326,7 @@ export default function App() {
             onSelectAvatar={handleSelectAvatar}
             onUnlockAvatar={handleUnlockAvatar}
             onSetOrbs={handleSetExactOrbs}
+            hideOrbSetter={telegramSession.isTelegramEnv}
             onClose={() => setScreen('title')}
           />
         )}
@@ -6420,30 +6471,32 @@ export default function App() {
                   </button>
                 </div>
 
-                <div className="flex items-center gap-1">
-                  <input
-                    type="number"
-                    min={0}
-                    max={999999}
-                    placeholder="Orbs..."
-                    value={storeOrbInput}
-                    onChange={(e) => setStoreOrbInput(e.target.value)}
-                    className="w-20 px-1.5 py-1 bg-slate-950 border border-slate-700 text-[8px] text-amber-300"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const val = parseInt(storeOrbInput, 10);
-                      if (!Number.isNaN(val)) {
-                        handleSetExactOrbs(val);
-                        setStoreOrbInput('');
-                      }
-                    }}
-                    className="px-2 py-1 bg-amber-400 hover:bg-amber-300 text-slate-950 text-[8px] uppercase cursor-pointer"
-                  >
-                    SET
-                  </button>
-                </div>
+                {!telegramSession.isTelegramEnv && (
+                  <div className="flex items-center gap-1">
+                    <input
+                      type="number"
+                      min={0}
+                      max={999999}
+                      placeholder="Orbs..."
+                      value={storeOrbInput}
+                      onChange={(e) => setStoreOrbInput(e.target.value)}
+                      className="w-20 px-1.5 py-1 bg-slate-950 border border-slate-700 text-[8px] text-amber-300"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const val = parseInt(storeOrbInput, 10);
+                        if (!Number.isNaN(val)) {
+                          handleSetExactOrbs(val);
+                          setStoreOrbInput('');
+                        }
+                      }}
+                      className="px-2 py-1 bg-amber-400 hover:bg-amber-300 text-slate-950 text-[8px] uppercase cursor-pointer"
+                    >
+                      SET
+                    </button>
+                  </div>
+                )}
               </div>
 
               {storeTab === 'powerups' ? (
@@ -6800,6 +6853,7 @@ export default function App() {
                     onSelectAvatar={handleSelectAvatar}
                     onUnlockAvatar={handleUnlockAvatar}
                     onSetOrbs={handleSetExactOrbs}
+                    hideOrbSetter={telegramSession.isTelegramEnv}
                     onClose={() => setScreen('title')}
                   />
                 </div>
@@ -6998,7 +7052,7 @@ export default function App() {
         {/* 16-SEQ removed per user request — all melody & stage editing is unified in the DAW Stage Creator */}
 
         {/* --- SYSTEM CONFIG, CURATED MELODY LIBRARY & CATEGORIZED FINE-TUNE SLIDERS --- */}
-        {screen === 'settings' && (
+        {screen === 'settings' && !telegramSession.isTelegramEnv && (
           <div
             id="settings-screen"
             className="absolute inset-0 z-30 bg-[#060810]/96 flex flex-col justify-between p-4 overflow-y-auto text-[9px]"

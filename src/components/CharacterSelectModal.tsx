@@ -52,6 +52,7 @@ interface CharacterSelectModalProps {
   onSetOrbs: (newAmount: number) => void;
   onClose: () => void;
   embeddedInStore?: boolean;
+  hideOrbSetter?: boolean;
 }
 
 interface PointerClientState {
@@ -188,6 +189,7 @@ export default function CharacterSelectModal({
   onSetOrbs,
   onClose,
   embeddedInStore = false,
+  hideOrbSetter = false,
 }: CharacterSelectModalProps) {
   const previewCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const [tierFilter, setTierFilter] = useState<'ALL' | AvatarTier>('ALL');
@@ -634,28 +636,35 @@ export default function CharacterSelectModal({
         </div>
 
         <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1 bg-slate-900 border border-amber-400/60 px-2 py-1">
-            <RadiantOrbIcon size={13} />
-            <input
-              type="number"
-              aria-label="Test Orb Amount"
-              value={orbInputVal}
-              onChange={(e) => setOrbInputVal(e.target.value)}
-              className="w-16 bg-slate-950 border border-slate-700 px-1.5 py-0.5 text-[9px] text-amber-300"
-            />
-            <button
-              type="button"
-              onClick={() => {
-                const parsed = parseInt(orbInputVal, 10);
-                if (!Number.isNaN(parsed) && parsed >= 0) {
-                  onSetOrbs(parsed);
-                }
-              }}
-              className="px-1.5 py-0.5 bg-amber-400 hover:bg-amber-300 text-slate-950 text-[8px] uppercase cursor-pointer"
-            >
-              SET
-            </button>
-          </div>
+          {hideOrbSetter ? (
+            <div className="flex items-center gap-1.5 bg-slate-900 border border-amber-400/60 px-2.5 py-1 text-amber-300">
+              <RadiantOrbIcon size={13} />
+              <strong>{totalOrbs}</strong>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1 bg-slate-900 border border-amber-400/60 px-2 py-1">
+              <RadiantOrbIcon size={13} />
+              <input
+                type="number"
+                aria-label="Test Orb Amount"
+                value={orbInputVal}
+                onChange={(e) => setOrbInputVal(e.target.value)}
+                className="w-16 bg-slate-950 border border-slate-700 px-1.5 py-0.5 text-[9px] text-amber-300"
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  const parsed = parseInt(orbInputVal, 10);
+                  if (!Number.isNaN(parsed) && parsed >= 0) {
+                    onSetOrbs(parsed);
+                  }
+                }}
+                className="px-1.5 py-0.5 bg-amber-400 hover:bg-amber-300 text-slate-950 text-[8px] uppercase cursor-pointer"
+              >
+                SET
+              </button>
+            </div>
+          )}
 
           <button
             type="button"

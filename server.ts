@@ -263,14 +263,27 @@ async function startServer() {
     (process.env.NODE_ENV === 'production' || fs.existsSync(distIndexHtml));
 
   if (useStaticDist) {
+    const serveTelegramIndexHtml = (_req: express.Request, res: express.Response) => {
+      try {
+        const rawHtml = fs.readFileSync(distIndexHtml, 'utf8');
+        const injectedHtml = rawHtml.replace(
+          '<head>',
+          '<head><script>window.__OMNI_TELEGRAM_DEPLOY__=true;</script>'
+        );
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        res.send(injectedHtml);
+      } catch {
+        res.sendFile(distIndexHtml);
+      }
+    };
+    app.get('/', serveTelegramIndexHtml);
+    app.get('/index.html', serveTelegramIndexHtml);
     app.use(express.static(distPath));
-    app.get('*all', (req, res) => {
-      res.sendFile(distIndexHtml);
-    });
+    app.get('*all', serveTelegramIndexHtml);
   } else {
     const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
-      server: { middlewareMode: true },
+      server: { middlewareMode: true, hmr: false, watch: null },
       appType: 'spa',
     });
     app.use(vite.middlewares);
