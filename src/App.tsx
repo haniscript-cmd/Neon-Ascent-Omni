@@ -103,6 +103,7 @@ import {
   fetchTelegramLeaderboard,
   shareScoreToTelegramChat,
   savePlayerProfile,
+  checkAndApplyTelegramResetEpoch,
   RankedLeaderboardEntry,
 } from './game/telegram';
 
@@ -880,7 +881,14 @@ export default function App() {
     const sess = parseTelegramGameSession();
     setTelegramSession(sess);
     setPilotNameInput(sess.firstName);
-    fetchTelegramLeaderboard().then((list) => {
+    fetchTelegramLeaderboard(() => {
+      // Server resetEpoch advanced: reset in-memory XP, Level, Orbs, and HighScore
+      const freshCfg = { ...DEFAULT_CFG, fineTune: { ...DEFAULT_FINE_TUNE } };
+      const freshStats = { highScore: 0, maxCombo: 0, totalOrbs: 60, runsPlayed: 0 };
+      setCfg(freshCfg);
+      setStats(freshStats);
+      simRef.current.cfg = freshCfg;
+    }).then((list) => {
       setRankedLeaderboard(list);
     });
   }, []);
@@ -914,6 +922,9 @@ export default function App() {
 
   const [cfg, setCfg] = useState<GameConfig>(() => {
     const isTgRelease = parseTelegramGameSession().isTelegramEnv;
+    if (isTgRelease) {
+      checkAndApplyTelegramResetEpoch();
+    }
     try {
       const saved = localStorage.getItem('omni_cfg_v8');
       if (saved) {

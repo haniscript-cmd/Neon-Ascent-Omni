@@ -75,6 +75,38 @@ declare global {
 const LOCAL_LEADERBOARD_KEY = 'omni_tg_ranked_leaderboard_v1';
 const LOCAL_PLAYER_PROFILE_KEY = 'omni_tg_player_profile_v1';
 const SESSION_PARAMS_CACHE_KEY = 'omni_tg_url_session_v1';
+const LOCAL_RESET_EPOCH_KEY = 'omni_tg_reset_epoch_v1';
+export const DEFAULT_TELEGRAM_RESET_EPOCH = 2;
+
+/**
+ * Checks if the Telegram season/resetEpoch has advanced (defaulting to epoch 2 after the Chord Gate exploit fix).
+ * If so, clears farmed local leaderboard, XP/Level/Unlocks (`omni_cfg_v8`), and Orbs/HighScore (`omni_stats_v4`)
+ * for Telegram players only.
+ */
+export function checkAndApplyTelegramResetEpoch(incomingEpoch?: number): boolean {
+  if (typeof window === 'undefined') return false;
+  const session = parseTelegramGameSession();
+  if (!session.isTelegramEnv) return false;
+
+  const targetEpoch =
+    typeof incomingEpoch === 'number' && incomingEpoch >= DEFAULT_TELEGRAM_RESET_EPOCH
+      ? incomingEpoch
+      : DEFAULT_TELEGRAM_RESET_EPOCH;
+
+  try {
+    const savedEpoch = Number(localStorage.getItem(LOCAL_RESET_EPOCH_KEY) || '0');
+    if (savedEpoch < targetEpoch) {
+      localStorage.removeItem(LOCAL_LEADERBOARD_KEY);
+      localStorage.removeItem('omni_cfg_v8');
+      localStorage.removeItem('omni_stats_v4');
+      localStorage.setItem(LOCAL_RESET_EPOCH_KEY, String(targetEpoch));
+      return true;
+    }
+  } catch {
+    // ignore
+  }
+  return false;
+}
 
 export function getSavedPlayerProfile(): {
   userId: string;
@@ -426,6 +458,9 @@ export async function submitTelegramRankedScore(params: {
     });
     if (res.ok) {
       const data = await res.json();
+      if (typeof data.resetEpoch === 'number') {
+        checkAndApplyTelegramResetEpoch(data.resetEpoch);
+      }
       if (Array.isArray(data.leaderboard)) {
         const merged: RankedLeaderboardEntry[] = data.leaderboard.map(
           (row: RankedLeaderboardEntry, idx: number) => ({
@@ -455,7 +490,9 @@ export async function submitTelegramRankedScore(params: {
 /**
  * Fetches the Group Ranked Leaderboard from `/api/telegram/leaderboard`.
  */
-export async function fetchTelegramLeaderboard(): Promise<RankedLeaderboardEntry[]> {
+export async function fetchTelegramLeaderboard(
+  onSeasonReset?: () => void
+): Promise<RankedLeaderboardEntry[]> {
   const session = parseTelegramGameSession();
   const query = new URLSearchParams();
   if (session.userId) {
@@ -484,7 +521,13 @@ export async function fetchTelegramLeaderboard(): Promise<RankedLeaderboardEntry
     const res = await fetch(endpoint);
     if (res.ok) {
       const data = await res.json();
-      if (Array.isArray(data.leaderboard) && data.leaderboard.length > 0) {
+      if (typeof data.resetEpoch === 'number') {
+        const wasReset = checkAndApplyTelegramResetEpoch(data.resetEpoch);
+        if (wasReset && onSeasonReset) {
+          onSeasonReset();
+        }
+      }
+      if (Array.isArray(data.leaderboard)) {
         const mapped: RankedLeaderboardEntry[] = data.leaderboard.map(
           (row: RankedLeaderboardEntry, idx: number) => ({
             ...row,
